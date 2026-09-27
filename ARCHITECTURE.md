@@ -259,7 +259,7 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
 - Fidelity fixes in this change set (engine side only; SPEC untouched): `SURFACE_UNPARSEABLE` now follows the §3 closed table on every surface including `.claude/hooks/**` and `.pinwash/pins.json`; a deleted or unparseable head `allow.toml` with base exemptions is `CONFIG_RELAXED` critical; job-side `REQUIRED_CHECK_DROPPED` is ruleset-linked per §5; declared `action_ref` pins rank per the §4 lattice; a commented-out hook command is the v0 closed shape of "command prefixed with a no-op" (`HOOK_BYPASSED`, and non-live for the last-Stop escalator); a corrupt or absent baseline no longer produces invented findings on `cursor_mcp` / `claude_settings` permissions.
 - ~~Still open: hook `command` strings that resolve to repo-relative files...~~ **Resolved in spec 4:** §3.3 restores target resolution with a closed tokenizer rule, and §5.2 body stubs wire into `GATE_STUBBED` and the last-Stop escalator.
 - No typed IR (escalators are centralized in `escalate.py`, but detectors still speak raw dicts and callback `add`).
-- `gitrepo.ls_tree` calls `git show` per blob (N+1). A later `cat-file --batch` does not change the analysis unit.
+- ~~`gitrepo.ls_tree` calls `git show` per blob (N+1).~~ Fixed: one `cat-file --batch` round trip per tree; the analysis unit is unchanged.
 - `.pinwash/allow.toml` is mixed into the surface `EXACT` set.
 
 ## 11. Non-goals that stay non-goals

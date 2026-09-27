@@ -64,16 +64,52 @@ def ls_tree(repo: Path, spec: str) -> dict[str, bytes]:
     if proc.returncode != 0:
         raise GitError("unreadable git repository")
     names = proc.stdout.decode("utf-8", "replace").replace("\r\n", "\n").split("\n")
-    out: dict[str, bytes] = {}
-    for name in names:
-        path = name.replace("\\", "/").strip()
-        if not path:
-            continue
-        show = _run(repo, ["show", f"{spec}:{path}"])
-        if show.returncode != 0:
+    paths = [name.replace("\\", "/").strip() for name in names]
+    paths = [p for p in paths if p]
+    return _cat_file_batch(repo, spec, paths)
+
+
+def _cat_file_batch(
+    repo: Path, spec: str, paths: list[str]
+) -> dict[str, bytes]:
+    """One cat-file --batch round trip instead of one `git show` per blob."""
+    if not paths:
+        return {}
+    request = b"".join(f"{spec}:{p}\n".encode("utf-8", "surrogateescape") for p in paths)
+    proc = _run_input(repo, ["cat-file", "--batch"], request)
+    if proc.returncode != 0:
+        raise GitError("unreadable git repository")
+    out = proc.stdout
+    out_len = len(out)
+    result: dict[str, bytes] = {}
+    pos = 0
+    for p in paths:
+        nl = out.find(b"\n", pos)
+        if nl < 0:
             raise GitError("unreadable git repository")
-        out[path] = show.stdout
-    return out
+        header = out[pos:nl]
+        pos = nl + 1
+        parts = header.split()
+        if len(parts) != 3 or not parts[2].isdigit():
+            raise GitError("unreadable git repository")
+        size = int(parts[2])
+        if pos + size + 1 > out_len:
+            raise GitError("unreadable git repository")
+        result[p] = out[pos:pos + size]
+        pos += size + 1
+    return result
+
+
+def _run_input(
+    repo: Path, args: list[str], input_bytes: bytes
+) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        input=input_bytes,
+        capture_output=True,
+        check=False,
+    )
 
 
 def _ls_worktree(repo: Path) -> dict[str, bytes]:
