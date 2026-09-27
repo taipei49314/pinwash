@@ -35,8 +35,10 @@ from pinwash.surfaces import (
     is_cursor_hooks,
     is_cursor_mcp,
     is_declared_pins,
+    is_gemini_settings,
     is_gha_ruleset,
     is_gha_workflow,
+    is_opencode_config,
     is_surface,
     skill_bypass_excluded,
     glob_skill,
@@ -183,6 +185,19 @@ def scan_pair(
                     h_obj,
                     add,
                 )
+        elif is_gemini_settings(path) or is_opencode_config(path):
+            b_obj, b_st = json_load(base_files.get(path))
+            h_obj, h_st = json_load(head_files.get(path))
+            unp = _surface_unparseable(b_st, h_st)
+            if unp:
+                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+                continue
+            if b_st != "unparseable" and h_st == "ok":
+                base_doc = b_obj if b_st == "ok" else None
+                if is_gemini_settings(path):
+                    permission.detect_gemini_settings(path, base_doc, h_obj, add)
+                else:
+                    permission.detect_opencode_config(path, base_doc, h_obj, add)
         elif is_declared_pins(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))

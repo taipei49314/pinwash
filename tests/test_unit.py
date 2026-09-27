@@ -399,5 +399,63 @@ class InlineComments(unittest.TestCase):
         )
 
 
+class HostSurfaces(unittest.TestCase):
+    """SPEC 6 (R06 wave 1): gemini_settings, opencode_config, markdown family."""
+
+    def test_gemini_auto_accept_fires(self) -> None:
+        base = json.dumps({"autoAccept": False, "theme": "dark"})
+        head = json.dumps({"autoAccept": True, "theme": "dark"})
+        payload = _pair({".gemini/settings.json": base}, {".gemini/settings.json": head})
+        self.assertIn(("PERMISSION_WIDENED", "high"), _rules(payload))
+
+    def test_gemini_auto_accept_removal_is_silent(self) -> None:
+        payload = _pair(
+            {".gemini/settings.json": json.dumps({"autoAccept": True})},
+            {".gemini/settings.json": json.dumps({"theme": "dark"})},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_gemini_approval_mode_lattice(self) -> None:
+        payload = _pair(
+            {".gemini/settings.json": json.dumps({"approvalMode": "default"})},
+            {".gemini/settings.json": json.dumps({"approvalMode": "yolo"})},
+        )
+        self.assertIn(("PERMISSION_WIDENED", "high"), _rules(payload))
+
+    def test_gemini_mcp_trust(self) -> None:
+        servers = {"mcpServers": {"fetch": {"command": "fetch", "trust": True}}}
+        payload = _pair(
+            {".gemini/settings.json": json.dumps({"mcpServers": {"fetch": {"command": "fetch"}}})},
+            {".gemini/settings.json": json.dumps(servers)},
+        )
+        self.assertIn(("PERMISSION_WIDENED", "high"), _rules(payload))
+
+    def test_opencode_ask_to_allow_fires(self) -> None:
+        base = json.dumps({"permission": {"edit": "ask", "bash": "deny"}})
+        head = json.dumps({"permission": {"edit": "allow", "bash": "ask"}})
+        payload = _pair({"opencode.json": base}, {"opencode.json": head})
+        rules = _rules(payload)
+        self.assertEqual(rules.count(("PERMISSION_WIDENED", "high")), 2)
+
+    def test_opencode_new_deny_is_silent(self) -> None:
+        payload = _pair(
+            {"opencode.json": json.dumps({})},
+            {"opencode.json": json.dumps({"permission": {"bash": "deny"}})},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_gemini_and_copilot_markdown_are_surfaces(self) -> None:
+        payload = _pair(
+            {"GEMINI.md": "hello\n", ".github/copilot-instructions.md": "hello\n"},
+            {
+                "GEMINI.md": "hello\nskip checkwash\n",
+                ".github/copilot-instructions.md": "hello\n--no-verify\n",
+            },
+        )
+        self.assertEqual(
+            _rules(payload).count(("SKILL_BYPASS", "warn")), 2
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

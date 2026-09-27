@@ -13,12 +13,19 @@ EXACT = frozenset(
         ".mcp.json",
         "AGENTS.md",
         "CLAUDE.md",
+        "GEMINI.md",
+        "QWEN.md",
         ".cursorrules",
+        ".windsurfrules",
+        ".clinerules",
+        ".github/copilot-instructions.md",
         ".github/required-ruleset.json",
         ".pinwash/pins.json",
         ".pinwash/allow.toml",
         ".checkwash/config.toml",
         ".greenwash/config.toml",
+        ".gemini/settings.json",
+        "opencode.json",
     }
 )
 
@@ -66,11 +73,28 @@ def glob_skill(path: str) -> bool:
 
 def is_agent_markdown(path: str) -> bool:
     p = norm(path)
-    if p in {"AGENTS.md", "CLAUDE.md", ".cursorrules"}:
+    if p in {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "QWEN.md",
+        ".cursorrules",
+        ".windsurfrules",
+        ".clinerules",
+        ".github/copilot-instructions.md",
+    }:
         return True
     if p.startswith(".cursor/rules/") and (p.endswith(".mdc") or p.endswith(".md")):
         return True
     return False
+
+
+def is_gemini_settings(path: str) -> bool:
+    return norm(path) == ".gemini/settings.json"
+
+
+def is_opencode_config(path: str) -> bool:
+    return norm(path) == "opencode.json"
 
 
 def is_claude_settings(path: str) -> bool:

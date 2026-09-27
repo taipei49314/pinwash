@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **5** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **6** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -67,13 +67,15 @@ A **surface** is a named, path-bounded, parse-bounded family. Adding a surface i
 | `claude_hooks` | `.claude/hooks/**`, plus hook `command` strings that resolve to repo-relative files per §3.3 | JSON if `.json`, else **command line** as a single string |
 | `cursor_hooks` | `.cursor/hooks.json` | JSON object |
 | `cursor_mcp` | `.cursor/mcp.json`, `.mcp.json` | JSON object |
-| `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.cursor/rules/**/*.mdc`, `.cursor/rules/**/*.md` | UTF-8 text; only `SKILL_BYPASS` uses this surface |
+| `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`, `.cursor/rules/**/*.mdc`, `.cursor/rules/**/*.md` | UTF-8 text; only `SKILL_BYPASS` uses this surface |
 | `skill_md` | `**/SKILL.md`, `.agents/skills/**/SKILL.md`, `.cursor/skills/**/SKILL.md` | UTF-8 text; only `SKILL_BYPASS` |
 | `gha_workflow` | `.github/workflows/*.{yml,yaml}` | **Bounded line grammar** (§3.1), not YAML 1.2 |
 | `gha_ruleset` | `.github/required-ruleset.json`, `.github/rulesets/*.json` | JSON object |
 | `action_pin` | same workflow files as `gha_workflow` | `uses:` lines in the bounded grammar |
 | `declared_pins` | `.pinwash/pins.json` (optional) | JSON array of pin records (§4) |
 | `checkwash_config` | `.checkwash/config.toml`, `.greenwash/config.toml` | **Bounded TOML** (§3.2) for disable / `fail_on` only |
+| `gemini_settings` | `.gemini/settings.json` | JSON object |
+| `opencode_config` | `opencode.json` | JSON object |
 
 Files outside these paths are invisible to v0. A harness that lives only in a user’s home directory, an untracked `.claude/settings.local.json`, or a SaaS UI is a residual (§11).
 
@@ -224,9 +226,11 @@ Closed comparisons:
 | `claude_settings` | `permissions.allow` gains `Bash(*)`, `Bash(rm *)`, `Bash(git push --force*)`, or a new `*` entry |
 | `claude_settings` | `permissionMode` becomes `dontAsk` or `acceptEdits` when it was absent or stricter (`default` / `acceptEdits` → `dontAsk` is widen; reverse is not) |
 | `cursor_mcp` | an MCP server `disabled: false` added, or `"alwaysAllow"` / `"autoApprove"` array gains `"*"` |
+| `gemini_settings` | `autoAccept` becomes `true` when it was absent or `false`; `approvalMode` becomes `yolo` or `auto_edit` when it was absent or stricter (`default` / `auto_edit` → `yolo` is widen; reverse is not); an `mcpServers` entry is added with `"trust": true` or gains it |
+| `opencode_config` | a `permission.<tool>` value becomes `allow` when it was absent, `ask`, or `deny` (`deny` / `ask` → `allow` is widen; reverse is not) |
 | `cursor_hooks` | matcher `Write\|Edit\|Bash` **narrowed away from Bash** so PreToolUse no longer sees commits — this is `HOOK_BYPASSED`, not this rule |
 
-`permissionMode` lattice, stricter to weaker: `default` > `acceptEdits` > `dontAsk`. Unknown values: no finding, residual.
+`permissionMode` lattice, stricter to weaker: `default` > `acceptEdits` > `dontAsk`. `approvalMode` lattice, stricter to weaker: `default` > `auto_edit` > `yolo`. `permission.<tool>` lattice, stricter to weaker: `deny` > `ask` > `allow`. Unknown values: no finding, residual. Object-form `permission.bash` patterns in `opencode.json` are a residual (v0 compares string values only).
 
 ### 5.4 SKILL_BYPASS phrase table
 
@@ -271,7 +275,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 5
+    "spec_version": 6
   },
   "verdict": "pass | block",
   "findings": [],
@@ -346,7 +350,7 @@ These are expected non-findings. Each needs a THREATMODEL row before an engine s
 | R03 | YAML aliases, multiline `uses`, reusable workflows |
 | R04 | Vendored judge **bytes** patched without pin-record change |
 | R05 | GitHub ruleset live on API, file not in trees |
-| R06 | Unknown skip keys / new agent hosts (Copilot studio, Codex, Gemini CLI, …) |
+| R06 | Hosts beyond the spec 6 surface set (Codex host config lives in `$HOME` → R02; Qoder; Copilot agent settings beyond `copilot-instructions.md`); unknown skip keys; `opencode.jsonc`; object-form `permission.bash` patterns |
 | R07 | Stub shapes outside the §5.2 closed body lists (guarded one-liners, trailing comments on stub lines, docstring-wrapped stubs); opaque command forms (`python -m pkg.mod`, inline `-c` payloads, quoted paths with spaces, variable expansion) — the import-time `sys.exit(0)` attack itself is in scope since spec 4 |
 | R08 | `SKILL_BYPASS` missed paraphrases; also false hits on non-excluded docs |
 | R09 | Required check context renamed in GitHub but job `name:` unchanged, or the reverse, when no ruleset file exists |
@@ -403,6 +407,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **6** — R06 first closing wave (§9.2): new surfaces `gemini_settings` (`.gemini/settings.json`) and `opencode_config` (`opencode.json`) with closed §5.3 widening rows (`autoAccept`, `approvalMode`, mcp `trust`; `permission.<tool>` lattice `deny > ask > allow`), and `agent_markdown` widened to the Gemini/Qwen/Copilot/Windsurf/Cline instruction files (`GEMINI.md`, `QWEN.md`, `.github/copilot-instructions.md`, `.windsurfrules`, `.clinerules`). Grounded on real files on the maintainer host (`opencode.json` permission blocks; boundkit’s `GEMINI.md` and `.github/copilot-instructions.md`). Residuals: `opencode.jsonc`, object-form `permission.bash` patterns, Codex repo-level config (Codex keeps host config in `$HOME` → R02), all further hosts.
 - **5** — Bounded GHA grammar widened (first §9.3 widening): recorded values truncate at the first ` #` (space-hash), the bounded form of a YAML inline comment. Found by live-fire on taipei49314/checkwash: sha-pinned `uses:` lines annotated `# vX.Y.Z` classified as floating, so honest release annotation bumps fired `JUDGE_UNPINNED` critical. With truncation, shas classify as `git_sha`; annotation-only bumps are silent; genuine floats still fire.
 - **4** — R07 narrowed by implementation: §3.3 defines the closed rule by which hook `command` strings resolve to repo-relative target files, restored to the `claude_hooks` surface; §5.2 defines closed per-extension body stub sets, and `GATE_STUBBED` fires when a base non-stub body becomes one; the §6.1 last-Stop escalator treats body-stubbed commands as not live. The import-time `sys.exit(0)` attack named in R07 is now in scope; R07 stays Open for shapes outside the closed lists.
 - **3** — Honesty sync and the command-target ruling: the preamble states a local engine exists and records the 2026-09-27 delegated edit authority; the `claude_hooks` surface is narrowed to `.claude/hooks/**` (hook `command` strings are not resolved to repo-relative target files — moved into R07’s bump scope). Engine behavior is unchanged by this version.
