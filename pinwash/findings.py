@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from pinwash import FINDINGS_VERSION, SPEC_VERSION, __version__
+from pinwash.escalate import SEVERITY_RANK
 from pinwash.textutil import canonical_json, sha256_text
 
-SEVERITY_RANK = {"info": 0, "warn": 1, "high": 2, "critical": 3}
 FAIL_ON_DEFAULT = "high"
 
 

@@ -18,8 +18,6 @@ _FALSE_ASSIGN = re.compile(
 _DISABLE_LIST = re.compile(r"^disable\s*=\s*\[(.*)\]\s*$")
 _STR = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"(.*)"\s*$')
 
-SEVERITY_RANK = {"info": 0, "warn": 1, "high": 2, "critical": 3}
-
 
 def parse_checkwash_config(text: str) -> dict[str, Any]:
     disabled: list[str] = []

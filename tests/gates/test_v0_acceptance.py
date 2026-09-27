@@ -311,7 +311,7 @@ class NoNetwork(unittest.TestCase):
     def test_package_does_not_import_network(self) -> None:
         forbidden = {"socket", "ssl", "http", "urllib", "requests", "httpx"}
         pkg = ROOT / "pinwash"
-        for path in pkg.glob("*.py"):
+        for path in sorted(pkg.rglob("*.py")):
             tree = path.read_text(encoding="utf-8")
             for name in forbidden:
                 self.assertNotRegex(

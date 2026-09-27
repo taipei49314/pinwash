@@ -6,7 +6,7 @@ import unittest
 from pinwash.engine import scan_pair
 from pinwash.hooks import stub_command
 from pinwash.pins import classify_action_ref, parse_uses, record_rank
-from pinwash.gha import parse_workflow
+from pinwash.parse.gha import parse_workflow
 from pinwash.surfaces import is_surface
 
 ENV = {"PINWASH_TODAY": "2026-09-27"}

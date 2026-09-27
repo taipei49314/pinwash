@@ -103,14 +103,14 @@ Public JSON fields and the fingerprint formula stay frozen in SPEC §7. A refact
 | CLI | Dispatch; unexpected exceptions → exit 2 | `pinwash/cli.py` |
 | Git adapter | Two-dot / three-dot; tree bytes; unreadable git → `GitError` | `pinwash/gitrepo.py` |
 | Surface registry | Path → membership in the v0 closed set | `pinwash/surfaces.py` |
-| Bounded parsers | Not YAML 1.2, not full TOML, no executing Python | `pinwash/gha.py`, `pinwash/tomlsub.py`, stdlib JSON |
+| Bounded parsers | Not YAML 1.2, not full TOML, closed hook-command resolution | `pinwash/parse/` (`gha`, `jsonsurf`, `tomlsub`, `hookcmd`) |
 | Typed IR | Detectors must not see raw YAML | **Missing** — 1.0-shape gap |
-| Detectors | `(base_ir, head_ir, path) → drafts`; no I/O | `pinwash/engine.py` `_detect_*` |
-| Escalators | SPEC §6 order; no scores | Inlined in those detectors |
-| Allow | Fingerprint + rule; never a rule-glob | `pinwash/engine.py` `_apply_allow` |
+| Detectors | Pure, no I/O; one module per rule family | `pinwash/rules/` |
+| Escalators | SPEC §6 order; no scores | `pinwash/escalate.py` |
+| Allow | Fingerprint + rule; never a rule-glob | `pinwash/allow.py` |
 | Envelope | Stable sort keys; no clock; no floats | `pinwash/findings.py` |
 
-`engine.py` currently owns parse dispatch, every detector, escalation, allow, and envelope assembly. That is acceptable for local v0. It is not the 1.0 shape.
+`engine.py` is orchestration only: surface dispatch, the §3 unparseable table, and assembly.
 
 ## 4. Data flow
 
@@ -258,7 +258,7 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
 - SPEC §1.6 called a missing observation `INCOMPLETE`, but the §7 severity enum has no such value. → **Ruled 2026-09-27 (delegated): the token is removed as of spec 2.** The fail-closed invariant stays and is carried by the three existing channels; no detector or envelope change.
 - Fidelity fixes in this change set (engine side only; SPEC untouched): `SURFACE_UNPARSEABLE` now follows the §3 closed table on every surface including `.claude/hooks/**` and `.pinwash/pins.json`; a deleted or unparseable head `allow.toml` with base exemptions is `CONFIG_RELAXED` critical; job-side `REQUIRED_CHECK_DROPPED` is ruleset-linked per §5; declared `action_ref` pins rank per the §4 lattice; a commented-out hook command is the v0 closed shape of "command prefixed with a no-op" (`HOOK_BYPASSED`, and non-live for the last-Stop escalator); a corrupt or absent baseline no longer produces invented findings on `cursor_mcp` / `claude_settings` permissions.
 - ~~Still open: hook `command` strings that resolve to repo-relative files...~~ **Resolved in spec 4:** §3.3 restores target resolution with a closed tokenizer rule, and §5.2 body stubs wire into `GATE_STUBBED` and the last-Stop escalator.
-- No typed IR; escalators are not centralized.
+- No typed IR (escalators are centralized in `escalate.py`, but detectors still speak raw dicts and callback `add`).
 - `gitrepo.ls_tree` calls `git show` per blob (N+1). A later `cat-file --batch` does not change the analysis unit.
 - `.pinwash/allow.toml` is mixed into the surface `EXACT` set.
 
