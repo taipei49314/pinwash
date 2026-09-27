@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **3** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **4** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -64,7 +64,7 @@ A **surface** is a named, path-bounded, parse-bounded family. Adding a surface i
 | ID | Paths (any match) | Parse |
 |---|---|---|
 | `claude_settings` | `.claude/settings.json`, `.claude/settings.local.json` | JSON object |
-| `claude_hooks` | `.claude/hooks/**` | JSON if `.json`, else **command line** as a single string |
+| `claude_hooks` | `.claude/hooks/**`, plus hook `command` strings that resolve to repo-relative files per §3.3 | JSON if `.json`, else **command line** as a single string |
 | `cursor_hooks` | `.cursor/hooks.json` | JSON object |
 | `cursor_mcp` | `.cursor/mcp.json`, `.mcp.json` | JSON object |
 | `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.cursor/rules/**/*.mdc`, `.cursor/rules/**/*.md` | UTF-8 text; only `SKILL_BYPASS` uses this surface |
@@ -102,6 +102,12 @@ v0 reads only:
 - `fail_on = "..."` single-line.
 
 Full TOML 1.0 is a residual. Unknown keys are ignored. A file that does not parse as UTF-8 is `SURFACE_UNPARSEABLE`.
+
+### 3.3 Hook command target resolution
+
+A hook `command` string (from `claude_settings` or `cursor_hooks` JSON, on a given side) resolves to target files as follows, and nothing else: strip surrounding quotes; replace `;`, `&`, and `|` with spaces; split on whitespace. A token is a target iff it fully matches `[A-Za-z0-9_./-]+\.(py|sh|bash|js|mjs|cjs|ps1)`, does not start with `/`, `-`, or `~`, and names a path present in that side's tree after path normalization. Resolved targets are `claude_hooks` surface members for the §3 parse-status check and the §5.2 body check, in addition to `.claude/hooks/**` paths.
+
+Residuals: module-form commands (`python -m pkg.mod`), quoted paths containing spaces, tokens with variable expansion (`$HOME/...`), inline `-c` payloads, and targets absent from the tree. None of these are invented as stubs or as live judges.
 
 ## 4. Pin identity
 
@@ -155,7 +161,7 @@ Base severity of every finding is `warn`. Escalators in §6 may raise it. Detect
 |---|---|
 | `HOOK_REMOVED` | A named hook event that existed at base on `claude_settings` or `cursor_hooks` is absent at head, **or** its command list is empty. Renaming the event (`Stop` → `stop` if the host is case-sensitive — treat Claude `Stop` / `PreToolUse` as exact). Adding hooks is not this rule. |
 | `HOOK_BYPASSED` | An existing hook **remains named** but a skip was introduced: Claude `hooks` entry replaced by an empty matcher that never fires; Cursor hook `matcher` widened then command removed; command prefixed with a no-op; JSON `disabled: true` / `"hookEnabled": false` added. Host-specific keys are an exact table in §5.1. |
-| `GATE_STUBBED` | A remaining hook `command` at head is a **stub** (§5.2) and the base command was not a stub. |
+| `GATE_STUBBED` | A remaining hook `command` at head is a **stub** (§5.2) and the base command was not a stub; **or** the command resolves per §3.3 to target file(s) whose body is a stub (§5.2) while the base command resolved to a non-stub body. |
 | `JUDGE_UNPINNED` | A pin identity weakened per §4. |
 | `PERMISSION_WIDENED` | A permission or auto-approval set grew per §5.3. Shrinking is not a finding. |
 | `SKILL_BYPASS` | An **added or edited** line in `skill_md` or `agent_markdown` matches the bypass phrase table (§5.4). Deletions of such lines are not a finding. |
@@ -195,6 +201,17 @@ A command string is a stub if, after trim, it matches **any** of (whole string, 
 - empty string
 
 No regex beyond this closed list in v0. `python hooks/tripwire_stop.py --help` is **not** a stub.
+
+A hook **body** file — a target resolved per §3.3 — is a stub if every non-blank, non-comment line (after strip) is a member of the closed set for its extension:
+
+- `.py`: `pass`, `import sys`, `import os`, `if __name__ == "__main__":`, `sys.exit(0)`, `os._exit(0)`, `exit(0)`, `quit()`, `raise SystemExit`, `raise SystemExit(0)`, `print('{}')`, `print("{}")`
+- `.sh` / `.bash`: `exit 0`, `true`, `:`
+- `.js` / `.mjs` / `.cjs`: `process.exit(0)`, `process.exit(0);`
+- `.ps1`: `exit 0`
+
+An empty body after comment removal is a stub. A body containing any other line is not a stub — a real judge has work lines. No regex beyond these closed lists in v0.
+
+For the last-Stop escalator (§6.1), a command whose resolved targets are all stub bodies is **not live**, exactly like a stub command string.
 
 ### 5.3 PERMISSION_WIDENED
 
@@ -252,7 +269,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 3
+    "spec_version": 4
   },
   "verdict": "pass | block",
   "findings": [],
@@ -328,7 +345,7 @@ These are expected non-findings. Each needs a THREATMODEL row before an engine s
 | R04 | Vendored judge **bytes** patched without pin-record change |
 | R05 | GitHub ruleset live on API, file not in trees |
 | R06 | Unknown skip keys / new agent hosts (Copilot studio, Codex, Gemini CLI, …) |
-| R07 | Hook command that shells out to a stub **inside** a `.py` file (`sys.exit(0)` at import) — v0 does not parse Python hook bodies; hook `command` strings are also not resolved to repo-relative target files (narrowed out of the `claude_hooks` surface in spec 3) — revisit both with the R07 bump |
+| R07 | Stub shapes outside the §5.2 closed body lists (guarded one-liners, trailing comments on stub lines, docstring-wrapped stubs); opaque command forms (`python -m pkg.mod`, inline `-c` payloads, quoted paths with spaces, variable expansion) — the import-time `sys.exit(0)` attack itself is in scope since spec 4 |
 | R08 | `SKILL_BYPASS` missed paraphrases; also false hits on non-excluded docs |
 | R09 | Required check context renamed in GitHub but job `name:` unchanged, or the reverse, when no ruleset file exists |
 | R10 | Pinwash itself disabled by not running pinwash |
@@ -384,6 +401,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **4** — R07 narrowed by implementation: §3.3 defines the closed rule by which hook `command` strings resolve to repo-relative target files, restored to the `claude_hooks` surface; §5.2 defines closed per-extension body stub sets, and `GATE_STUBBED` fires when a base non-stub body becomes one; the §6.1 last-Stop escalator treats body-stubbed commands as not live. The import-time `sys.exit(0)` attack named in R07 is now in scope; R07 stays Open for shapes outside the closed lists.
 - **3** — Honesty sync and the command-target ruling: the preamble states a local engine exists and records the 2026-09-27 delegated edit authority; the `claude_hooks` surface is narrowed to `.claude/hooks/**` (hook `command` strings are not resolved to repo-relative target files — moved into R07’s bump scope). Engine behavior is unchanged by this version.
 - **2** — §1.6 rewritten: the undefined `INCOMPLETE` token is gone; the fail-closed invariant (missing observation is never a pass) now names the three channels that carry it (`SURFACE_UNPARSEABLE`, `config_errors`, `unknown_coverage`). No detector or envelope change.
 - **1** — `EXEMPTION_ADDED` formalized as a §5 rule (it was named in §10 but missing from the §5 closed set). §10 now states that only records satisfying the validity rule count as exemptions for the addition check and the edit/delete check, and that an edit is any change to a base exemption record.

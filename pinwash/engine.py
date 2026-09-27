@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -104,6 +105,106 @@ def _workflow_status(st: str, parsed: Any) -> str:
     return "ok"
 
 
+_HOOK_TARGET_RE = re.compile(r"[A-Za-z0-9_./-]+\.(?:py|sh|bash|js|mjs|cjs|ps1)")
+
+# §5.2 body stub sets: a body whose every non-blank, non-comment line is in
+# the extension's set is a stub. Real judges have work lines.
+_BODY_LINES: dict[str, frozenset[str]] = {
+    "py": frozenset(
+        {
+            "pass",
+            "import sys",
+            "import os",
+            'if __name__ == "__main__":',
+            "sys.exit(0)",
+            "os._exit(0)",
+            "exit(0)",
+            "quit()",
+            "raise SystemExit",
+            "raise SystemExit(0)",
+            "print('{}')",
+            'print("{}")',
+        }
+    ),
+    "sh": frozenset({"exit 0", "true", ":"}),
+    "bash": frozenset({"exit 0", "true", ":"}),
+    "js": frozenset({"process.exit(0)", "process.exit(0);"}),
+    "mjs": frozenset({"process.exit(0)", "process.exit(0);"}),
+    "cjs": frozenset({"process.exit(0)", "process.exit(0);"}),
+    "ps1": frozenset({"exit 0"}),
+}
+
+_PY_PURE_INERT = frozenset(
+    {"pass", "import sys", "import os", 'if __name__ == "__main__":'}
+)
+
+
+def _hook_command_targets(command: str, files: dict[str, bytes]) -> list[str]:
+    """§3.3 closed resolution: command string -> repo-relative target paths."""
+    text = command.strip().strip("\"'")
+    for ch in ";&|":
+        text = text.replace(ch, " ")
+    out: list[str] = []
+    for tok in text.split():
+        if not _HOOK_TARGET_RE.fullmatch(tok):
+            continue
+        if tok.startswith(("/", "-", "~")):
+            continue
+        p = norm(tok)
+        if p in files:
+            out.append(p)
+    return out
+
+
+def _body_scan(path: str, data: bytes) -> tuple[bool, str]:
+    """Return (is_stub, evidence) for a resolved hook body (§5.2)."""
+    text = decode_utf8(data)
+    if text is None:
+        return False, ""
+    allowed = _BODY_LINES.get(path.rsplit(".", 1)[-1])
+    if allowed is None:
+        return False, ""
+    lines = [
+        ln.strip()
+        for ln in crlf_to_lf(text).split("\n")
+        if ln.strip() and not ln.strip().startswith("#")
+    ]
+    if not lines:
+        return True, ""
+    if all(ln in allowed for ln in lines):
+        action = next((ln for ln in lines if ln not in _PY_PURE_INERT), lines[0])
+        return True, action
+    return False, next((ln for ln in lines if ln not in allowed), "")
+
+
+def _command_body_map(
+    files: dict[str, bytes],
+) -> tuple[dict[str, tuple[bool, str]], set[str]]:
+    """Per side: command -> (all targets stub, evidence), plus target paths."""
+    bodies: dict[str, tuple[bool, str]] = {}
+    targets_all: set[str] = set()
+    for path in sorted(files):
+        if not (is_claude_settings(path) or is_cursor_hooks(path)):
+            continue
+        obj, st = _json_load(files.get(path))
+        if st != "ok":
+            continue
+        for info in extract_event_hooks(obj).values():
+            for cmd in info["commands"]:
+                if cmd in bodies:
+                    continue
+                targets = _hook_command_targets(cmd, files)
+                if not targets:
+                    continue
+                targets_all.update(targets)
+                scans = [_body_scan(t, files[t]) for t in targets]
+                bodies[cmd] = (
+                    all(s[0] for s in scans),
+                    next((s[1] for s in scans if s[1]), ""),
+                )
+    return bodies, targets_all
+
+
 def _union_paths(base: dict[str, bytes], head: dict[str, bytes]) -> list[str]:
     names = set(base) | set(head)
     return sorted(norm(p) for p in names if is_surface(p))
@@ -199,6 +300,12 @@ def scan_pair(
 
     paths = _union_paths(base_files, head_files)
 
+    # SPEC §3.3 / §5.2: resolve hook command targets per side, then scan
+    # their bodies. Targets become claude_hooks surface members.
+    body_base, targets_base = _command_body_map(base_files)
+    body_head, targets_head = _command_body_map(head_files)
+    paths = sorted(set(paths) | targets_base | targets_head)
+
     # SPEC §5: the job-side REQUIRED_CHECK_DROPPED trigger is the workflow
     # job that produced a required status context named at base in
     # gha_ruleset. No base-named contexts -> no job-side findings.
@@ -223,7 +330,9 @@ def scan_pair(
             )
             base_ev = extract_event_hooks(b_obj) if b_st == "ok" else {}
             head_ev = extract_event_hooks(h_obj) if h_st == "ok" else {}
-            _detect_hooks(path, base_ev, head_ev, stop_names, add)
+            _detect_hooks(
+                path, base_ev, head_ev, stop_names, add, body_base, body_head
+            )
             if is_claude_settings(path) and h_st == "ok" and b_st != "unparseable":
                 _detect_permissions(
                     path,
@@ -231,9 +340,10 @@ def scan_pair(
                     h_obj,
                     add,
                 )
-        elif is_claude_hooks_file(path):
-            # Surface membership only: v0 does not parse hook file bodies
-            # (R07). It still honors SPEC §3 — do not skip the file.
+        elif is_claude_hooks_file(path) or path in targets_base or path in targets_head:
+            # Surface membership only for .claude/hooks/** and §3.3 targets:
+            # v0 does not parse hook file bodies beyond §5.2's closed stub
+            # sets, but §3's parse-status check applies — do not skip.
             if path.endswith(".json"):
                 _bobj, b_st = _json_load(base_files.get(path))
                 _hobj, h_st = _json_load(head_files.get(path))
@@ -337,7 +447,11 @@ def scan_pair(
     )
 
 
-def _non_stub_stop_count(events: dict[str, dict[str, Any]], names: frozenset[str]) -> int:
+def _non_stub_stop_count(
+    events: dict[str, dict[str, Any]],
+    names: frozenset[str],
+    body_map: dict[str, tuple[bool, str]],
+) -> int:
     n = 0
     for name in names:
         info = events.get(name)
@@ -346,7 +460,9 @@ def _non_stub_stop_count(events: dict[str, dict[str, Any]], names: frozenset[str
         live = [
             c
             for c in info["commands"]
-            if not stub_command(c) and not c.lstrip().startswith("#")
+            if not stub_command(c)
+            and not c.lstrip().startswith("#")
+            and not (c in body_map and body_map[c][0])
         ]
         if live:
             n += 1
@@ -361,8 +477,10 @@ def _detect_hooks(
     head_ev: dict[str, dict[str, Any]],
     stop_names: frozenset[str],
     add: Any,
+    body_base: dict[str, tuple[bool, str]],
+    body_head: dict[str, tuple[bool, str]],
 ) -> None:
-    head_stop = _non_stub_stop_count(head_ev, stop_names)
+    head_stop = _non_stub_stop_count(head_ev, stop_names, body_head)
 
     def escalate_stop(rule: str, event: str, severity: str) -> str:
         if event in stop_names and head_stop == 0 and rule in {
@@ -453,6 +571,25 @@ def _detect_hooks(
                     before=prev,
                     after=cmd,
                     locator=event,
+                )
+            if (
+                i < len(base_cmds)
+                and cmd in body_head
+                and body_head[cmd][0]
+                and prev in body_base
+                and not body_base[prev][0]
+            ):
+                # SPEC §5 GATE_STUBBED, body form: the command resolves
+                # (§3.3) to a stub body while the base resolved to a real one.
+                sev = escalate_stop("GATE_STUBBED", event, "warn")
+                add(
+                    rule="GATE_STUBBED",
+                    severity=sev,
+                    message=f"hook command for {event} resolves to a stub body",
+                    path=path,
+                    before=body_base[prev][1],
+                    after=body_head[cmd][1],
+                    locator=f"{event}:{cmd}",
                 )
         if (
             "*" in info["matchers"]

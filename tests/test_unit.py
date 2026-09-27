@@ -234,5 +234,104 @@ class Allow(unittest.TestCase):
         self.assertIn(("CONFIG_RELAXED", "critical"), _rules(payload))
 
 
+class HookBody(unittest.TestCase):
+    """SPEC §3.3 / §5.2 body form of GATE_STUBBED (spec 4)."""
+
+    REAL_JUDGE = (
+        "import sys\n"
+        "import json\n"
+        "\n"
+        "def main():\n"
+        "    data = sys.stdin.read()\n"
+        "    if not data:\n"
+        "        sys.exit(1)\n"
+        "    print(json.dumps({}))\n"
+        "\n"
+        "main()\n"
+    )
+    STUB_JUDGE = "import sys\nsys.exit(0)\n"
+    SETTINGS = {
+        "hooks": {
+            "Stop": [
+                {"hooks": [{"type": "command", "command": "python hooks/judge.py"}]}
+            ]
+        }
+    }
+    SETTINGS_PATH = ".claude/settings.json"
+    JUDGE_PATH = "hooks/judge.py"
+
+    def test_body_turned_stub_is_gate_stubbed_critical(self) -> None:
+        payload = _pair(
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.REAL_JUDGE},
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.STUB_JUDGE},
+        )
+        rules = _rules(payload)
+        self.assertIn(("GATE_STUBBED", "critical"), rules)
+        finding = next(f for f in payload["findings"] if f["rule"] == "GATE_STUBBED")
+        self.assertEqual(finding["after"], "sys.exit(0)")
+
+    def test_stub_repaired_to_real_is_silent(self) -> None:
+        payload = _pair(
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.STUB_JUDGE},
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.REAL_JUDGE},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_new_stub_target_without_base_body_is_silent(self) -> None:
+        payload = _pair(
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS)},
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.STUB_JUDGE},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_shell_body_stub(self) -> None:
+        settings = {
+            "hooks": {
+                "Stop": [
+                    {"hooks": [{"type": "command", "command": "bash hooks/gate.sh"}]}
+                ]
+            }
+        }
+        payload = _pair(
+            {
+                ".claude/settings.json": json.dumps(settings),
+                "hooks/gate.sh": "#!/bin/sh\nset -e\njudge --run\n",
+            },
+            {
+                ".claude/settings.json": json.dumps(settings),
+                "hooks/gate.sh": "#!/bin/sh\nexit 0\n",
+            },
+        )
+        rules = _rules(payload)
+        self.assertIn(("GATE_STUBBED", "critical"), rules)
+
+    def test_unresolved_module_form_stays_silent(self) -> None:
+        settings = {
+            "hooks": {
+                "Stop": [
+                    {
+                        "hooks": [
+                            {"type": "command", "command": "python -m pkg.judge"}
+                        ]
+                    }
+                ]
+            }
+        }
+        payload = _pair(
+            {self.SETTINGS_PATH: json.dumps(settings)},
+            {self.SETTINGS_PATH: json.dumps(settings)},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_inert_only_body_is_stub(self) -> None:
+        payload = _pair(
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: self.REAL_JUDGE},
+            {self.SETTINGS_PATH: json.dumps(self.SETTINGS), self.JUDGE_PATH: "import sys\n"},
+        )
+        self.assertIn(
+            ("GATE_STUBBED", "critical"), _rules(payload)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
