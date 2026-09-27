@@ -32,7 +32,7 @@ from pinwash.surfaces import (
     glob_skill,
     norm,
 )
-from pinwash.textutil import crlf_to_lf, decode_utf8
+from pinwash.textutil import canonical_json, crlf_to_lf, decode_utf8
 from pinwash.tomlsub import (
     SEVERITY_RANK,
     allow_valid,
@@ -797,23 +797,28 @@ def _detect_allow(
     h_txt, h_st = _text(head_files.get(path))
     if b_st == "unparseable":
         config_errors.append("base allow.toml unreadable as utf-8")
-    if b_st != "ok":
-        return
-    base_recs = parse_allow_toml(b_txt) if b_txt else []
+    # SPEC §10: an exemption is a record satisfying the validity rule.
+    # Invalid records are invisible to both checks.
+    base_recs = [
+        r for r in (parse_allow_toml(b_txt) if b_st == "ok" and b_txt else [])
+        if allow_valid(r, today)
+    ]
     # A head file that is missing or unparseable cannot confirm that a base
-    # exemption still stands; SPEC §10 makes deleting/rewriting one
-    # CONFIG_RELAXED at critical, so the check is fail-closed here.
-    head_recs = parse_allow_toml(h_txt) if h_st == "ok" and h_txt else []
-    base_fps = {r.get("fingerprint", "") for r in base_recs if r.get("fingerprint")}
-    head_fps = {r.get("fingerprint", "") for r in head_recs if r.get("fingerprint")}
-    if base_fps and not head_fps.issuperset(base_fps):
+    # exemption still stands; the check below is fail-closed on that.
+    head_recs = [
+        r for r in (parse_allow_toml(h_txt) if h_st == "ok" and h_txt else [])
+        if allow_valid(r, today)
+    ]
+    base_set = {canonical_json(r) for r in base_recs}
+    head_set = {canonical_json(r) for r in head_recs}
+    if base_set and not base_set.issubset(head_set):
         add(
             rule="CONFIG_RELAXED",
             severity="critical",
-            message="base exemption deleted or rewritten",
+            message="base exemption deleted, edited, or unconfirmable at head",
             path=path,
         )
-    elif head_fps - base_fps:
+    elif head_set - base_set:
         add(
             rule="EXEMPTION_ADDED",
             severity="warn",

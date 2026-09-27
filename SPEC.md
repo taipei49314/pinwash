@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Coding agents have **read-only** authority over this file and over `tests/gates/**` once those exist; the human maintainer edits them.
 
-Spec version: **0** (draft frozen by the first commit of this file; IR / findings envelope `pinwash_findings_version: 1` when an engine ships). No engine exists yet. This document is the preregistration: acceptance in §12 is frozen before implementation. After an engine exists, detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **1** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). No engine exists yet. This document is the preregistration: acceptance in §12 is frozen before implementation. After an engine exists, detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -161,9 +161,10 @@ Base severity of every finding is `warn`. Escalators in §6 may raise it. Detect
 | `SKILL_BYPASS` | An **added or edited** line in `skill_md` or `agent_markdown` matches the bypass phrase table (§5.4). Deletions of such lines are not a finding. |
 | `REQUIRED_CHECK_DROPPED` | A required status context named at base in `gha_ruleset` is missing at head; **or** the workflow job that produced that `name:` was deleted / `if: false` / `if: 'false'` introduced / `continue-on-error: true` introduced on that job. |
 | `CONFIG_RELAXED` | Base-absent or edited `checkwash_config` **disables** a detector or raises `fail_on` above the base value (or above default `high` if base file missing). Tightening stays silent. |
+| `EXEMPTION_ADDED` | A valid (§10) `.pinwash/allow.toml` record present at head and absent at base. Visibility only: head-side records never govern the current run (§1.2). |
 | `SURFACE_UNPARSEABLE` | See §3. |
 
-No other rule IDs exist in spec v0. Internal helper names must not appear in JSON `rule` fields.
+No other rule IDs exist in this spec version. Internal helper names must not appear in JSON `rule` fields.
 
 ### 5.1 HOOK_BYPASSED key table
 
@@ -238,7 +239,7 @@ Applied in order, all deterministic. No scores.
 4. `SURFACE_UNPARSEABLE` at head when base parsed: **high**.
 5. Otherwise leave **warn**.
 
-Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**.
+Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**. `EXEMPTION_ADDED` never escalates.
 
 ## 7. Findings envelope
 
@@ -251,7 +252,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 0
+    "spec_version": 1
   },
   "verdict": "pass | block",
   "findings": [],
@@ -311,7 +312,9 @@ expires = "2026-12-24"
 
 `reason` and `expires` required; `expires` at most 180 days. Expiry uses `PINWASH_TODAY` if set, else the current date — the only clock that may affect a verdict, overridable for replay.
 
-Head-side **append-only** valid additions emit `EXEMPTION_ADDED` at warn (visibility). Editing or deleting a base exemption is `CONFIG_RELAXED` at critical.
+An **exemption** is a record that satisfies the validity rule above. Records that fail validity are invisible to both checks: deleting or editing one is not a finding, and adding one emits nothing.
+
+Head-side **append-only** valid additions emit `EXEMPTION_ADDED` at warn (visibility). Editing or deleting a base exemption is `CONFIG_RELAXED` at critical; an edit is any change to a base exemption record, not only its removal.
 
 ## 11. Residuals (not silent passes)
 
@@ -378,3 +381,8 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 - Live GitHub / Cursor API reads.
 - Replacing checkwash CI/test rules.
 - Auto-fixing the diff.
+
+## 16. Spec changelog
+
+- **1** — `EXEMPTION_ADDED` formalized as a §5 rule (it was named in §10 but missing from the §5 closed set). §10 now states that only records satisfying the validity rule count as exemptions for the addition check and the edit/delete check, and that an edit is any change to a base exemption record.
+- **0** — initial freeze (first commit of this file).

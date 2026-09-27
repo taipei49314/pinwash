@@ -175,8 +175,8 @@ class Allow(unittest.TestCase):
         'rule = "HOOK_REMOVED"\n'
         'reason = "known rotation"\n'
         'author = "nelson"\n'
-        'created = "2026-01-01"\n'
-        'expires = "2026-12-31"\n'
+        'created = "2026-09-01"\n'
+        'expires = "2026-11-30"\n'
     )
 
     def test_deleting_allow_toml_is_critical(self) -> None:
@@ -187,6 +187,49 @@ class Allow(unittest.TestCase):
         payload = _pair(
             {".pinwash/allow.toml": self.RECORD},
             {".pinwash/allow.toml": b"\xff"},
+        )
+        self.assertIn(("CONFIG_RELAXED", "critical"), _rules(payload))
+
+    def test_head_side_valid_addition_is_exemption_added(self) -> None:
+        added = self.RECORD.replace("a" * 64, "b" * 64).replace(
+            "HOOK_REMOVED/.claude/settings.json", "GATE_STUBBED/.claude/settings.json"
+        )
+        payload = _pair(
+            {".pinwash/allow.toml": self.RECORD},
+            {".pinwash/allow.toml": self.RECORD + "\n" + added},
+        )
+        self.assertIn(("EXEMPTION_ADDED", "warn"), _rules(payload))
+
+    def test_head_side_creation_is_exemption_added(self) -> None:
+        payload = _pair({}, {".pinwash/allow.toml": self.RECORD})
+        self.assertIn(("EXEMPTION_ADDED", "warn"), _rules(payload))
+
+    def test_head_side_invalid_addition_is_silent(self) -> None:
+        invalid = (
+            "[[allow]]\n"
+            'fingerprint = "X/Y/v1:' + "c" * 64 + '"\n'
+            'rule = "X"\n'
+            'reason = "r"\n'
+            'author = "a"\n'
+            'created = "2026-01-01"\n'
+            'expires = "2027-01-01"\n'
+        )
+        payload = _pair(
+            {".pinwash/allow.toml": self.RECORD},
+            {".pinwash/allow.toml": self.RECORD + "\n" + invalid},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_deleting_invalid_base_record_is_silent(self) -> None:
+        invalid = self.RECORD.replace('expires = "2026-11-30"', 'expires = "2027-06-01"')
+        payload = _pair({".pinwash/allow.toml": invalid}, {})
+        self.assertEqual(payload["findings"], [])
+
+    def test_editing_base_exemption_is_critical(self) -> None:
+        edited = self.RECORD.replace('reason = "known rotation"', 'reason = "edited"')
+        payload = _pair(
+            {".pinwash/allow.toml": self.RECORD},
+            {".pinwash/allow.toml": edited},
         )
         self.assertIn(("CONFIG_RELAXED", "critical"), _rules(payload))
 
