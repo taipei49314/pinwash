@@ -333,5 +333,71 @@ class HookBody(unittest.TestCase):
         )
 
 
+class InlineComments(unittest.TestCase):
+    """Spec 5: recorded values truncate at ' #' — found by live-fire on
+    taipei49314/checkwash release commits (annotation-only bumps must be
+    silent; genuine floats through comments must still fire)."""
+
+    SHA = "6dd3158653c3569279fb2c56cef6af30a959d844"
+    RULESET = json.dumps(
+        {
+            "rules": [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {"required_status_checks": ["ci"]},
+                }
+            ]
+        }
+    )
+
+    @staticmethod
+    def _wf(ref: str, ver: str) -> str:
+        return (
+            "name: ci\n"
+            "on: push\n"
+            "jobs:\n"
+            "  x:\n"
+            "    steps:\n"
+            f"      - uses: org/tool@{ref} # v{ver}\n"
+        )
+
+    def test_annotation_only_bump_is_silent(self) -> None:
+        payload = _pair(
+            {".github/workflows/ci.yml": self._wf(self.SHA, "0.4.0")},
+            {".github/workflows/ci.yml": self._wf(self.SHA, "0.4.1")},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_sha_to_float_through_comments_still_fires(self) -> None:
+        payload = _pair(
+            {".github/workflows/ci.yml": self._wf(self.SHA, "0.4.0")},
+            {".github/workflows/ci.yml": self._wf("main", "0.4.1")},
+        )
+        pins = [f for f in payload["findings"] if f["rule"] == "JUDGE_UNPINNED"]
+        self.assertTrue(pins)
+        self.assertEqual(pins[0]["after"], "main")
+
+    def test_if_false_with_comment_detected(self) -> None:
+        base = {
+            ".github/required-ruleset.json": self.RULESET,
+            ".github/workflows/ci.yml": (
+                "name: ci\non: push\njobs:\n  x:\n    name: ci\n"
+                "    runs-on: ubuntu-latest\n"
+            ),
+        }
+        head = {
+            ".github/required-ruleset.json": self.RULESET,
+            ".github/workflows/ci.yml": (
+                "name: ci\non: push\njobs:\n  x:\n    name: ci\n"
+                "    runs-on: ubuntu-latest\n"
+                "    if: false # maintenance window\n"
+            ),
+        }
+        payload = _pair(base, head)
+        self.assertIn(
+            ("REQUIRED_CHECK_DROPPED", "warn"), _rules(payload)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

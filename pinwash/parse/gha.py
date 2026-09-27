@@ -39,6 +39,12 @@ def strip_quotes(value: str) -> str:
     return v
 
 
+def truncate_inline_comment(value: str) -> str:
+    """SPEC §3.1 (spec 5): a recorded value ends at the first ' #' sequence."""
+    idx = value.find(" #")
+    return value[:idx] if idx != -1 else value
+
+
 def parse_workflow(text: str) -> GhaFile:
     normalized = crlf_to_lf(text)
     result = GhaFile(uses=[])
@@ -71,7 +77,7 @@ def parse_workflow(text: str) -> GhaFile:
                 continue
         mu = _USES.match(line)
         if mu:
-            val = strip_quotes(mu.group(2))
+            val = strip_quotes(truncate_inline_comment(mu.group(2)))
             parsed = parse_uses(val)
             if parsed:
                 loc, ref = parsed
@@ -83,7 +89,7 @@ def parse_workflow(text: str) -> GhaFile:
             continue
         mc = _CONTINUE.match(line)
         if mc and current_job is not None and indent == 4:
-            flag = strip_quotes(mc.group(2)).lower()
+            flag = strip_quotes(truncate_inline_comment(mc.group(2))).lower()
             if flag == "true":
                 result.jobs[current_job].continue_on_error = True
             elif flag == "false":
@@ -91,12 +97,16 @@ def parse_workflow(text: str) -> GhaFile:
             continue
         mi = _IF.match(line)
         if mi and current_job is not None and indent == 4:
-            result.jobs[current_job].if_value = mi.group(2).strip()
+            result.jobs[current_job].if_value = truncate_inline_comment(
+                mi.group(2)
+            ).strip()
             continue
         mn = _NAME.match(line)
         if mn and current_job is not None and indent == 4:
             if result.jobs[current_job].name is None:
-                result.jobs[current_job].name = strip_quotes(mn.group(2))
+                result.jobs[current_job].name = strip_quotes(
+                    truncate_inline_comment(mn.group(2))
+                )
             continue
     return result
 
