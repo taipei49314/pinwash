@@ -22,6 +22,37 @@ python -m pinwash check HEAD~1..HEAD
 
 `check` with no range compares `HEAD` to the worktree. Exit 0 is not proof the harness works; it means no in-scope finding was at or above `fail_on` (default `high`).
 
+## Consumer recipe: judging an agent session
+
+Judge what an agent session did with **two invocations over two ranges**:
+
+```powershell
+python -m pinwash check BASE..HEAD   # commits made during the session
+python -m pinwash check              # uncommitted worktree edits against HEAD
+```
+
+- `BASE` is the commit you recorded **before** the session started, pinned (write down its sha). Never trust `HEAD` as the base: an agent that commits redefines it, and a single-range scan of the last commit only sees the last commit. In a live-fire round, a session committed a 7-file harness weakening (`neutralize verification harness`) that a worktree-only judge would have missed.
+- A pass needs **both** invocations clean. Uncommitted edits are the other half of the surface.
+- Judge only after the agent's edits have settled on disk. Some CLIs apply edits asynchronously and can still be writing after their process returns; a judge that races the writer judges a stale worktree.
+
+**Record the judge's identity with the verdict.** A pass or block that cannot name the judge is not reproducible. Record the pinwash git revision and the `python -m pinwash doctor` output (`spec_version`, self-test state), and the exit codes of both ranges, e.g. "pass @ pinwash `86bdcce`, spec 7, 51 self-tests ok, exit 0 on both ranges". Round 1's reports are reproducible because the judge was pinned this way (`416b962`, spec 6).
+
+**Exemptions are per finding fingerprint, on the base side only** (SPEC §10). Take the `fingerprint` field from the finding JSON (`rule/path/v1:<64hex>`), and write a `[[allow]]` record into `.pinwash/allow.toml` at the pinned base — `reason` and `expires` (≤ 180 days) required, never a rule glob:
+
+```toml
+[[allow]]
+fingerprint = "HOOK_REMOVED/.claude/settings.json/v1:…"
+rule = "HOOK_REMOVED"
+reason = "planned migration, ticket #…"
+author = "you"
+created = "2026-09-28"
+expires = "2026-12-01"
+```
+
+Head-side valid additions surface as `EXEMPTION_ADDED` (warn); editing or deleting a base exemption is `CONFIG_RELAXED` (critical).
+
+Exit codes: `0` no finding at or above `fail_on` · `1` verdict block · `2` engine error. A crash must not exit 1; exit 0 is never proof the harness works.
+
 ## Neighbours
 
 pinwash is not checkwash (product tests), not tripwire (hooks that run judges), not walkaround (session admission). It only asks whether **this diff** weakened pins, hooks, permissions, required checks, or bypass instructions.
