@@ -42,6 +42,31 @@ _PY_PURE_INERT = frozenset(
     {"pass", "import sys", "import os", 'if __name__ == "__main__":'}
 )
 
+_BLOCK_MARKERS = ("block", "deny")
+
+
+def body_lost_block_capability(base_data: bytes, head_data: bytes) -> bool:
+    """SPEC §5.2 (spec 7): a block-capable judge that can no longer refuse.
+
+    Shape-preserving gut jobs keep the function frame and drop every
+    block/deny path; the closed-line stub list cannot see them, this
+    shape can.
+    """
+    def marker(data: bytes) -> str | None:
+        text = decode_utf8(data)
+        if text is None:
+            return None
+        folded = crlf_to_lf(text).casefold()
+        for m in _BLOCK_MARKERS:
+            if m in folded:
+                return m
+        return None
+
+    base_marker = marker(base_data)
+    if base_marker is None:
+        return False
+    return marker(head_data) is None
+
 
 def hook_command_targets(command: str, files: dict[str, bytes]) -> list[str]:
     """§3.3 closed resolution: command string -> repo-relative target paths."""
@@ -83,9 +108,12 @@ def body_scan(path: str, data: bytes) -> tuple[bool, str]:
 
 def command_body_map(
     files: dict[str, bytes],
-) -> tuple[dict[str, tuple[bool, str]], set[str]]:
-    """Per side: command -> (all targets stub, evidence), plus target paths."""
-    bodies: dict[str, tuple[bool, str]] = {}
+    base_files: dict[str, bytes] | None = None,
+) -> tuple[dict[str, tuple[bool, bool, str]], set[str]]:
+    """Per side: command -> (all targets stub, lost block capability,
+    evidence), plus target paths. The block-capability shape compares each
+    target's head body against the same path at base (§5.2, spec 7)."""
+    bodies: dict[str, tuple[bool, bool, str]] = {}
     targets_all: set[str] = set()
     for path in sorted(files):
         if not (is_claude_settings(path) or is_cursor_hooks(path)):
@@ -102,8 +130,18 @@ def command_body_map(
                     continue
                 targets_all.update(targets)
                 scans = [body_scan(t, files[t]) for t in targets]
-                bodies[cmd] = (
-                    all(s[0] for s in scans),
-                    next((s[1] for s in scans if s[1]), ""),
-                )
+                all_stub = all(s[0] for s in scans)
+                lost_block = False
+                if base_files is not None:
+                    for t in targets:
+                        b = base_files.get(t)
+                        if b is not None and body_lost_block_capability(
+                            b, files[t]
+                        ):
+                            lost_block = True
+                            break
+                evidence = next((s[1] for s in scans if s[1]), "")
+                if lost_block and not evidence:
+                    evidence = "block capability removed"
+                bodies[cmd] = (all_stub, lost_block, evidence)
     return bodies, targets_all

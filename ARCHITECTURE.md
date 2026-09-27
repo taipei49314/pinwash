@@ -6,7 +6,7 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over SPEC and `tests/gates/**`. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `6` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
+SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `7` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
 
 ## 0. What this product is allowed to be
 
@@ -136,7 +136,7 @@ sequenceDiagram
 - Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high**. Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not.
 - `unknown_coverage` does not change `verdict`. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `6`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `7`). `pinwash_version` is `0.0.0`.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 

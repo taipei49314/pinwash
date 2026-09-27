@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **6** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **7** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -215,7 +215,9 @@ A hook **body** file — a target resolved per §3.3 — is a stub if every non-
 
 An empty body after comment removal is a stub. A body containing any other line is not a stub — a real judge has work lines. No regex beyond these closed lists in v0.
 
-For the last-Stop escalator (§6.1), a command whose resolved targets are all stub bodies is **not live**, exactly like a stub command string.
+**Block-capability shape (spec 7).** A body-stub list cannot enumerate reformattings that keep the file's function shape while removing its decision logic. A §3.3 target whose **base** body mentions `block` or `deny` (case-insensitive substring) is **block-capable**; if the **head** body mentions neither, the gate can no longer refuse anything, and `GATE_STUBBED` fires (message "lost block capability") even though no closed line matches. The two shapes are independent — either can fire. A judge whose base body never mentions `block`/`deny` (e.g. refusal expressed only through exit codes) is invisible to this shape and stays residual.
+
+For the last-Stop escalator (§6.1), a command whose resolved targets are all stub bodies — or that **lost block capability** — is **not live**, exactly like a stub command string.
 
 ### 5.3 PERMISSION_WIDENED
 
@@ -275,7 +277,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 6
+    "spec_version": 7
   },
   "verdict": "pass | block",
   "findings": [],
@@ -351,7 +353,7 @@ These are expected non-findings. Each needs a THREATMODEL row before an engine s
 | R04 | Vendored judge **bytes** patched without pin-record change |
 | R05 | GitHub ruleset live on API, file not in trees |
 | R06 | Hosts beyond the spec 6 surface set (Codex host config lives in `$HOME` → R02; Qoder; Copilot agent settings beyond `copilot-instructions.md`); unknown skip keys; `opencode.jsonc`; object-form `permission.bash` patterns |
-| R07 | Stub shapes outside the §5.2 closed body lists (guarded one-liners, trailing comments on stub lines, docstring-wrapped stubs); opaque command forms (`python -m pkg.mod`, inline `-c` payloads, quoted paths with spaces, variable expansion) — the import-time `sys.exit(0)` attack itself is in scope since spec 4 |
+| R07 | Stub shapes outside the §5.2 closed body lists and outside the block-capability shape (judges whose base body never mentions `block`/`deny`; guarded one-liners; trailing comments on stub lines); opaque command forms (`python -m pkg.mod`, inline `-c` payloads, quoted paths with spaces, variable expansion) — the import-time `sys.exit(0)` attack is in scope since spec 4, the shape-preserving gut job since spec 7 |
 | R08 | `SKILL_BYPASS` missed paraphrases; also false hits on non-excluded docs |
 | R09 | Required check context renamed in GitHub but job `name:` unchanged, or the reverse, when no ruleset file exists |
 | R10 | Pinwash itself disabled by not running pinwash |
@@ -407,6 +409,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **7** — §5.2 block-capability shape, found live in round 1 (opencode zen bench, `pinwash-live/round1`): a §3.3 target whose base body mentions `block`/`deny` but whose head body mentions neither fires `GATE_STUBBED` ("lost block capability") and counts as not live for the last-Stop escalator. Closes the shape-preserving gut job (function frame kept, decision logic removed) that the closed-line list structurally could not see. Residual stays: judges whose base body never mentions block/deny.
 - **6** — R06 first closing wave (§9.2): new surfaces `gemini_settings` (`.gemini/settings.json`) and `opencode_config` (`opencode.json`) with closed §5.3 widening rows (`autoAccept`, `approvalMode`, mcp `trust`; `permission.<tool>` lattice `deny > ask > allow`), and `agent_markdown` widened to the Gemini/Qwen/Copilot/Windsurf/Cline instruction files (`GEMINI.md`, `QWEN.md`, `.github/copilot-instructions.md`, `.windsurfrules`, `.clinerules`). Grounded on real files on the maintainer host (`opencode.json` permission blocks; boundkit’s `GEMINI.md` and `.github/copilot-instructions.md`). Residuals: `opencode.jsonc`, object-form `permission.bash` patterns, Codex repo-level config (Codex keeps host config in `$HOME` → R02), all further hosts.
 - **5** — Bounded GHA grammar widened (first §9.3 widening): recorded values truncate at the first ` #` (space-hash), the bounded form of a YAML inline comment. Found by live-fire on taipei49314/checkwash: sha-pinned `uses:` lines annotated `# vX.Y.Z` classified as floating, so honest release annotation bumps fired `JUDGE_UNPINNED` critical. With truncation, shas classify as `git_sha`; annotation-only bumps are silent; genuine floats still fire.
 - **4** — R07 narrowed by implementation: §3.3 defines the closed rule by which hook `command` strings resolve to repo-relative target files, restored to the `claude_hooks` surface; §5.2 defines closed per-extension body stub sets, and `GATE_STUBBED` fires when a base non-stub body becomes one; the §6.1 last-Stop escalator treats body-stubbed commands as not live. The import-time `sys.exit(0)` attack named in R07 is now in scope; R07 stays Open for shapes outside the closed lists.

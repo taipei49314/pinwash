@@ -11,7 +11,7 @@ from pinwash.hooks import stub_command
 def _non_stub_stop_count(
     events: dict[str, dict[str, Any]],
     names: frozenset[str],
-    body_map: dict[str, tuple[bool, str]],
+    body_map: dict[str, tuple[bool, bool, str]],
 ) -> int:
     n = 0
     for name in names:
@@ -23,7 +23,7 @@ def _non_stub_stop_count(
             for c in info["commands"]
             if not stub_command(c)
             and not c.lstrip().startswith("#")
-            and not (c in body_map and body_map[c][0])
+            and not (c in body_map and (body_map[c][0] or body_map[c][1]))
         ]
         if live:
             n += 1
@@ -38,8 +38,8 @@ def detect(
     head_ev: dict[str, dict[str, Any]],
     stop_names: frozenset[str],
     add: Any,
-    body_base: dict[str, tuple[bool, str]],
-    body_head: dict[str, tuple[bool, str]],
+    body_base: dict[str, tuple[bool, bool, str]],
+    body_head: dict[str, tuple[bool, bool, str]],
 ) -> None:
     head_stop = _non_stub_stop_count(head_ev, stop_names, body_head)
 
@@ -47,6 +47,7 @@ def detect(
         if event in stop_names and stop_last_resort(head_stop) and rule in HOOK_RULES:
             return "critical"
         return severity
+
 
     for event, info in base_ev.items():
         head_info = head_ev.get(event)
@@ -144,8 +145,21 @@ def detect(
                     severity=sev,
                     message=f"hook command for {event} resolves to a stub body",
                     path=path,
-                    before=body_base[prev][1],
-                    after=body_head[cmd][1],
+                    before=body_base[prev][2],
+                    after=body_head[cmd][2],
+                    locator=f"{event}:{cmd}",
+                )
+            elif i < len(base_cmds) and cmd in body_head and body_head[cmd][1]:
+                # SPEC §5.2 (spec 7): shape-preserving gut job — the judge
+                # body can no longer refuse anything.
+                sev = escalate_stop("GATE_STUBBED", event, "warn")
+                add(
+                    rule="GATE_STUBBED",
+                    severity=sev,
+                    message=f"hook command for {event} lost block capability",
+                    path=path,
+                    before="block-capable",
+                    after="no block/deny",
                     locator=f"{event}:{cmd}",
                 )
         if (

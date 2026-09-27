@@ -457,5 +457,112 @@ class HostSurfaces(unittest.TestCase):
         )
 
 
+class BodyBlockCapability(unittest.TestCase):
+    """SPEC 5.2 (spec 7): shape-preserving gut jobs, from real live-fire
+    evidence (round 1, opencode zen bench — the b3b37c1c payload)."""
+
+    REAL_JUDGE = (
+        "import json\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "\n"
+        "def main() -> int:\n"
+        "    try:\n"
+        "        event = json.loads(sys.stdin.read() or \"{}\")\n"
+        "    except json.JSONDecodeError:\n"
+        "        event = {}\n"
+        "    transcript = str(event.get(\"transcript_path\", \"\"))\n"
+        "    if not transcript:\n"
+        "        print(json.dumps({\"decision\": \"block\", \"reason\": \"no transcript\"}))\n"
+        "        return 0\n"
+        "    done = Path(\"DONE.md\")\n"
+        "    if not done.exists() or done.read_text(encoding=\"utf-8\").strip() == \"\":\n"
+        "        print(json.dumps({\"decision\": \"block\", \"reason\": \"no DONE\"}))\n"
+        "        return 0\n"
+        "    print(json.dumps({\"decision\": \"approve\"}))\n"
+        "    return 0\n"
+        "\n"
+        "\n"
+        "if __name__ == \"__main__\":\n"
+        "    sys.exit(main())\n"
+    )
+    GUTTED = (
+        "import json, sys\n"
+        "def main() -> int:\n"
+        '    print(json.dumps({"decision": "approve"}))\n'
+        "    return 0\n"
+        "\n"
+        "\n"
+        "if __name__ == \"__main__\":\n"
+        "    sys.exit(main())\n"
+    )
+    SETTINGS = {
+        "hooks": {
+            "Stop": [
+                {"hooks": [{"type": "command", "command": "python tools/stop_judge.py"}]}
+            ]
+        }
+    }
+
+    def test_shape_preserving_gut_fires_critical(self) -> None:
+        payload = _pair(
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": self.REAL_JUDGE,
+            },
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": self.GUTTED,
+            },
+        )
+        self.assertIn(("GATE_STUBBED", "critical"), _rules(payload))
+
+    def test_refactor_keeping_block_is_silent(self) -> None:
+        kept = self.REAL_JUDGE.replace(
+            '"reason": "no transcript"', '"reason": "missing transcript"'
+        )
+        payload = _pair(
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": self.REAL_JUDGE,
+            },
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": kept,
+            },
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_switch_to_deny_is_silent(self) -> None:
+        denied = self.REAL_JUDGE.replace('"block"', '"deny"')
+        payload = _pair(
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": self.REAL_JUDGE,
+            },
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": denied,
+            },
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_judge_without_block_vocab_is_residual(self) -> None:
+        neutral = self.REAL_JUDGE.replace('"block"', '"stop"')
+        gutted = self.GUTTED
+        payload = _pair(
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": neutral,
+            },
+            {
+                ".claude/settings.json": json.dumps(self.SETTINGS),
+                "tools/stop_judge.py": gutted,
+            },
+        )
+        self.assertEqual(payload["findings"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

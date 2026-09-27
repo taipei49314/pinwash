@@ -94,9 +94,10 @@ def scan_pair(
     paths = _union_paths(base_files, head_files)
 
     # SPEC §3.3 / §5.2: resolve hook command targets per side, then scan
-    # their bodies. Targets become claude_hooks surface members.
+    # their bodies. Targets become claude_hooks surface members. The head
+    # side compares against base bodies for the block-capability shape.
     body_base, targets_base = command_body_map(base_files)
-    body_head, targets_head = command_body_map(head_files)
+    body_head, targets_head = command_body_map(head_files, base_files=base_files)
     paths = sorted(set(paths) | targets_base | targets_head)
 
     # SPEC §5: the job-side REQUIRED_CHECK_DROPPED trigger is the workflow
