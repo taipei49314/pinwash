@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Coding agents have **read-only** authority over this file and over `tests/gates/**` once those exist; the human maintainer edits them.
 
-Spec version: **1** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). No engine exists yet. This document is the preregistration: acceptance in §12 is frozen before implementation. After an engine exists, detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **2** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). No engine exists yet. This document is the preregistration: acceptance in §12 is frozen before implementation. After an engine exists, detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -43,7 +43,7 @@ checkwash already rates many guardrail-path edits `GUARDRAIL_TOUCHED`. That even
 3. pinwash **never executes** subject code, hooks, judges, workflows, MCP servers, or skills. It reads bytes.
 4. pinwash **never uses a network** on the core path. GitHub rulesets that exist only on the API and not as a file in the trees are `UNKNOWN`, not pass and not block.
 5. pinwash **never calls a model**.
-6. Missing observation is `INCOMPLETE` (finding, not a pass). A crashed engine is exit 2, never a block (exit 1).
+6. Missing observation is never a pass: an input this spec version cannot observe surfaces as a finding (`SURFACE_UNPARSEABLE`), a `config_errors` entry, or an `unknown_coverage` row — never as a silent `verdict: pass`. A crashed engine is exit 2, never a block (exit 1).
 7. Artifacts the agent wrote in the same diff (`*.log`, screenshots, “CI is green” markdown) are never evidence that a harness still runs.
 
 ## 2. Analysis unit
@@ -252,7 +252,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 1
+    "spec_version": 2
   },
   "verdict": "pass | block",
   "findings": [],
@@ -384,5 +384,6 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **2** — §1.6 rewritten: the undefined `INCOMPLETE` token is gone; the fail-closed invariant (missing observation is never a pass) now names the three channels that carry it (`SURFACE_UNPARSEABLE`, `config_errors`, `unknown_coverage`). No detector or envelope change.
 - **1** — `EXEMPTION_ADDED` formalized as a §5 rule (it was named in §10 but missing from the §5 closed set). §10 now states that only records satisfying the validity rule count as exemptions for the addition check and the edit/delete check, and that an edit is any change to a base exemption record.
 - **0** — initial freeze (first commit of this file).

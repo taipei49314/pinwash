@@ -54,7 +54,7 @@ On one diff, checkwash may emit a guardrail-touch event and pinwash may emit a s
 3. The core path **reads bytes**. It never executes subject code, hooks, judges, workflows, MCP servers, or skills. It never uses a network. It never calls a model.
 4. GitHub rulesets that exist only on an API and not as a file in the trees are residual R05: `UNKNOWN`, not pass and not block.
 5. The analysis unit is a **diff** (`base`/`head`). pinwash never judges a single snapshot as “the harness is fine”.
-6. Missing observation is an `INCOMPLETE` finding, not a pass. A crashed engine is exit **2**, never a block (exit 1). Subject-surface parse failure is `SURFACE_UNPARSEABLE`, not exit 2, unless git itself cannot be read.
+6. Missing observation is never a pass: unobservable inputs surface as `SURFACE_UNPARSEABLE` findings, `config_errors` entries, or `unknown_coverage` rows. A crashed engine is exit **2**, never a block (exit 1). Subject-surface parse failure is `SURFACE_UNPARSEABLE`, not exit 2, unless git itself cannot be read.
 7. Artifacts the agent wrote in the same diff (logs, screenshots, “CI is green” prose) are never evidence that a harness still runs.
 
 The only clock that may affect a verdict is exemption expiry on **base** `.pinwash/allow.toml`, overridable with `PINWASH_TODAY` for replay.
@@ -136,7 +136,7 @@ sequenceDiagram
 - Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high**. Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not.
 - `unknown_coverage` does not change `verdict`. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `1`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `2`). `pinwash_version` is `0.0.0`.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 
@@ -255,7 +255,7 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
 
 - SPEC and THREATMODEL still describe an unshipped engine. A11 froze SPEC for the engine change set. This file records: local v0 engine present; SPEC prose not yet human-updated.
 - The engine may emit `EXEMPTION_ADDED` for head-side allow.toml appends. SPEC §5 says no other v0 rule IDs. Before 1.0 a human must either add it to §5 or demote it to `unknown_coverage` / `config_errors` visibility so it is not a `rule`. (SPEC §10 does name `EXEMPTION_ADDED`; the two sections need one human ruling.) → **Ruled 2026-09-27 (delegated): `EXEMPTION_ADDED` is a §5 rule as of spec 1**, and §10 validity now defines which allow.toml records count on both the addition and the edit/delete checks (implemented with verbatim record comparison, so a same-fingerprint edit is critical).
-- SPEC §1.6 calls a missing observation `INCOMPLETE`, but the §7 severity enum has no such value. The engine never emits it. A human needs to either drop the sentence or give it a home.
+- SPEC §1.6 called a missing observation `INCOMPLETE`, but the §7 severity enum has no such value. → **Ruled 2026-09-27 (delegated): the token is removed as of spec 2.** The fail-closed invariant stays and is carried by the three existing channels; no detector or envelope change.
 - Fidelity fixes in this change set (engine side only; SPEC untouched): `SURFACE_UNPARSEABLE` now follows the §3 closed table on every surface including `.claude/hooks/**` and `.pinwash/pins.json`; a deleted or unparseable head `allow.toml` with base exemptions is `CONFIG_RELAXED` critical; job-side `REQUIRED_CHECK_DROPPED` is ruleset-linked per §5; declared `action_ref` pins rank per the §4 lattice; a commented-out hook command is the v0 closed shape of "command prefixed with a no-op" (`HOOK_BYPASSED`, and non-live for the last-Stop escalator); a corrupt or absent baseline no longer produces invented findings on `cursor_mcp` / `claude_settings` permissions.
 - Still open: hook `command` strings that resolve to repo-relative files are part of the `claude_hooks` surface per SPEC §3, but the engine only parse-checks `.claude/hooks/**` paths — command-target resolution is not implemented (adjacent to R07).
 - No typed IR; escalators are not centralized.
