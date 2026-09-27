@@ -2,7 +2,7 @@
 
 Status values: **Open** (residual, no closing fixture), **Closed** (fixture exists and is named). A Closed row without a fixture is invalid.
 
-Engine not shipped. Every row below is Open. Closing a row is a spec bump plus a named fixture.
+A local v0 engine exists (not a Release, not on PyPI). Every residual row below is Open. Closing a row is a spec bump plus a named fixture.
 
 | ID | Status | Fixture | Residual |
 |---|---|---|---|

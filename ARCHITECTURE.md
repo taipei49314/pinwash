@@ -6,7 +6,7 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over SPEC and `tests/gates/**`. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-SPEC's opening still says "No engine exists yet" (A11: the engine work must not edit SPEC). This checkout has a **local v0 engine** at `0.0.0` / spec `1` (spec bumps are ruled in-repo per the 2026-09-27 delegation; each bump has its own commit and changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
+SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `3` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
 
 ## 0. What this product is allowed to be
 
@@ -149,7 +149,7 @@ Internal helper names must not appear in JSON `rule`.
 | Surface ID | Paths | Parse | Detectors |
 |---|---|---|---|
 | `claude_settings` | `.claude/settings.json`, `.claude/settings.local.json` | JSON object | hook trio; `PERMISSION_WIDENED` |
-| `claude_hooks` | `.claude/hooks/**` plus repo-relative command targets present on that side | JSON if `.json`, else command string | v0 does **not** parse file bodies (R07) |
+| `claude_hooks` | `.claude/hooks/**` (spec 3 narrowed it: command strings are not resolved to target files) | JSON if `.json`, else command string | v0 does **not** parse file bodies (R07) |
 | `cursor_hooks` | `.cursor/hooks.json` | JSON object | hook trio |
 | `cursor_mcp` | `.cursor/mcp.json`, `.mcp.json` | JSON object | `PERMISSION_WIDENED` |
 | `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.cursor/rules/**/*.mdc`, `.cursor/rules/**/*.md` | UTF-8 text | `SKILL_BYPASS` only |
@@ -227,8 +227,8 @@ Forbidden consumer fantasies:
 
 **1.0 license (every item is a human decision; missing one forbids saying 1.0):**
 
-1. Human edits SPEC’s “No engine exists yet” (not this engine change set; A11).
-2. Prefer `spec_version >= 1` over a footnote “spec 0 + engine 1.0”.
+1. ~~Human edits SPEC's "No engine exists yet"~~ Held: updated in spec 3 under the 2026-09-27 delegation (own commit; A11's original constraint — the first satisfying engine PR did not touch SPEC — still holds historically).
+2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `3`.
 3. THREATMODEL R01–R10: each row is **Closed** with a named fixture, or **Permanent** with a human signature that it will not be closed and will not be pretended closed. Closed without a fixture fails the suite.
 4. Findings envelope and fingerprint stay backward compatible (`pinwash_findings_version: 1` already).
 5. `doctor` actually runs this package’s tests. (Held in v0 as of this change set; the item stays on the list as a 1.0 check.)
@@ -242,7 +242,7 @@ Forbidden consumer fantasies:
 
 Each is its own SPEC change plus fixture re-run. Detectors must not be patched to fit a fixture. Fixtures that are out of spec stay residuals.
 
-1. **R07 (highest-value hole):** bounded scan of hook **file bodies** pointed at by repo-relative commands (import-time `sys.exit(0)` and equivalents). v0 stub-checks the command **string** in JSON only. Do not smuggle this into spec 0.
+1. **R07 (highest-value hole):** bounded scan of hook **file bodies** pointed at by repo-relative commands (import-time `sys.exit(0)` and equivalents), **bundled with command-target resolution** (which hook `command` strings name repo-relative files at all — narrowed out of the `claude_hooks` surface in spec 3). v0 stub-checks the command **string** in JSON only. Do not smuggle this into the current spec.
 2. **R06:** new agent hosts as new surface tables (one host, one bump).
 3. **R03:** widen the **bounded** GHA grammar (still not YAML 1.2). Multiline `uses` becomes decidable only after the grammar actually covers it.
 4. **R04:** if `pins.json` declares a digest, a vendored-judge byte change may become `JUDGE_UNPINNED`; undeclared content edits stay residual.
@@ -253,11 +253,11 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
 
 ## 10. Debt against this architecture (honest, not a silent SPEC patch)
 
-- SPEC and THREATMODEL still describe an unshipped engine. A11 froze SPEC for the engine change set. This file records: local v0 engine present; SPEC prose not yet human-updated.
+- ~~SPEC and THREATMODEL still describe an unshipped engine.~~ Held in spec 3 / this change set: SPEC's preamble and THREATMODEL's header now record the local engine; A11's original constraint (the first satisfying engine PR did not touch SPEC) still holds historically.
 - The engine may emit `EXEMPTION_ADDED` for head-side allow.toml appends. SPEC §5 says no other v0 rule IDs. Before 1.0 a human must either add it to §5 or demote it to `unknown_coverage` / `config_errors` visibility so it is not a `rule`. (SPEC §10 does name `EXEMPTION_ADDED`; the two sections need one human ruling.) → **Ruled 2026-09-27 (delegated): `EXEMPTION_ADDED` is a §5 rule as of spec 1**, and §10 validity now defines which allow.toml records count on both the addition and the edit/delete checks (implemented with verbatim record comparison, so a same-fingerprint edit is critical).
 - SPEC §1.6 called a missing observation `INCOMPLETE`, but the §7 severity enum has no such value. → **Ruled 2026-09-27 (delegated): the token is removed as of spec 2.** The fail-closed invariant stays and is carried by the three existing channels; no detector or envelope change.
 - Fidelity fixes in this change set (engine side only; SPEC untouched): `SURFACE_UNPARSEABLE` now follows the §3 closed table on every surface including `.claude/hooks/**` and `.pinwash/pins.json`; a deleted or unparseable head `allow.toml` with base exemptions is `CONFIG_RELAXED` critical; job-side `REQUIRED_CHECK_DROPPED` is ruleset-linked per §5; declared `action_ref` pins rank per the §4 lattice; a commented-out hook command is the v0 closed shape of "command prefixed with a no-op" (`HOOK_BYPASSED`, and non-live for the last-Stop escalator); a corrupt or absent baseline no longer produces invented findings on `cursor_mcp` / `claude_settings` permissions.
-- Still open: hook `command` strings that resolve to repo-relative files are part of the `claude_hooks` surface per SPEC §3, but the engine only parse-checks `.claude/hooks/**` paths — command-target resolution is not implemented (adjacent to R07).
+- ~~Still open: hook `command` strings that resolve to repo-relative files are part of the `claude_hooks` surface per SPEC §3, but the engine only parse-checks `.claude/hooks/**` paths — command-target resolution is not implemented.~~ **Ruled 2026-09-27 (delegated):** spec 3 narrows the `claude_hooks` surface to `.claude/hooks/**`; target resolution joins the R07 bump, where the bounded body scan needs it anyway.
 - No typed IR; escalators are not centralized.
 - `gitrepo.ls_tree` calls `git show` per blob (N+1). A later `cat-file --batch` does not change the analysis unit.
 - `.pinwash/allow.toml` is mixed into the surface `EXACT` set.

@@ -4,9 +4,9 @@
 
 **一句話：** 標出會讓 agent 比較容易自稱完成的 harness 變更。
 
-This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Coding agents have **read-only** authority over this file and over `tests/gates/**` once those exist; the human maintainer edits them.
+This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **2** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). No engine exists yet. This document is the preregistration: acceptance in §12 is frozen before implementation. After an engine exists, detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **3** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -64,7 +64,7 @@ A **surface** is a named, path-bounded, parse-bounded family. Adding a surface i
 | ID | Paths (any match) | Parse |
 |---|---|---|
 | `claude_settings` | `.claude/settings.json`, `.claude/settings.local.json` | JSON object |
-| `claude_hooks` | `.claude/hooks/**`, plus hook `command` strings that resolve to repo-relative files present on that side | JSON if `.json`, else **command line** as a single string |
+| `claude_hooks` | `.claude/hooks/**` | JSON if `.json`, else **command line** as a single string |
 | `cursor_hooks` | `.cursor/hooks.json` | JSON object |
 | `cursor_mcp` | `.cursor/mcp.json`, `.mcp.json` | JSON object |
 | `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.cursor/rules/**/*.mdc`, `.cursor/rules/**/*.md` | UTF-8 text; only `SKILL_BYPASS` uses this surface |
@@ -252,7 +252,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 2
+    "spec_version": 3
   },
   "verdict": "pass | block",
   "findings": [],
@@ -328,7 +328,7 @@ These are expected non-findings. Each needs a THREATMODEL row before an engine s
 | R04 | Vendored judge **bytes** patched without pin-record change |
 | R05 | GitHub ruleset live on API, file not in trees |
 | R06 | Unknown skip keys / new agent hosts (Copilot studio, Codex, Gemini CLI, …) |
-| R07 | Hook command that shells out to a stub **inside** a `.py` file (`sys.exit(0)` at import) — v0 does not parse Python hook bodies |
+| R07 | Hook command that shells out to a stub **inside** a `.py` file (`sys.exit(0)` at import) — v0 does not parse Python hook bodies; hook `command` strings are also not resolved to repo-relative target files (narrowed out of the `claude_hooks` surface in spec 3) — revisit both with the R07 bump |
 | R08 | `SKILL_BYPASS` missed paraphrases; also false hits on non-excluded docs |
 | R09 | Required check context renamed in GitHub but job `name:` unchanged, or the reverse, when no ruleset file exists |
 | R10 | Pinwash itself disabled by not running pinwash |
@@ -384,6 +384,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **3** — Honesty sync and the command-target ruling: the preamble states a local engine exists and records the 2026-09-27 delegated edit authority; the `claude_hooks` surface is narrowed to `.claude/hooks/**` (hook `command` strings are not resolved to repo-relative target files — moved into R07’s bump scope). Engine behavior is unchanged by this version.
 - **2** — §1.6 rewritten: the undefined `INCOMPLETE` token is gone; the fail-closed invariant (missing observation is never a pass) now names the three channels that carry it (`SURFACE_UNPARSEABLE`, `config_errors`, `unknown_coverage`). No detector or envelope change.
 - **1** — `EXEMPTION_ADDED` formalized as a §5 rule (it was named in §10 but missing from the §5 closed set). §10 now states that only records satisfying the validity rule count as exemptions for the addition check and the edit/delete check, and that an edit is any change to a base exemption record.
 - **0** — initial freeze (first commit of this file).
