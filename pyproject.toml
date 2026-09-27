@@ -1,0 +1,12 @@
+[project]
+name = "pinwash"
+version = "0.0.0"
+description = "Flag git diffs that weaken an agent verification harness."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[project.scripts]
+pinwash = "pinwash.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pinwash*"]

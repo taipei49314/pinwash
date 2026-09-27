@@ -1,0 +1,195 @@
+from __future__ import annotations
+
+import json
+import unittest
+
+from pinwash.engine import scan_pair
+from pinwash.hooks import stub_command
+from pinwash.pins import classify_action_ref, parse_uses, record_rank
+from pinwash.gha import parse_workflow
+from pinwash.surfaces import is_surface
+
+ENV = {"PINWASH_TODAY": "2026-09-27"}
+
+STOP_BASE = {
+    "hooks": {
+        "Stop": [
+            {"hooks": [{"type": "command", "command": "python hooks/tripwire_stop.py"}]}
+        ]
+    }
+}
+
+
+def _pair(base: dict, head: dict) -> dict:
+    # Tree loaders yield bytes; tests may write str for readability.
+    to_bytes = lambda d: {
+        k: v.encode("utf-8") if isinstance(v, str) else v for k, v in d.items()
+    }
+    return scan_pair(
+        to_bytes(base), to_bytes(head), base_label="b", head_label="h", env=ENV
+    )
+
+
+def _rules(payload: dict) -> list[tuple[str, str]]:
+    return [(f["rule"], f["severity"]) for f in payload["findings"]]
+
+
+class Surfaces(unittest.TestCase):
+    def test_dot_directories_remain(self) -> None:
+        self.assertTrue(is_surface(".claude/settings.json"))
+        self.assertTrue(is_surface(".github/workflows/ci.yml"))
+        self.assertTrue(is_surface(".github/required-ruleset.json"))
+        self.assertTrue(is_surface("SKILL.md"))
+        self.assertFalse(is_surface("README.md"))
+
+
+class Pins(unittest.TestCase):
+    def test_tag_sha_float(self) -> None:
+        self.assertEqual(classify_action_ref("v1.2.3"), "git_tag")
+        self.assertEqual(classify_action_ref("1.2.3"), "git_tag")
+        self.assertEqual(
+            classify_action_ref("abcdef0123456789abcdef0123456789abcdef01"),
+            "git_sha",
+        )
+        self.assertEqual(classify_action_ref("main"), "floating")
+        self.assertEqual(classify_action_ref("feat/foo"), "floating")
+
+    def test_uses_list_items(self) -> None:
+        parsed = parse_workflow(
+            "jobs:\n  x:\n    steps:\n      - uses: org/tool@v1.2.3\n"
+        )
+        self.assertEqual(parsed.uses[0][0], "org/tool")
+        self.assertEqual(parsed.uses[0][1], "v1.2.3")
+        self.assertEqual(parse_uses("org/tool@v1.2.3"), ("org/tool", "v1.2.3"))
+        self.assertIsNone(parse_uses("./local"))
+
+    def test_action_ref_lattice_level(self) -> None:
+        self.assertEqual(record_rank("action_ref", "v1.2.3"), 1)
+        self.assertEqual(record_rank("action_ref", "main"), 0)
+        self.assertLess(
+            record_rank("action_ref", "v1.2.3"), record_rank("git_tag", "v9.0.0")
+        )
+        self.assertGreater(
+            record_rank("action_ref", "v1.2.3"), record_rank("action_ref", "main")
+        )
+
+
+class Stubs(unittest.TestCase):
+    def test_echo_brace(self) -> None:
+        self.assertTrue(stub_command("echo {}"))
+        self.assertFalse(stub_command("python hooks/tripwire_stop.py"))
+
+
+class SurfaceUnparseable(unittest.TestCase):
+    def test_unparseable_head_is_not_invented_findings(self) -> None:
+        base = {
+            ".pinwash/pins.json": json.dumps(
+                [{"locator": "greenwash", "kind": "git_tag", "value": "v1.2.3"}]
+            )
+        }
+        payload = _pair(base, {".pinwash/pins.json": b"\xff\xfe"})
+        rules = _rules(payload)
+        self.assertIn(("SURFACE_UNPARSEABLE", "high"), rules)
+        self.assertNotIn("JUDGE_UNPINNED", [r for r, _s in rules])
+
+    def test_corrupt_base_fixed_at_head_is_silent(self) -> None:
+        payload = _pair(
+            {".claude/settings.json": b"\xff"},
+            {".claude/settings.json": json.dumps(STOP_BASE)},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_both_unparseable_is_warn(self) -> None:
+        payload = _pair(
+            {".github/required-ruleset.json": b"\xff"},
+            {".github/required-ruleset.json": b"\xff"},
+        )
+        self.assertIn(("SURFACE_UNPARSEABLE", "warn"), _rules(payload))
+
+
+class RequiredCheckLinkage(unittest.TestCase):
+    WF = "jobs:\n  ci:\n    name: ci\n    runs-on: ubuntu-latest\n"
+    RULESET = json.dumps(
+        {
+            "rules": [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {"required_status_checks": ["ci"]},
+                }
+            ]
+        }
+    )
+
+    def test_job_drop_without_ruleset_is_silent(self) -> None:
+        payload = _pair(
+            {".github/workflows/ci.yml": self.WF},
+            {},
+        )
+        self.assertNotIn(
+            "REQUIRED_CHECK_DROPPED", [r for r, _s in _rules(payload)]
+        )
+
+    def test_job_drop_with_ruleset_named_context_fires(self) -> None:
+        payload = _pair(
+            {
+                ".github/workflows/ci.yml": self.WF,
+                ".github/required-ruleset.json": self.RULESET,
+            },
+            {},
+        )
+        rules = _rules(payload)
+        self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), rules)
+
+
+class HookBypass(unittest.TestCase):
+    def test_commented_out_stop_command(self) -> None:
+        payload = _pair(
+            {".claude/settings.json": json.dumps(STOP_BASE)},
+            {
+                ".claude/settings.json": json.dumps(
+                    {
+                        "hooks": {
+                            "Stop": [
+                                {
+                                    "hooks": [
+                                        {
+                                            "type": "command",
+                                            "command": "# python hooks/tripwire_stop.py",
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                )
+            },
+        )
+        rules = _rules(payload)
+        self.assertIn(("HOOK_BYPASSED", "critical"), rules)
+
+
+class Allow(unittest.TestCase):
+    RECORD = (
+        "[[allow]]\n"
+        'fingerprint = "HOOK_REMOVED/.claude/settings.json/v1:' + "a" * 64 + '"\n'
+        'rule = "HOOK_REMOVED"\n'
+        'reason = "known rotation"\n'
+        'author = "nelson"\n'
+        'created = "2026-01-01"\n'
+        'expires = "2026-12-31"\n'
+    )
+
+    def test_deleting_allow_toml_is_critical(self) -> None:
+        payload = _pair({".pinwash/allow.toml": self.RECORD}, {})
+        self.assertIn(("CONFIG_RELAXED", "critical"), _rules(payload))
+
+    def test_corrupt_head_allow_toml_is_critical(self) -> None:
+        payload = _pair(
+            {".pinwash/allow.toml": self.RECORD},
+            {".pinwash/allow.toml": b"\xff"},
+        )
+        self.assertIn(("CONFIG_RELAXED", "critical"), _rules(payload))
+
+
+if __name__ == "__main__":
+    unittest.main()
