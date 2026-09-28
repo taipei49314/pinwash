@@ -141,6 +141,76 @@ class RequiredCheckLinkage(unittest.TestCase):
         self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), rules)
 
 
+class RequiredCheckTrigger(unittest.TestCase):
+    """SPEC §3.1/§5 (spec 8): trigger-loss disjunct — a producing job's
+    workflow that drops push/pull_request from `on:` loses every
+    enforcement-path run of the required context (live-fire round 2:
+    `on: push` → `on: workflow_dispatch` escaped)."""
+
+    RULESET = RequiredCheckLinkage.RULESET
+    JOBS = "jobs:\n  ci:\n    name: ci\n    runs-on: ubuntu-latest\n"
+    ON_PUSH = "on: push\n" + JOBS
+
+    def _payload(self, base_wf: str, head_wf: str) -> dict:
+        return _pair(
+            {
+                ".github/workflows/ci.yml": base_wf,
+                ".github/required-ruleset.json": self.RULESET,
+            },
+            {
+                ".github/workflows/ci.yml": head_wf,
+                ".github/required-ruleset.json": self.RULESET,
+            },
+        )
+
+    def test_push_to_dispatch_fires(self) -> None:
+        payload = self._payload(
+            self.ON_PUSH, "on: workflow_dispatch\n" + self.JOBS
+        )
+        rules = _rules(payload)
+        self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), rules)
+        self.assertIn(
+            ".github/workflows/ci.yml",
+            [f["path"] for f in payload["findings"]],
+        )
+
+    def test_on_removed_fires(self) -> None:
+        payload = self._payload(self.ON_PUSH, self.JOBS)
+        self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), _rules(payload))
+
+    def test_enforcement_path_survives_silent(self) -> None:
+        payload = self._payload(
+            self.ON_PUSH, "on: [pull_request, workflow_dispatch]\n" + self.JOBS
+        )
+        self.assertNotIn("REQUIRED_CHECK_DROPPED", [r for r, _s in _rules(payload)])
+
+    def test_no_enforcement_at_base_silent(self) -> None:
+        payload = self._payload(
+            "on: workflow_dispatch\n" + self.JOBS, self.ON_PUSH
+        )
+        self.assertNotIn("REQUIRED_CHECK_DROPPED", [r for r, _s in _rules(payload)])
+
+    def test_block_list_form_fires(self) -> None:
+        payload = self._payload(
+            "on:\n  - push\n" + self.JOBS, "on: workflow_dispatch\n" + self.JOBS
+        )
+        self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), _rules(payload))
+
+    def test_nested_mapping_form_fires(self) -> None:
+        payload = self._payload(
+            "on:\n  push:\n    branches: [main]\n" + self.JOBS,
+            "on:\n  workflow_dispatch:\n" + self.JOBS,
+        )
+        self.assertIn(("REQUIRED_CHECK_DROPPED", "warn"), _rules(payload))
+
+    def test_flow_map_is_residual_not_finding(self) -> None:
+        payload = self._payload(
+            self.ON_PUSH, "on: {push: {branches: [main]}}\n" + self.JOBS
+        )
+        self.assertNotIn("REQUIRED_CHECK_DROPPED", [r for r, _s in _rules(payload)])
+        self.assertTrue(payload["unknown_coverage"])
+
+
 class HookBypass(unittest.TestCase):
     def test_commented_out_stop_command(self) -> None:
         payload = _pair(
