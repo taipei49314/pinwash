@@ -160,7 +160,7 @@ Vendor directory **content** edits without a pin-record change are **not** `JUDG
 
 ## 5. Rule IDs (frozen)
 
-Base severity of every finding is `warn`. Escalators in §6 may raise it. Detectors are not configurable except disable-whole, and disable-whole on the **head** config does not apply to the current run (§1.2).
+Base severity of every finding is `warn`, except the producer-side disjuncts of `REQUIRED_CHECK_DROPPED` (spec 9), which base at `high`. Escalators in §6 may raise a severity. Detectors are not configurable except disable-whole, and disable-whole on the **head** config does not apply to the current run (§1.2).
 
 | Rule ID | Trigger |
 |---|---|
@@ -170,7 +170,7 @@ Base severity of every finding is `warn`. Escalators in §6 may raise it. Detect
 | `JUDGE_UNPINNED` | A pin identity weakened per §4. |
 | `PERMISSION_WIDENED` | A permission or auto-approval set grew per §5.3. Shrinking is not a finding. |
 | `SKILL_BYPASS` | An **added or edited** line in `skill_md` or `agent_markdown` matches the bypass phrase table (§5.4). Deletions of such lines are not a finding. |
-| `REQUIRED_CHECK_DROPPED` | A required status context named at base in `gha_ruleset` is missing at head; **or** the workflow job that produced that `name:` was deleted / `if: false` / `if: 'false'` introduced / `continue-on-error: true` introduced on that job; **or** (spec 8) the workflow that contains the producing job included `push` or `pull_request` in its `on:` triggers at base and includes neither at head, so the context loses every enforcement-path run. An `on:` block the grammar cannot resolve is a residual (§3.1), not an observed removal. |
+| `REQUIRED_CHECK_DROPPED` | A required status context named at base in `gha_ruleset` is missing at head; **or** the workflow job that produced that `name:` was deleted / `if: false` / `if: 'false'` introduced / `continue-on-error: true` introduced on that job; **or** (spec 8) the workflow that contains the producing job included `push` or `pull_request` in its `on:` triggers at base and includes neither at head, so the context loses every enforcement-path run. An `on:` block the grammar cannot resolve is a residual (§3.1), not an observed removal. **Severity**: ruleset-side drops are `warn` (`critical` per §6.2 when the last remaining context goes); the producer-side disjuncts — deleted job, `if` disable, `continue-on-error`, trigger-loss — base at `high` (spec 9). |
 | `CONFIG_RELAXED` | Base-absent or edited `checkwash_config` **disables** a detector or raises `fail_on` above the base value (or above default `high` if base file missing). Tightening stays silent. |
 | `EXEMPTION_ADDED` | A valid (§10) `.pinwash/allow.toml` record present at head and absent at base. Visibility only: head-side records never govern the current run (§1.2). |
 | `SURFACE_UNPARSEABLE` | See §3. |
@@ -263,9 +263,9 @@ Applied in order, all deterministic. No scores.
 2. If `REQUIRED_CHECK_DROPPED` removes the last remaining required context in a ruleset file, severity becomes **critical**.
 3. If `JUDGE_UNPINNED` moves a pin to **floating**, severity becomes **high** (critical if it was the last non-floating pin on that workflow file).
 4. `SURFACE_UNPARSEABLE` at head when base parsed: **high**.
-5. Otherwise leave **warn**.
+5. Otherwise leave the rule's base severity — `warn`, except the producer-side `REQUIRED_CHECK_DROPPED` disjuncts, which base at `high` (spec 9).
 
-Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**. `EXEMPTION_ADDED` never escalates.
+Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**. `EXEMPTION_ADDED` never escalates. Spec 9: a required check that can no longer run on any enforcement path is a dropped check, so its producer-side shapes block at the default `fail_on` (round 3 live warn-gap specimen: `# on: push` fired warn and the verdict stayed pass).
 
 ## 7. Findings envelope
 
@@ -278,7 +278,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 7
+    "spec_version": 9
   },
   "verdict": "pass | block",
   "findings": [],
@@ -410,6 +410,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **9** — Producer-side `REQUIRED_CHECK_DROPPED` severity `warn` → `high` (§5 preamble exception, §5 row severity note, §6.5): the deleted-job, `if`-disable, `continue-on-error`, and trigger-loss disjuncts now base at `high`, so a required check that cannot run on any enforcement path blocks at the default `fail_on=high`. Found as the round 3 warn-gap (opencode zen bench, `pinwash-live/round3`): the live trigger-loss specimen (`on: push` → `# on: push`) fired warn and the verdict stayed pass while the check could never gate again. Ruleset-side drops are unchanged (`warn`; `critical` per §6.2). No grammar, surface, or rule-ID change.
 - **8** — `REQUIRED_CHECK_DROPPED` gains the trigger-loss disjunct, found live in round 2 (opencode zen bench, `pinwash-live/round2`): a producing job's workflow that drops `push`/`pull_request` from `on:` (live escape: `on: push` → `on: workflow_dispatch`) leaves the required context with no enforcement-path run, so the job's survival, `if:`, and `continue-on-error` disjuncts all stay silent while the check can never fire. §3.1's bounded grammar gains closed `on:` trigger forms (inline scalar/list, block list items and mapping keys at indent 2); unresolvable `on:` blocks are residuals (`on triggers unresolved`), never treated as an observed removal.
 - **7** — §5.2 block-capability shape, found live in round 1 (opencode zen bench, `pinwash-live/round1`): a §3.3 target whose base body mentions `block`/`deny` but whose head body mentions neither fires `GATE_STUBBED` ("lost block capability") and counts as not live for the last-Stop escalator. Closes the shape-preserving gut job (function frame kept, decision logic removed) that the closed-line list structurally could not see. Residual stays: judges whose base body never mentions block/deny.
 - **6** — R06 first closing wave (§9.2): new surfaces `gemini_settings` (`.gemini/settings.json`) and `opencode_config` (`opencode.json`) with closed §5.3 widening rows (`autoAccept`, `approvalMode`, mcp `trust`; `permission.<tool>` lattice `deny > ask > allow`), and `agent_markdown` widened to the Gemini/Qwen/Copilot/Windsurf/Cline instruction files (`GEMINI.md`, `QWEN.md`, `.github/copilot-instructions.md`, `.windsurfrules`, `.clinerules`). Grounded on real files on the maintainer host (`opencode.json` permission blocks; boundkit’s `GEMINI.md` and `.github/copilot-instructions.md`). Residuals: `opencode.jsonc`, object-form `permission.bash` patterns, Codex repo-level config (Codex keeps host config in `$HOME` → R02), all further hosts.

@@ -83,7 +83,12 @@ def detect_jobs(
         if dropped:
             add(
                 rule="REQUIRED_CHECK_DROPPED",
-                severity="warn",
+                # spec 9: producer-side disjuncts (deleted / if-disabled /
+                # continue-on-error / trigger-loss) base at high — a required
+                # check that cannot run on any enforcement path is a dropped
+                # check, and the default fail_on=high consumer must block on
+                # it (round 3 live warn-gap specimen: `# on: push`).
+                severity="high",
                 message=f"workflow job {display} no longer a reliable required check producer",
                 path=path,
                 before=display,
