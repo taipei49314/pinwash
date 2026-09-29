@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **7** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **9** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -359,7 +359,7 @@ These are expected non-findings. Each needs a THREATMODEL row before an engine s
 | R09 | Required check context renamed in GitHub but job `name:` unchanged, or the reverse, when no ruleset file exists |
 | R10 | Pinwash itself disabled by not running pinwash |
 
-R07 is the important “GATE_STUBBED in the Python file” hole: v0 stub-checks the **command string** in JSON, not the file it points at. Closing it is a spec bump (bounded Python parse of hook entrypoints).
+R07 is the important “GATE_STUBBED in the Python file” hole. Since spec 4 the engine stub-checks both the **command string** in JSON and the §3.3-resolved target **file bodies** (§5.2 closed lists; block-capability shape since spec 7). The shapes in the R07 row above stay residual; closing more of them is a spec bump.
 
 ## 12. Preregistered v0 engine acceptance
 
