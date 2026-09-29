@@ -6,7 +6,7 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over SPEC and `tests/gates/**`. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `7` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
+SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `9` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
 
 ## 0. What this product is allowed to be
 
@@ -45,7 +45,9 @@ flowchart LR
 | boundkit | Was the task claimed and authorized? |
 | smallestlie | What lie does this verifier still accept? |
 
-On one diff, checkwash may emit a guardrail-touch event and pinwash may emit a structured weakening. Identities must not be shared. tripwire may **invoke** pinwash; enforcement belongs to tripwire. pinwash does not install, invoke, or trust hooks.
+On one diff, checkwash may emit a guardrail-touch event and pinwash may emit a structured weakening. Identities must not be shared. A hook runner may **invoke** pinwash; enforcement belongs to that runner. pinwash does not install, invoke, or trust hooks.
+
+Of the neighbour products in this diagram and table (pinwash itself aside), only checkwash and smallestlie remain on GitHub. walkaround, action-receipt, claim-receipt-lab, phaseledger, charterlock, tripwire, and boundkit were removed on 2026-09-26; they are named only to bound pinwash's scope, not as live integrations.
 
 ## 2. Trust boundaries (invariants)
 
@@ -76,7 +78,7 @@ flowchart TB
   baseCfg["base-only config: allow.toml plus future pinwash config"]
   parsers["bounded parsers: JSON / GHA line grammar / TOML subset / text"]
   ir["typed IR per surface"]
-  dets["pure detectors: nine frozen rule IDs"]
+  dets["pure detectors: ten frozen rule IDs"]
   esc["escalators in SPEC section 6 order"]
   allow["exemption filter: fingerprint plus rule from base"]
   env["findings envelope plus exit 0 1 2"]
@@ -136,13 +138,13 @@ sequenceDiagram
 - Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high**. Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not.
 - `unknown_coverage` does not change `verdict`. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `7`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `9`). `pinwash_version` is `0.0.0`.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 
 Adding a surface or a rule ID is a spec bump. v0 rule IDs (and no others in the `rule` field):
 
-`HOOK_REMOVED` · `HOOK_BYPASSED` · `GATE_STUBBED` · `JUDGE_UNPINNED` · `PERMISSION_WIDENED` · `SKILL_BYPASS` · `REQUIRED_CHECK_DROPPED` · `CONFIG_RELAXED` · `SURFACE_UNPARSEABLE`
+`HOOK_REMOVED` · `HOOK_BYPASSED` · `GATE_STUBBED` · `JUDGE_UNPINNED` · `PERMISSION_WIDENED` · `SKILL_BYPASS` · `REQUIRED_CHECK_DROPPED` · `CONFIG_RELAXED` · `EXEMPTION_ADDED` · `SURFACE_UNPARSEABLE`
 
 Internal helper names must not appear in JSON `rule`.
 
@@ -154,7 +156,7 @@ Internal helper names must not appear in JSON `rule`.
 | `cursor_mcp` | `.cursor/mcp.json`, `.mcp.json` | JSON object | `PERMISSION_WIDENED` |
 | `agent_markdown` | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`, `.cursor/rules/**` | UTF-8 text | `SKILL_BYPASS` only |
 | `skill_md` | `**/SKILL.md` and the two skill trees named in SPEC §3 | UTF-8 text | `SKILL_BYPASS` only |
-| `gha_workflow` | `.github/workflows/*.{yml,yaml}` | bounded line grammar, not YAML 1.2 | job drop / `if: false` / `continue-on-error` — job side fires only for jobs producing a base-named ruleset context (SPEC §5) |
+| `gha_workflow` | `.github/workflows/*.{yml,yaml}` | bounded line grammar, not YAML 1.2 | job drop / `if: false` / `continue-on-error` / `on:` trigger-loss (spec 8) — job side fires only for jobs producing a base-named ruleset context (SPEC §5) |
 | `action_pin` | same workflow files | `uses:` lines in that grammar | `JUDGE_UNPINNED` |
 | `gha_ruleset` | `.github/required-ruleset.json`, `.github/rulesets/*.json` | JSON object | `REQUIRED_CHECK_DROPPED` |
 | `declared_pins` | `.pinwash/pins.json` (optional) | JSON array of pin records | `JUDGE_UNPINNED` |
@@ -212,7 +214,7 @@ pinwash may be **wrapped** by a hook or a CI job. It remains not an enforcer. Jo
 |---|---|---|
 | Local / pre-commit | `python -m pinwash check` or `HEAD~1..HEAD` | Proof the remaining harness works |
 | PR CI | Runner already has two trees; run `BASE...HEAD` | pinwash executing a GitHub required check |
-| tripwire Stop | May shell out to pinwash | Closing residual R01 (a host CLI that never consults repo hooks) |
+| Stop hook runner | May shell out to pinwash | Closing residual R01 (a host CLI that never consults repo hooks) |
 
 Forbidden consumer fantasies:
 
@@ -225,12 +227,12 @@ Forbidden consumer fantasies:
 
 ## 8. v0 held versus 1.0 license
 
-**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. Keep the version string `0.0.0 spec 0` until a human bumps it.
+**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 9`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
 
 **1.0 license (every item is a human decision; missing one forbids saying 1.0):**
 
 1. ~~Human edits SPEC's "No engine exists yet"~~ Held: updated in spec 3 under the 2026-09-27 delegation (own commit; A11's original constraint — the first satisfying engine PR did not touch SPEC — still holds historically).
-2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `3`.
+2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `9` (SPEC §16).
 3. THREATMODEL R01–R10: each row is **Closed** with a named fixture, or **Permanent** with a human signature that it will not be closed and will not be pretended closed. Closed without a fixture fails the suite.
 4. Findings envelope and fingerprint stay backward compatible (`pinwash_findings_version: 1` already).
 5. `doctor` actually runs this package’s tests. (Held in v0 as of this change set; the item stays on the list as a 1.0 check.)

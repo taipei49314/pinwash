@@ -55,7 +55,7 @@ Exit codes: `0` no finding at or above `fail_on` · `1` verdict block · `2` eng
 
 ## Neighbours
 
-pinwash is not checkwash (product tests), not tripwire (hooks that run judges), not walkaround (session admission). It only asks whether **this diff** weakened pins, hooks, permissions, required checks, or bypass instructions.
+pinwash is not checkwash (product tests), not tripwire (hooks that run judges), not walkaround (session admission). It only asks whether **this diff** weakened pins, hooks, permissions, required checks, or bypass instructions. (tripwire and walkaround are no longer on GitHub — removed 2026-09-26 — and are named only to bound scope.)
 
 ## Status
 
@@ -65,9 +65,10 @@ pinwash is not checkwash (product tests), not tripwire (hooks that run judges), 
 | North star layers | yes, [ARCHITECTURE.md](ARCHITECTURE.md); not a 1.0 claim |
 | Engine `python -m pinwash check` | yes, local v0.0.0 |
 | Fixtures A1–A11 | yes, `tests/gates/test_v0_acceptance.py` (A11 = SPEC file not edited for the engine) |
+| Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — this repository has no CI workflow; A10 compares LF and CRLF subject files in one run on one host |
 | Live-fire validated | yes — rules were found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round). Spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity was validated live: the trigger-loss route now blocks, and benign workflow maintenance stays silent. |
 | 1.0 | no |
 
 ## License
 
-Not chosen in this commit set. SPEC is the contract; licensing is a human decision before first publication.
+Not chosen yet. The repository is public on GitHub and has no LICENSE file; choosing a license is a human decision. SPEC is the contract.
