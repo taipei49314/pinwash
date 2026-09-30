@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "workloads": {
+    "alpha2-verify": {
+      "description": "Verify one reviewed pinwash commit on the EC pool: run the complete stdlib unittest suite, require nonzero tests and no skips, require doctor to run the same tests successfully, and compare raw findings JSON from two independent processes with different PYTHONHASHSEED values. Record the exact source SHA, runtime, commands, exit codes, test counts, and output hashes. No dependency installation, subject execution, network requests, cache, or publication from the workload.",
+      "entry": "workloads/alpha2_verify/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 20,
+      "cache": false,
+      "parameters": {}
+    }
+  }
+}

@@ -15,6 +15,7 @@ _IF = re.compile(r"^(\s*)if:\s*(.*)$")
 _NAME = re.compile(r"^(\s*)name:\s*(.*)$")
 _JOBS = re.compile(r"^jobs:\s*$")
 _ON = re.compile(r"^on:\s*(.*)$")
+_BLOCK_SCALAR = re.compile(r"^[>|](?:[+-][1-9]?|[1-9][+-]?)?$")
 
 
 @dataclass
@@ -134,11 +135,15 @@ def parse_workflow(text: str) -> GhaFile:
                 result.jobs[current_job].continue_on_error = False
             continue
         mi = _IF.match(line)
-        if mi and current_job is not None and indent == 4:
-            result.jobs[current_job].if_value = truncate_inline_comment(
-                mi.group(2)
-            ).strip()
-            continue
+        if mi:
+            if_value = truncate_inline_comment(mi.group(2)).strip()
+            # SPEC §3.1: multiline scalars stay residuals, but must be
+            # visible as unknown coverage rather than a silent clean scan.
+            if _BLOCK_SCALAR.fullmatch(if_value):
+                result.unknown.append("multiline uses or scalar")
+            if current_job is not None and indent == 4:
+                result.jobs[current_job].if_value = if_value
+                continue
         mn = _NAME.match(line)
         if mn and current_job is not None and indent == 4:
             if result.jobs[current_job].name is None:

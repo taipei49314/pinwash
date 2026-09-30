@@ -227,6 +227,10 @@ def scan_pair(
                 continue
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
+            unp = _surface_unparseable(b_st, h_st)
+            if unp:
+                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+                continue
             if h_st != "ok" or h_txt is None:
                 continue
             base_s = b_txt if b_st == "ok" and b_txt is not None else ""

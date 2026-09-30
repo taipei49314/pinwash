@@ -8,6 +8,11 @@ Local-first. Deterministic. No LLM. No network. Does not execute the subject. Do
 
 This repository has a local **v0 engine**. There is no Release, no PyPI package, and no 1.0 claim. Read [SPEC.md](SPEC.md) (contract) and [ARCHITECTURE.md](ARCHITECTURE.md) (layers; SPEC wins on conflict). Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
 
+The [second alpha-strengthening round](docs/ALPHA2.md) repairs contract fidelity
+and adds real Git/CLI regressions. It is an engineering milestone, not version
+`2.0.0`. Its EC pool verification declaration is prepared; execution remains
+pending approval and App access.
+
 ## Try it
 
 Python 3.11+, Git. From this checkout:
