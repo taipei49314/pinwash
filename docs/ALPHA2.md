@@ -39,8 +39,20 @@ EC receipt ref. A prepared entry is not evidence that verification ran.
 
 ## Status and boundaries
 
-Implementation and regression cases are prepared for review. Pool execution is
-pending EC declaration approval and App access; no test-pass claim is made here.
+The approved workload first passed on implementation commit
+`8e0688c48467168a03439bcf8e2f1c98d8b76e80` in
+[EC run 36689530277](https://github.com/taipei49314/estate-consolidation/actions/runs/36689530277).
+The [immutable result receipt](https://github.com/taipei49314/estate-consolidation/blob/8fcd7cc95c7c38c103aae1eab1e9ea948bd1e5ee/result.json)
+records 96 successful suite tests with no skips, doctor independently running
+the same 96 tests with zero failures/errors/skips, equal raw JSON across seeds
+1 and 17, and unchanged clean source before and after validation. All eight
+command steps exited 0 without timeout. The runtime was Python 3.12.10 on the
+EC Windows pool (`DESKTOP-D127QSP-workload`, generation `8b1bcfb4b5dc0588.1`).
+
+The implementation remains a reviewable [PR #2](https://github.com/taipei49314/pinwash/pull/2).
+For the current review head, inspect its `ec / alpha2-verify` check and linked
+receipt; the initial result above applies only to its named commit. Documentation
+updates do not turn an earlier commit's check into a current-head check.
 
 The raw JSON check is a same-tree replay on one Windows/Python runtime. The suite
 contains seeded regression cases, not an independently held-out attack corpus.

@@ -10,8 +10,9 @@ This repository has a local **v0 engine**. There is no Release, no PyPI package,
 
 The [second alpha-strengthening round](docs/ALPHA2.md) repairs contract fidelity
 and adds real Git/CLI regressions. It is an engineering milestone, not version
-`2.0.0`. Its EC pool verification declaration is prepared; execution remains
-pending approval and App access.
+`2.0.0`. Its approved EC pool verification passed 96 tests and doctor at the
+initial implementation commit; see the linked acceptance document and the
+current PR head's `ec / alpha2-verify` check for exact source receipts.
 
 ## Try it
 
