@@ -49,8 +49,10 @@ To rebuild a cell: apply `fixture/base.patch` to an empty repo and commit
 worktree. For the one cell with `committed.patch`: apply it to `BASE` and
 commit (that is `HEAD`); `change.patch` is still relative to `BASE`, so
 build the worktree by applying it to a `BASE` checkout and copying the
-resulting files over the `HEAD` checkout. Re-judging is a workload; it is
-not done here.
+resulting files over the `HEAD` checkout. Re-judging is the
+`live-fire-rejudge` pool workload
+([`workloads/live_fire_rejudge/`](../workloads/live_fire_rejudge/)); it is not
+done here.
 
 ## Not collected
 

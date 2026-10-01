@@ -8,6 +8,14 @@
       "timeout_minutes": 20,
       "cache": false,
       "parameters": {}
+    },
+    "live-fire-rejudge": {
+      "description": "Re-judge the published live-fire rounds 0-4 offline on the EC pool and compare with the published records. Inputs are only files in the dispatched commit: the 196 files listed in live-fire/MANIFEST.json (each verified; the MANIFEST itself is pinned at sha256 04e4abbef8a1ed76c6350f1bb75e87b9804cb84b7fd5b5c362ca27514e65f5cd), workloads/live_fire_rejudge/judges.bundle (git bundle of pinwash history; each judge is proven by commit id and pinwash/ tree id: 416b962ca08623531be180e0a4d0613001d38776, 86bdccee9c5b63e92b1c3ef21af61374c078db15, 9dec33210208b2715b62085fa433ded04fffc14f, df5eb217f31f02cded1b29628cadfacb781fabcb, 7222bfcbabeea1047680aa8f6d3fbb488a1a3e92), and workloads/live_fire_rejudge/expected_worktrees.json (sha256 of every file in the 91 original cell worktrees except the driver outputs, Python caches, .git/ and one file named nul, as listed in its excluded field; hashed from the original cells on the maintainer's work machine by file reads only). The workload rebuilds the fixture base and requires commit 2354c96be0b9a390c7785ad3591d43c56278ada1, rebuilds every cell from its change.patch and requires its worktree bytes to equal expected_worktrees.json, then runs python -m pinwash check in every cell with the judge of each record and the ranges that record used (round 0: worktree only; round 1 spec 7: 2354c96..HEAD and worktree; all others: the full BASE..HEAD and worktree), twice with different PYTHONHASHSEED values, projects the output the way that record was projected, and compares canonical JSON. Primary records that must match: round 0 post-quiescence re-judge (416b962), round 1 spec 7 re-judge (86bdcce, inferred: that record names no revision), rounds 2, 3 and 4 drive-time (9dec332, df5eb21, 7222bfc), and the round 3 spec 9 delta (7222bfc). Round 0 and round 1 drive-time records and the never-judged round 1 first-launch cell are reported only. No judgment starts later than 50 minutes after the workload starts; anything left counts as not run. Records the exact source SHA, runtime, judge identities, rebuild checks, every comparison and raw judge stdout. pinwash only reads the cells; no subject code, network request, dependency installation, model, cache or publication from the workload.",
+      "entry": "workloads/live_fire_rejudge/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 60,
+      "cache": false,
+      "parameters": {}
     }
   }
 }
