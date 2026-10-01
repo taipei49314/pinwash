@@ -49,10 +49,32 @@ the same 96 tests with zero failures/errors/skips, equal raw JSON across seeds
 command steps exited 0 without timeout. The runtime was Python 3.12.10 on the
 EC Windows pool (`DESKTOP-D127QSP-workload`, generation `8b1bcfb4b5dc0588.1`).
 
-The implementation remains a reviewable [PR #2](https://github.com/taipei49314/pinwash/pull/2).
-For the current review head, inspect its `ec / alpha2-verify` check and linked
-receipt; the initial result above applies only to its named commit. Documentation
-updates do not turn an earlier commit's check into a current-head check.
+The review head `e89f05a1d2b45fd7b152f9c985145ed8fdace417` (the implementation
+plus README and this document) passed the same workload separately on
+`LAPTOP-8KGL8EFS-workload` in
+[EC run 36693696650](https://github.com/taipei49314/estate-consolidation/actions/runs/36693696650)
+([receipt](https://github.com/taipei49314/estate-consolidation/blob/de668e50a9799e2011c4499ab156ec44b555db73/result.json)),
+again 96 tests. Two hosts ran two SHAs; no single SHA ran on both.
+[PR #2](https://github.com/taipei49314/pinwash/pull/2) merged on 2026-10-01 as
+`23bbce2`, whose tree is byte-identical to `e89f05a`. Each result applies only
+to its named commit.
+
+## After the merge
+
+Review after the merge found that four rows above held only partly. These
+are filed and fixed separately; this record stays as written:
+
+- Doctor: a preset `PINWASH_DOCTOR_SELFTEST` still let doctor report `ok` with
+  zero tests, and expected failures counted as passes
+  ([#3](https://github.com/taipei49314/pinwash/issues/3)). The workload removed
+  the variable, so the 96-test results above are not affected.
+- Multiline workflow scalars: only `if:` was covered; `continue-on-error`,
+  `name`, split `uses` and `on:` block scalars stayed silent
+  ([#4](https://github.com/taipei49314/pinwash/issues/4)).
+- Stop-hook skip flags: the event-level aggregate still produced flag-name
+  dependent results ([#5](https://github.com/taipei49314/pinwash/issues/5)),
+  and SPEC §5.1 omitted `hookEnabled`
+  ([#6](https://github.com/taipei49314/pinwash/issues/6)).
 
 The raw JSON check is a same-tree replay on one Windows/Python runtime. The suite
 contains seeded regression cases, not an independently held-out attack corpus.

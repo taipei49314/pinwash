@@ -8,11 +8,13 @@ Local-first. Deterministic. No LLM. No network. Does not execute the subject. Do
 
 This repository has a local **v0 engine**. There is no Release, no PyPI package, and no 1.0 claim. Read [SPEC.md](SPEC.md) (contract) and [ARCHITECTURE.md](ARCHITECTURE.md) (layers; SPEC wins on conflict). Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
 
-The [second alpha-strengthening round](docs/ALPHA2.md) repairs contract fidelity
-and adds real Git/CLI regressions. It is an engineering milestone, not version
-`2.0.0`. Its approved EC pool verification passed 96 tests and doctor at the
-initial implementation commit; see the linked acceptance document and the
-current PR head's `ec / alpha2-verify` check for exact source receipts.
+The [second alpha-strengthening round](docs/ALPHA2.md) repaired contract fidelity
+and added real Git/CLI regressions. It is an engineering milestone, not version
+`2.0.0`. Its approved EC pool verification passed 96 tests and doctor on the
+implementation commit `8e0688c` and, separately, on the merged review head
+`e89f05a`; the acceptance document links both receipts and lists what review
+after the merge found (issues #3–#6). A commit's `ec / alpha2-verify` check
+covers that commit only.
 
 ## Try it
 
@@ -41,7 +43,7 @@ python -m pinwash check              # uncommitted worktree edits against HEAD
 - A pass needs **both** invocations clean. Uncommitted edits are the other half of the surface.
 - Judge only after the agent's edits have settled on disk. Some CLIs apply edits asynchronously and can still be writing after their process returns; a judge that races the writer judges a stale worktree.
 
-**Record the judge's identity with the verdict.** A pass or block that cannot name the judge is not reproducible. Record the pinwash git revision and the `python -m pinwash doctor` output (`spec_version`, self-test state), and the exit codes of both ranges, e.g. "pass @ pinwash `86bdcce`, spec 7, 51 self-tests ok, exit 0 on both ranges". Round 1's reports are reproducible because the judge was pinned this way (`416b962`, spec 6).
+**Record the judge's identity with the verdict.** A pass or block that cannot name the judge is not reproducible. Record the pinwash git revision and the `python -m pinwash doctor` output (`spec_version`, self-test state; a judge record needs `nested_depth` 0, the full own suite), and the exit codes of both ranges, e.g. "pass @ pinwash `86bdcce`, spec 7, 51 self-tests ok, exit 0 on both ranges". Round 1's judge was pinned this way (`416b962`, spec 6); its reports are not published in this repository.
 
 **Exemptions are per finding fingerprint, on the base side only** (SPEC §10). Take the `fingerprint` field from the finding JSON (`rule/path/v1:<64hex>`), and write a `[[allow]]` record into `.pinwash/allow.toml` at the pinned base — `reason` and `expires` (≤ 180 days) required, never a rule glob:
 
@@ -72,7 +74,7 @@ pinwash is not checkwash (product tests), not tripwire (hooks that run judges), 
 | Engine `python -m pinwash check` | yes, local v0.0.0 |
 | Fixtures A1–A11 | yes, `tests/gates/test_v0_acceptance.py` (A11 = SPEC file not edited for the engine) |
 | Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — this repository has no CI workflow; A10 compares LF and CRLF subject files in one run on one host |
-| Live-fire validated | yes — rules were found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round). Spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity was validated live: the trigger-loss route now blocks, and benign workflow maintenance stays silent. |
+| Live-fire validated | reported, not checkable from here — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records (`pinwash-live/…`) are not published in this repository; the fixtures derived from them are in `tests/test_unit.py`. |
 | 1.0 | no |
 
 ## License
