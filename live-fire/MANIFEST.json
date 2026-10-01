@@ -1,0 +1,1182 @@
+{
+  "source_root": "pinwash-live (local evaluation workspace on the maintainer's work machine; path relative)",
+  "base_fixture_commit": "2354c96be0b9a390c7785ad3591d43c56278ada1",
+  "files": [
+    {
+      "path": "live-fire/fixture/base.patch",
+      "sha256": "f8b3f704dca7b9510f3e0ae89e75a83a49e9fe8e1f831ba46683df2176d2d6c4",
+      "bytes": 3344,
+      "source": "pinwash-live/round1/fixture @ 2354c96be0b9a390c7785ad3591d43c56278ada1 (git diff empty-tree..2354c96)"
+    },
+    {
+      "path": "live-fire/round0/PREREG.md",
+      "sha256": "9846be57f1d3c372f729132ad2d4a5de05045fa809ede7d862dba95f02c79f0c",
+      "bytes": 3531,
+      "source": "pinwash-live/round0/PREREG.md"
+    },
+    {
+      "path": "live-fire/round0/REPORT.md",
+      "sha256": "3b3cf80e7f7365be922c6e6fc33dbff532b991dd4380dd71eeae75925e4da10a",
+      "bytes": 3187,
+      "source": "pinwash-live/round0/results/ROUND0_REPORT.md"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "f0f8c19d3ea621f3e26b748254538eff2d45766ad0fad00f3346cc5c7cf04ec2",
+      "bytes": 1539,
+      "source": "pinwash-live/round0/arms/attack/ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "d075d7344020b0af10217dd7e3257557bbf5ac75d995357fffe27eb25f3c9cfc",
+      "bytes": 1521,
+      "source": "pinwash-live/round0/arms/attack/ling-3.0-flash-fin-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-longcat-2.5-preview-free/change.patch",
+      "sha256": "f0f8c19d3ea621f3e26b748254538eff2d45766ad0fad00f3346cc5c7cf04ec2",
+      "bytes": 1539,
+      "source": "pinwash-live/round0/arms/attack/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-longcat-2.5-preview-free/judge.json",
+      "sha256": "f635ea759c3a3a82bc8469579e37587907d28c6d61468e9811fec3a4bfc32079",
+      "bytes": 1523,
+      "source": "pinwash-live/round0/arms/attack/longcat-2.5-preview-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-mimo-v2.6-flash-free/change.patch",
+      "sha256": "f0f8c19d3ea621f3e26b748254538eff2d45766ad0fad00f3346cc5c7cf04ec2",
+      "bytes": 1539,
+      "source": "pinwash-live/round0/arms/attack/mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-mimo-v2.6-flash-free/judge.json",
+      "sha256": "12ebbf9d52e2d7e0d2593b6679613f8da9a11b87bbee2d03e8ad369c56fd45e5",
+      "bytes": 1515,
+      "source": "pinwash-live/round0/arms/attack/mimo-v2.6-flash-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-nemotron-3-ultra-free/change.patch",
+      "sha256": "f0f8c19d3ea621f3e26b748254538eff2d45766ad0fad00f3346cc5c7cf04ec2",
+      "bytes": 1539,
+      "source": "pinwash-live/round0/arms/attack/nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-nemotron-3-ultra-free/judge.json",
+      "sha256": "54224b43de6e4f00a946ae496555c90f7f56407508b749afc0cbbbb53d5715da",
+      "bytes": 2408,
+      "source": "pinwash-live/round0/arms/attack/nemotron-3-ultra-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/attack/nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "8ae2e46196f45285b14549982fff5b96552c16bf449be28d1b4eb410e1155995",
+      "bytes": 1107,
+      "source": "pinwash-live/round0/arms/attack/nemotron-3.5-lightning-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/attack/space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/attack-space-bunny-free/judge.json",
+      "sha256": "85071b036c07e6cf0641695d7f8574d13b00d0bd1c049ab20cc726e69ea4ee38",
+      "bytes": 1085,
+      "source": "pinwash-live/round0/arms/attack/space-bunny-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "16852a860d606f44e06099ffd9f8600f54c7fc34c0b5f7f53f6c6c149d36b4ef",
+      "bytes": 1101,
+      "source": "pinwash-live/round0/arms/natural/ling-3.0-flash-fin-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-longcat-2.5-preview-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-longcat-2.5-preview-free/judge.json",
+      "sha256": "e83b4201373ff2376053a916d61950ef772af65ba08040e06e4e84fa60ba7f53",
+      "bytes": 1103,
+      "source": "pinwash-live/round0/arms/natural/longcat-2.5-preview-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-mimo-v2.6-flash-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-mimo-v2.6-flash-free/judge.json",
+      "sha256": "596d67556f4c5980f535516835597de0b68c3b68a1f4603c193d23c0c4bf4569",
+      "bytes": 1095,
+      "source": "pinwash-live/round0/arms/natural/mimo-v2.6-flash-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-nemotron-3-ultra-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-nemotron-3-ultra-free/judge.json",
+      "sha256": "9d24fbe8b8da0c787ee3b3a74a964c5c59e7fa3628f3533b9cb3197306548b19",
+      "bytes": 1097,
+      "source": "pinwash-live/round0/arms/natural/nemotron-3-ultra-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "7af87c8887ea87cac42605c4217beaac26f5358146cf869c027957005305acc5",
+      "bytes": 1109,
+      "source": "pinwash-live/round0/arms/natural/nemotron-3.5-lightning-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round0/arms/natural/space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round0/cells/natural-space-bunny-free/judge.json",
+      "sha256": "88a835f6ab029ea40e0230129907c4ec6044bb70858da8b72b8cd67f787684bb",
+      "bytes": 1087,
+      "source": "pinwash-live/round0/arms/natural/space-bunny-free + round0/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/PREREG.md",
+      "sha256": "43b555f96f058716361a4415f71abceef03d71a5e0c67bebe92cce79956c0ed9",
+      "bytes": 2452,
+      "source": "pinwash-live/round1/PREREG.md"
+    },
+    {
+      "path": "live-fire/round1/REPORT.md",
+      "sha256": "33970a3f6527ec1f0901764ba3f4637673d5561362c3f4b8a77dc94a09e2fa16",
+      "bytes": 4553,
+      "source": "pinwash-live/round1/results/ROUND1_REPORT.md"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "c4611183daa7e7a3f9e04afe2d7dc9015a9373f0034e977fc828a091bb551d8e",
+      "bytes": 1222,
+      "source": "pinwash-live/round1/arms2/attack/ling-3.0-flash-fin-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-longcat-2.5-preview-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-longcat-2.5-preview-free/judge.json",
+      "sha256": "2cebdb7d2df8611ad461e2ca60092b8d3b8ce1164261c6d7b2a57af6c12c0527",
+      "bytes": 1224,
+      "source": "pinwash-live/round1/arms2/attack/longcat-2.5-preview-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-mimo-v2.6-flash-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-mimo-v2.6-flash-free/judge.json",
+      "sha256": "7b41d78f224dbc087a887d70b69314520a817fad5d0be029d664beb9a6628b1a",
+      "bytes": 1216,
+      "source": "pinwash-live/round1/arms2/attack/mimo-v2.6-flash-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-nemotron-3-ultra-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-nemotron-3-ultra-free/judge.json",
+      "sha256": "776fe85de1c73381841ec31bc255ecde5d10dc15bae39eab9d3e7b513943806f",
+      "bytes": 1218,
+      "source": "pinwash-live/round1/arms2/attack/nemotron-3-ultra-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "e5b28abe361ce627332e8fd7170af7846c02496aa15c42c498a5d71b75988566",
+      "bytes": 1230,
+      "source": "pinwash-live/round1/arms2/attack/nemotron-3.5-lightning-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-space-bunny-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/attack/space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/attack-space-bunny-free/judge.json",
+      "sha256": "03f0aba298162b57bee24a88c70846a5dab7a3f94e45173de0f7e680fdca3dcd",
+      "bytes": 1208,
+      "source": "pinwash-live/round1/arms2/attack/space-bunny-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/natural/ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "5f7832a3b583a134b06d01ea069e6634dc5bd0bcea939684a4ba8de0f25ac216",
+      "bytes": 1224,
+      "source": "pinwash-live/round1/arms2/natural/ling-3.0-flash-fin-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-longcat-2.5-preview-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/natural/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-longcat-2.5-preview-free/judge.json",
+      "sha256": "9e9cc6c7267be01cfd9425ed45129de67fa9afdddc86765d266707105386b019",
+      "bytes": 1226,
+      "source": "pinwash-live/round1/arms2/natural/longcat-2.5-preview-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-mimo-v2.6-flash-free/change.patch",
+      "sha256": "a4b4b03dff65c4881967604e9ab9a8416e4c52e55d3d1efc721493021a51765b",
+      "bytes": 2388,
+      "source": "pinwash-live/round1/arms2/natural/mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-mimo-v2.6-flash-free/judge.json",
+      "sha256": "e0278760d7d2e38fdc25742ff745ed8405fdb172ad0477809ce2585f0b5cb68f",
+      "bytes": 1218,
+      "source": "pinwash-live/round1/arms2/natural/mimo-v2.6-flash-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-nemotron-3-ultra-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/natural/nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-nemotron-3-ultra-free/judge.json",
+      "sha256": "a64dfec30b9a0ac07bffe020c6bc46fda9f58b2ebcc1c218657ddf660f44d32c",
+      "bytes": 1220,
+      "source": "pinwash-live/round1/arms2/natural/nemotron-3-ultra-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/natural/nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "22136d8754e44e3c835d810f848a064b2063e938a7c49de99c3d82ad853d0d70",
+      "bytes": 1232,
+      "source": "pinwash-live/round1/arms2/natural/nemotron-3.5-lightning-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-space-bunny-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/natural/space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/natural-space-bunny-free/judge.json",
+      "sha256": "71dbf1e6f9c98b9349b743930bb318d000722e390588c437a3bb4320d8895a11",
+      "bytes": 1210,
+      "source": "pinwash-live/round1/arms2/natural/space-bunny-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/bait/ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "bedb4ed30c48bf5bd367d86e2950884096069c23e716071b71018cc260267864",
+      "bytes": 1218,
+      "source": "pinwash-live/round1/arms2/bait/ling-3.0-flash-fin-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-longcat-2.5-preview-free/change.patch",
+      "sha256": "1c056fbfa665d10b5e4f58741a6bb80162226c3be077e45aa33d0265ff822af6",
+      "bytes": 1199,
+      "source": "pinwash-live/round1/arms2/bait/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-longcat-2.5-preview-free/judge.json",
+      "sha256": "5db86a7faa70e1a1955fab83d29a4f85f21fcd6abf5c09ac58921e6280140a5d",
+      "bytes": 1220,
+      "source": "pinwash-live/round1/arms2/bait/longcat-2.5-preview-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-mimo-v2.6-flash-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round1/arms2/bait/mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-mimo-v2.6-flash-free/judge.json",
+      "sha256": "067453112ba9706ffedd59da956ca30a42312cd5f57fe73d7fae30cebda8172b",
+      "bytes": 1080,
+      "source": "pinwash-live/round1/arms2/bait/mimo-v2.6-flash-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-nemotron-3-ultra-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round1/arms2/bait/nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-nemotron-3-ultra-free/judge.json",
+      "sha256": "bf8a6ae0c3a528bc555132471d171e345dc1c28c2b4a92f6e293b6a8855cbc2a",
+      "bytes": 1082,
+      "source": "pinwash-live/round1/arms2/bait/nemotron-3-ultra-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round1/arms2/bait/nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "2a880ea409bcbc93db2ed590b14ab609cbf7bc9efd0ffdd6d7556e7925f4e898",
+      "bytes": 1094,
+      "source": "pinwash-live/round1/arms2/bait/nemotron-3.5-lightning-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round1/arms2/bait/space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/bait-space-bunny-free/judge.json",
+      "sha256": "37bb6ec581e734690f991499681be140b6e6aeb5a1c25144cba82221b6dd8648",
+      "bytes": 1072,
+      "source": "pinwash-live/round1/arms2/bait/space-bunny-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round1/cells/first-launch-attack-longcat-2.5-preview-free/change.patch",
+      "sha256": "59457baf3dba908b1ef71d666628d28165718739d0c5efbd4387900098ae3306",
+      "bytes": 4322,
+      "source": "pinwash-live/round1/arms/attack/longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round1/cells/first-launch-attack-longcat-2.5-preview-free/committed.patch",
+      "sha256": "c3c234f9ac49912e0f90827a379346db6a683e5aa41c567bf42aa5a2294f705c",
+      "bytes": 2946,
+      "source": "pinwash-live/round1/arms/attack/longcat-2.5-preview-free (git diff 2354c96..3a0be5f)"
+    },
+    {
+      "path": "live-fire/round1/cells/first-launch-attack-longcat-2.5-preview-free/judge.json",
+      "sha256": "85739f437d5a024358432a76981c5f586aa89433bffcb924f7ab88f9778d8ac5",
+      "bytes": 520,
+      "source": "pinwash-live/round1/arms/attack/longcat-2.5-preview-free + round1/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/PREREG.md",
+      "sha256": "9b36761d1321a5a5e46420a752a19bf6bb90136a0a78df2099333261e8b33b7a",
+      "bytes": 6158,
+      "source": "pinwash-live/round2/PREREG.md"
+    },
+    {
+      "path": "live-fire/round2/REPORT.md",
+      "sha256": "e1d8bb198d47fd1753841df3d69ee02eb0af15d9e951935ca03b2fa5b08ef4e1",
+      "bytes": 9038,
+      "source": "pinwash-live/round2/results/ROUND2_REPORT.md"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "fc0d921060239ba9eba41016468f9c7c664ff81fd03d93f0220dc7fc5e40e110",
+      "bytes": 3546,
+      "source": "pinwash-live/round2/cells/attack-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "dcf0f243a5db68405ff21546611388f90cf5523a37d8b82a5ec563b4e830e991",
+      "bytes": 1292,
+      "source": "pinwash-live/round2/cells/attack-ling-3.0-flash-fin-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-longcat-2.5-preview-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round2/cells/attack-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-longcat-2.5-preview-free/judge.json",
+      "sha256": "9ccaf3e0b4b9b5744f2668157fa8a79e7a6e7d3a1922f098d1a51e28912c7961",
+      "bytes": 816,
+      "source": "pinwash-live/round2/cells/attack-longcat-2.5-preview-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-mimo-v2.6-flash-free/change.patch",
+      "sha256": "b004fd1f8b8e9cc7eba4f62cf436638e99ed155af6a113785c079214d21777d3",
+      "bytes": 534,
+      "source": "pinwash-live/round2/cells/attack-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-mimo-v2.6-flash-free/judge.json",
+      "sha256": "ff6d9a0075d97fa0de452b45c7d19a5c7f5003dafda1a7916ac52a28b6afa54d",
+      "bytes": 761,
+      "source": "pinwash-live/round2/cells/attack-mimo-v2.6-flash-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-nemotron-3-ultra-free/change.patch",
+      "sha256": "890e99a7e16e4453e69e928876b502f70da976d589713bbe33a0efc9c5d4e5b4",
+      "bytes": 2662,
+      "source": "pinwash-live/round2/cells/attack-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-nemotron-3-ultra-free/judge.json",
+      "sha256": "2bea93270caa7ec0430807f0da6f9ce0f721c02d464325af943bb93856ec920e",
+      "bytes": 1139,
+      "source": "pinwash-live/round2/cells/attack-nemotron-3-ultra-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round2/cells/attack-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "00aa7b20a61166a842da172e83d35638ff2e99b84e29d0518af55e52c99f149d",
+      "bytes": 784,
+      "source": "pinwash-live/round2/cells/attack-nemotron-3.5-lightning-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-space-bunny-free/change.patch",
+      "sha256": "b41255f6598f37a18416a973b7e99024d4a441024d56ed52091c2b2deca47a83",
+      "bytes": 689,
+      "source": "pinwash-live/round2/cells/attack-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/attack-space-bunny-free/judge.json",
+      "sha256": "65c94833fc6397dafeeef5d031521f2b914f76dc24a40775f31a03ec7b4c63dc",
+      "bytes": 800,
+      "source": "pinwash-live/round2/cells/attack-space-bunny-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "d1dbb555b27126b9b8437bd967768f77920e3eb4ceacca4ed84bef329c610d97",
+      "bytes": 1489,
+      "source": "pinwash-live/round2/cells/natural-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "d96c0d456553d6a1bcb15427a5cbeeea0b088acdc50310229d0117fc1725ade1",
+      "bytes": 816,
+      "source": "pinwash-live/round2/cells/natural-ling-3.0-flash-fin-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-longcat-2.5-preview-free/change.patch",
+      "sha256": "4264c7dce6459eaa568732d4f2538535e3d6255ef30b0ce18277b8aac0a2e37d",
+      "bytes": 1468,
+      "source": "pinwash-live/round2/cells/natural-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-longcat-2.5-preview-free/judge.json",
+      "sha256": "9c3f0706f49d6813a041e8a90bca24abc823547bf14816cf19761854d0f94ac4",
+      "bytes": 818,
+      "source": "pinwash-live/round2/cells/natural-longcat-2.5-preview-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-mimo-v2.6-flash-free/change.patch",
+      "sha256": "1a6586bbb42c7d6a794f0ab245f163b6c888e8f59850228205d1224380ae8876",
+      "bytes": 1485,
+      "source": "pinwash-live/round2/cells/natural-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-mimo-v2.6-flash-free/judge.json",
+      "sha256": "1b934a69e904c7b7aab1cbc314f9fa5c7cad3911cb2717db15afaf552d5995e0",
+      "bytes": 763,
+      "source": "pinwash-live/round2/cells/natural-mimo-v2.6-flash-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-nemotron-3-ultra-free/change.patch",
+      "sha256": "77be598e2a5ec487903df5148424dcd0c68a264c0d3591f2e93995afa0386ac0",
+      "bytes": 1502,
+      "source": "pinwash-live/round2/cells/natural-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-nemotron-3-ultra-free/judge.json",
+      "sha256": "9af7f964f7564ad0d5c19894d8ca5ae32da1f045da22cfcf94d25fd0ef63d52f",
+      "bytes": 765,
+      "source": "pinwash-live/round2/cells/natural-nemotron-3-ultra-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "6b398bcdc83d75e7c7ed359e8b4533930bfeb25c95047beb8bf7324515876134",
+      "bytes": 1461,
+      "source": "pinwash-live/round2/cells/natural-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "3959605dc2b769a4faffcf0222b4b8916d3f27eb20baca1d9258b515a31d3f05",
+      "bytes": 778,
+      "source": "pinwash-live/round2/cells/natural-nemotron-3.5-lightning-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-space-bunny-free/change.patch",
+      "sha256": "cb74c5f6e270b9658ff67499ab5ac7673fe6faf004ff40e409c9832780d87a17",
+      "bytes": 1731,
+      "source": "pinwash-live/round2/cells/natural-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md', 'tests/__init__.py'])"
+    },
+    {
+      "path": "live-fire/round2/cells/natural-space-bunny-free/judge.json",
+      "sha256": "f49130daec0e7043578b0a6d8da8dbc4105316b906813f0447efba7dd315c9a9",
+      "bytes": 755,
+      "source": "pinwash-live/round2/cells/natural-space-bunny-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "5c855009f4c6f26b8ecb3519f5f56bc3b31142baddc62dc54c6b15e25ce85c06",
+      "bytes": 2111,
+      "source": "pinwash-live/round2/cells/bait-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "66e8cbe88890e0bc619b98cc3c082b9831558c325088e2211bfe30c5707f644a",
+      "bytes": 763,
+      "source": "pinwash-live/round2/cells/bait-ling-3.0-flash-fin-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-longcat-2.5-preview-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round2/cells/bait-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-longcat-2.5-preview-free/judge.json",
+      "sha256": "4874965aa7a9c930bc832219bd0c35777996c4b09f0bcb89a209aa405b71569c",
+      "bytes": 813,
+      "source": "pinwash-live/round2/cells/bait-longcat-2.5-preview-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-mimo-v2.6-flash-free/change.patch",
+      "sha256": "a6318a705adb7d0ac6b7109d81c08ba8c6fbfd1e8468f5f4fd06e6346e432f98",
+      "bytes": 5257,
+      "source": "pinwash-live/round2/cells/bait-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md', 'tests/test_stop_judge.py'])"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-mimo-v2.6-flash-free/judge.json",
+      "sha256": "05e05f38669928dece4969901be6dbf9df2d4c66a3983df34585884e864035e8",
+      "bytes": 813,
+      "source": "pinwash-live/round2/cells/bait-mimo-v2.6-flash-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-nemotron-3-ultra-free/change.patch",
+      "sha256": "131101339be13dd8e5b6989c83162a4a6e79fed692c36142304119ac86477420",
+      "bytes": 1975,
+      "source": "pinwash-live/round2/cells/bait-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-nemotron-3-ultra-free/judge.json",
+      "sha256": "de59addc64dbe75592776174c367f81fac6078504b91e1aa13e1d936aaa1dcfd",
+      "bytes": 760,
+      "source": "pinwash-live/round2/cells/bait-nemotron-3-ultra-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "d7e591c3c7be266eaf9094d54207e2e8dc2708107e812ad52e5b33076cc88651",
+      "bytes": 446,
+      "source": "pinwash-live/round2/cells/bait-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "315e7c6aaf326bdc65a3d8cd0872168457b01fcd1262da63803513046c19a563",
+      "bytes": 772,
+      "source": "pinwash-live/round2/cells/bait-nemotron-3.5-lightning-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round2/cells/bait-space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round2/cells/bait-space-bunny-free/judge.json",
+      "sha256": "9cbc8e010823e2b4d143c3c12bf113328b7e14aa403b239d679048f46265f190",
+      "bytes": 796,
+      "source": "pinwash-live/round2/cells/bait-space-bunny-free + round2/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/PREREG.md",
+      "sha256": "ca9cff73bd15db2a338eaa400a9660597fdcce514f9d0cf652d29953c1d72341",
+      "bytes": 8355,
+      "source": "pinwash-live/round3/PREREG.md"
+    },
+    {
+      "path": "live-fire/round3/REPORT.md",
+      "sha256": "34f782ccc6c466930357551e617fb2514ad7a641d6eae5622ef06cd3e1dac32e",
+      "bytes": 11131,
+      "source": "pinwash-live/round3/results/ROUND3_REPORT.md"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "a227c6e9652b165648b3cac30691eda9392174efa89b2b1a8656337310bb9881",
+      "bytes": 1731,
+      "source": "pinwash-live/round3/cells/attack-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "38e3b854dd588509759a26bca33bf314df5e1069dd788f710e816f60667a89d1",
+      "bytes": 1391,
+      "source": "pinwash-live/round3/cells/attack-ling-3.0-flash-fin-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-longcat-2.5-preview-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/attack-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-longcat-2.5-preview-free/judge.json",
+      "sha256": "d9d4a02a0a76945cda88e19d5fadd085399eece4873d18d919fe88fac63758ca",
+      "bytes": 816,
+      "source": "pinwash-live/round3/cells/attack-longcat-2.5-preview-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-mimo-v2.6-flash-free/change.patch",
+      "sha256": "4848448c4035796a9b760aa1c1cf6f93b9ed6dd51736fc9ab69febb114e19753",
+      "bytes": 585,
+      "source": "pinwash-live/round3/cells/attack-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-mimo-v2.6-flash-free/judge.json",
+      "sha256": "839a642d6b2d955d5f981b780c2e02e33be80056ea9f1fd2dc82832dc7aef15c",
+      "bytes": 761,
+      "source": "pinwash-live/round3/cells/attack-mimo-v2.6-flash-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-nemotron-3-ultra-free/change.patch",
+      "sha256": "5cb7b6c76c4c607fd48c3985cd0ec019332a41ae28a0cb869728e4341bf2f85c",
+      "bytes": 1195,
+      "source": "pinwash-live/round3/cells/attack-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-nemotron-3-ultra-free/judge.json",
+      "sha256": "f6bd4fc3392767b087c7b4cecaae6f3fe3a9e69dc90de2c217934453dcab7204",
+      "bytes": 1272,
+      "source": "pinwash-live/round3/cells/attack-nemotron-3-ultra-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "f33c74674c2247b4f760aaf29160c5881888efbccd3ee77958531e6f36f283bb",
+      "bytes": 489,
+      "source": "pinwash-live/round3/cells/attack-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "644705747a7e14775c7c6e2af265b57e129a666e28c7eadc84db8a3e025a2f8c",
+      "bytes": 776,
+      "source": "pinwash-live/round3/cells/attack-nemotron-3.5-lightning-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/attack-space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-space-bunny-free/judge.json",
+      "sha256": "d41c3a8cda2249492c1611c7bb64c8195a48315a57f642ae138003924178af2c",
+      "bytes": 800,
+      "source": "pinwash-live/round3/cells/attack-space-bunny-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "93ced886b500c597a2b24c1cf85f7bd6b94927eadf72ee2585a3028e1775995c",
+      "bytes": 1976,
+      "source": "pinwash-live/round3/cells/bait-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "d44d76a2fbc608f0226dc8d99eecb9b03cc981f037e1e2f7b0a2ba0f264f75f0",
+      "bytes": 810,
+      "source": "pinwash-live/round3/cells/bait-ling-3.0-flash-fin-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-longcat-2.5-preview-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/bait-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-longcat-2.5-preview-free/judge.json",
+      "sha256": "96d5c35ba97cb5232b98eb0713e52fa7e54975cd212a2014088c54483ac37e11",
+      "bytes": 774,
+      "source": "pinwash-live/round3/cells/bait-longcat-2.5-preview-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-mimo-v2.6-flash-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/bait-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-mimo-v2.6-flash-free/judge.json",
+      "sha256": "8a7e3d9bc00d3f26f8c44de3cb0dd445b7698585fe6b8c4d762128c53253f2ca",
+      "bytes": 805,
+      "source": "pinwash-live/round3/cells/bait-mimo-v2.6-flash-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-nemotron-3-ultra-free/change.patch",
+      "sha256": "ef40368de1213f628e95bf3edf58b21a9ac86e286c57ff14154edf47d27c5450",
+      "bytes": 1737,
+      "source": "pinwash-live/round3/cells/bait-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-nemotron-3-ultra-free/judge.json",
+      "sha256": "2dc80b66fc5adcf867c80cd7648a20eca90e2e0080c459e4ad22a1c946f96685",
+      "bytes": 953,
+      "source": "pinwash-live/round3/cells/bait-nemotron-3-ultra-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "6e86ae5708e45d59e087641903678817698a002ddbbe1c881410ff45b3720382",
+      "bytes": 533,
+      "source": "pinwash-live/round3/cells/bait-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "dd76a75af1987876eabbe72c01f6e57baae2cd7c4996eeec9c2ddb7df715920f",
+      "bytes": 780,
+      "source": "pinwash-live/round3/cells/bait-nemotron-3.5-lightning-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-space-bunny-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/bait-space-bunny-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/bait-space-bunny-free/judge.json",
+      "sha256": "f5d241b43687e8cc34b39c9522b33943b4c152e256af1aea39898767a30ba273",
+      "bytes": 796,
+      "source": "pinwash-live/round3/cells/bait-space-bunny-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "4df9ad79a17774bd968b27ef777d4e20137d154877f1efada4bd9cd0a70c48ff",
+      "bytes": 1507,
+      "source": "pinwash-live/round3/cells/natural-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "b1a5eaf0df8e9909d64b05883ed37c4f0d16682f979fcc58b2b34828197c28b9",
+      "bytes": 769,
+      "source": "pinwash-live/round3/cells/natural-ling-3.0-flash-fin-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-longcat-2.5-preview-free/change.patch",
+      "sha256": "dffef8bef015c3347f8715d7129b0cfc223dfdf5211b1d118761eaef6f90c506",
+      "bytes": 1470,
+      "source": "pinwash-live/round3/cells/natural-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-longcat-2.5-preview-free/judge.json",
+      "sha256": "d05bd865f0442adb75e17405dacb0a5136a614d74e63233fe503a88ffaf7a2d5",
+      "bytes": 818,
+      "source": "pinwash-live/round3/cells/natural-longcat-2.5-preview-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-mimo-v2.6-flash-free/change.patch",
+      "sha256": "c8f8e403bace2bf0407a1271e41f0502af42819cbcd1c205a9e6ab381b46f8db",
+      "bytes": 1480,
+      "source": "pinwash-live/round3/cells/natural-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-mimo-v2.6-flash-free/judge.json",
+      "sha256": "ea88958475e1b0b5361d97c6c3a62df64fa100b0f791c8a78227f85d134153db",
+      "bytes": 810,
+      "source": "pinwash-live/round3/cells/natural-mimo-v2.6-flash-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-nemotron-3-ultra-free/change.patch",
+      "sha256": "0ea2ec15f4dbc623ef60f891a06abe0b85c1e487cd80f6b3ff33e9bb348eec25",
+      "bytes": 1502,
+      "source": "pinwash-live/round3/cells/natural-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-nemotron-3-ultra-free/judge.json",
+      "sha256": "fea645bc28636c578329c504c0565fd46b6a0437b1f99a5b429c301d55178b1f",
+      "bytes": 765,
+      "source": "pinwash-live/round3/cells/natural-nemotron-3-ultra-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "2d46a7ae1a82c1a16a6339221de7b4cb22cecbcc6378c1d71afb68010e8888f0",
+      "bytes": 1497,
+      "source": "pinwash-live/round3/cells/natural-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "6b6af135c8ad36cd38342410ef35d3b3993c3118de01dda01063d2eb4de61d8f",
+      "bytes": 777,
+      "source": "pinwash-live/round3/cells/natural-nemotron-3.5-lightning-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-space-bunny-free/change.patch",
+      "sha256": "f2601f3288b1da87b01fb28f9075316af7c9b1952a8b90f143069bb31c22eec7",
+      "bytes": 1524,
+      "source": "pinwash-live/round3/cells/natural-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/natural-space-bunny-free/judge.json",
+      "sha256": "8f5f7f083314af64aeda7f944caf38f1bd75276aa319e6e6ef4e5bfbb00dd799",
+      "bytes": 802,
+      "source": "pinwash-live/round3/cells/natural-space-bunny-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "8c20fa472facdba28a994d63dcf3fc5bc8a9fefaffff9136c1bc8730de75cde2",
+      "bytes": 952,
+      "source": "pinwash-live/round3/cells/attack-ci-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "2dea60ee4f027d08aeda73b6a157cc08dad8e357dea0c063fe80438ff06c7b72",
+      "bytes": 1008,
+      "source": "pinwash-live/round3/cells/attack-ci-ling-3.0-flash-fin-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-longcat-2.5-preview-free/change.patch",
+      "sha256": "5f1ae8ef9fd75003bfeef4bc8fff54ffebffb90b12d330eb69b8ce298b98ee33",
+      "bytes": 866,
+      "source": "pinwash-live/round3/cells/attack-ci-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-longcat-2.5-preview-free/judge.json",
+      "sha256": "e7c17b8b1269b34197e30134d86b384b6781018688873ae20cf3d3cd13d573ca",
+      "bytes": 1010,
+      "source": "pinwash-live/round3/cells/attack-ci-longcat-2.5-preview-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-mimo-v2.6-flash-free/change.patch",
+      "sha256": "835cb586c0dbe6fb68e97d8f836246f30e3ef9d9edbe8d4184638192be9b09cd",
+      "bytes": 623,
+      "source": "pinwash-live/round3/cells/attack-ci-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-mimo-v2.6-flash-free/judge.json",
+      "sha256": "f5bb7db622252ad9578d6c581c32cde59355692406fb6994405541d73c18ffa9",
+      "bytes": 814,
+      "source": "pinwash-live/round3/cells/attack-ci-mimo-v2.6-flash-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-nemotron-3-ultra-free/change.patch",
+      "sha256": "e6dad701378f2fa908b479b78e81084f7bc196e449e6b7ddf417f03c5eb0f9f7",
+      "bytes": 1322,
+      "source": "pinwash-live/round3/cells/attack-ci-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-nemotron-3-ultra-free/judge.json",
+      "sha256": "7c9872046655fe9aa1955a8c5bfc23b6ea896b9f5d69ed242aa99ed604c0eaf2",
+      "bytes": 1479,
+      "source": "pinwash-live/round3/cells/attack-ci-nemotron-3-ultra-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "564fff5207c4f2d8c1847ef9171d762b2d17cbc16363cdea2879029167ede440",
+      "bytes": 323,
+      "source": "pinwash-live/round3/cells/attack-ci-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked none)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "a4a00d8437677a2afac10f2055729fedc200dd5a4560a06d3fc5b775d360d00c",
+      "bytes": 782,
+      "source": "pinwash-live/round3/cells/attack-ci-nemotron-3.5-lightning-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-space-bunny-free/change.patch",
+      "sha256": "08ebad33b61d9ed4b64c2d1f52998af204763fb1b0a6b72812b7a63cc6996761",
+      "bytes": 630,
+      "source": "pinwash-live/round3/cells/attack-ci-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round3/cells/attack-ci-space-bunny-free/judge.json",
+      "sha256": "778eaa8ee9a7d8e589f00f08b09a32cb7c486fd8af56f86d529e95dc89ec72c0",
+      "bytes": 806,
+      "source": "pinwash-live/round3/cells/attack-ci-space-bunny-free + round3/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/PREREG.md",
+      "sha256": "030f9c083cb36ab7d3d340bc42a93f3349563acc1f63fd1676cd54dec8ce7cbc",
+      "bytes": 4080,
+      "source": "pinwash-live/round4/PREREG.md"
+    },
+    {
+      "path": "live-fire/round4/REPORT.md",
+      "sha256": "1e15117bce607f97f65063793e510e89306bd8ed8384d58db48f35ae2d7f809f",
+      "bytes": 5223,
+      "source": "pinwash-live/round4/results/ROUND4_REPORT.md"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "67f34208621b4588f49c290ea5e7176737a20ddf5b72d22bfef2e99c0a18ee19",
+      "bytes": 837,
+      "source": "pinwash-live/round4/cells/attack-ci-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "bb19b5052409d62a5291e10f3beaeb2a29ff0208a030a0e08f4925dc3825d75f",
+      "bytes": 961,
+      "source": "pinwash-live/round4/cells/attack-ci-ling-3.0-flash-fin-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-longcat-2.5-preview-free/change.patch",
+      "sha256": "5955581e529a3bc8d74d725edca1b8c9d2af32e9a19ebbefd935a11e121bda7b",
+      "bytes": 1405,
+      "source": "pinwash-live/round4/cells/attack-ci-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-longcat-2.5-preview-free/judge.json",
+      "sha256": "c9fc537cfb377f1b6fcbf50084600bc8858cfbcbab0785b69519f4e6abd4a7ea",
+      "bytes": 1006,
+      "source": "pinwash-live/round4/cells/attack-ci-longcat-2.5-preview-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-mimo-v2.6-flash-free/change.patch",
+      "sha256": "c5cd031d04171f4e47d933d14c7b8c1f5415cb20c77e0d15c0cca2002493c682",
+      "bytes": 602,
+      "source": "pinwash-live/round4/cells/attack-ci-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-mimo-v2.6-flash-free/judge.json",
+      "sha256": "72ebf07768653cee4a04bb2437aaad7779406aaf4a4b53e0d270427a5b9dfc08",
+      "bytes": 814,
+      "source": "pinwash-live/round4/cells/attack-ci-mimo-v2.6-flash-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-nemotron-3-ultra-free/change.patch",
+      "sha256": "2d61027300b372c5eaeb367a9a147e8445ac15ff2f27f7ff5890eaf2a9a45a2c",
+      "bytes": 1693,
+      "source": "pinwash-live/round4/cells/attack-ci-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-nemotron-3-ultra-free/judge.json",
+      "sha256": "4bc768880ebe1016dfc6d615a59bee9ebf6d7a7990dbcdc800b7e0ce5258994e",
+      "bytes": 1134,
+      "source": "pinwash-live/round4/cells/attack-ci-nemotron-3-ultra-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "85e735a3c72be721c5de66e9b31b0f191a413c6e8beecaf9e9ba366112e8184b",
+      "bytes": 831,
+      "source": "pinwash-live/round4/cells/attack-ci-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "4036c64094a568a5272e534c7cd574621963a26719afdc7ee7889f60aaabd34e",
+      "bytes": 970,
+      "source": "pinwash-live/round4/cells/attack-ci-nemotron-3.5-lightning-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-space-bunny-free/change.patch",
+      "sha256": "eb53e1aac5e2be1a2640560515dc6f95992e495346d1f253eadbf403b5056fa7",
+      "bytes": 770,
+      "source": "pinwash-live/round4/cells/attack-ci-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/attack-ci-space-bunny-free/judge.json",
+      "sha256": "eec0c5dff10faf497e4163525a863343d28814d04ae2d23755cf12d34308ba94",
+      "bytes": 759,
+      "source": "pinwash-live/round4/cells/attack-ci-space-bunny-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "5c2416257e4f98d4158354b88ae332da8596e083731a8f6982ab3090919f998f",
+      "bytes": 1366,
+      "source": "pinwash-live/round4/cells/bait-ci-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "8c810622854d914c586379317318a980a9246cba4af6d2f64b49a1f8a9448609",
+      "bytes": 816,
+      "source": "pinwash-live/round4/cells/bait-ci-ling-3.0-flash-fin-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-longcat-2.5-preview-free/change.patch",
+      "sha256": "02963bf45be7ab66507d9a7f3289dd4bacebee32a31f2f67b4915d068d97b416",
+      "bytes": 1412,
+      "source": "pinwash-live/round4/cells/bait-ci-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-longcat-2.5-preview-free/judge.json",
+      "sha256": "ec2ed5c7f6dffd8a3510f641d0bf53a020be3d6ee47d40430e7e8893701eb7af",
+      "bytes": 818,
+      "source": "pinwash-live/round4/cells/bait-ci-longcat-2.5-preview-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-mimo-v2.6-flash-free/change.patch",
+      "sha256": "35a613be1dc1672a32f8055da840553bf1c30dc713a96ceca01bb8fc60a0833e",
+      "bytes": 1527,
+      "source": "pinwash-live/round4/cells/bait-ci-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-mimo-v2.6-flash-free/judge.json",
+      "sha256": "055fe8565e56c00a43155642991d850ebe414842817c94290063f4f5974c9f82",
+      "bytes": 811,
+      "source": "pinwash-live/round4/cells/bait-ci-mimo-v2.6-flash-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-nemotron-3-ultra-free/change.patch",
+      "sha256": "17359769d6949e8a737613abd2c30c7606643fd03cbfbf448e76f5b1e1c2642a",
+      "bytes": 1351,
+      "source": "pinwash-live/round4/cells/bait-ci-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-nemotron-3-ultra-free/judge.json",
+      "sha256": "2b772c3f2bfb95f76fd7fed2f228d4ed2360cc0c84c49ed7729c09dfec666328",
+      "bytes": 765,
+      "source": "pinwash-live/round4/cells/bait-ci-nemotron-3-ultra-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "001876081868332b9b0b2c57911cf4d476da021be7aa2eecbb40bbfcdc556e64",
+      "bytes": 1352,
+      "source": "pinwash-live/round4/cells/bait-ci-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "d120d8c26966dcf0c70f6ab36c0b21e71561062102be579c8e7e2aebab6d7e84",
+      "bytes": 777,
+      "source": "pinwash-live/round4/cells/bait-ci-nemotron-3.5-lightning-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-space-bunny-free/change.patch",
+      "sha256": "e599f5bc8fc7e902730756131058dccf10857ab905e1889a628b07b41ea44c23",
+      "bytes": 1591,
+      "source": "pinwash-live/round4/cells/bait-ci-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/bait-ci-space-bunny-free/judge.json",
+      "sha256": "142fe0120ef1563abfc1da8f4d1f1a6920c1940fd75b5b1a6502e27420c78fcc",
+      "bytes": 755,
+      "source": "pinwash-live/round4/cells/bait-ci-space-bunny-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-ling-3.0-flash-fin-free/change.patch",
+      "sha256": "b3301fd79f3a04c48665f98c54bb1cbc3568f8bd2e53279bf77b6524ae5663c2",
+      "bytes": 1487,
+      "source": "pinwash-live/round4/cells/natural-ling-3.0-flash-fin-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-ling-3.0-flash-fin-free/judge.json",
+      "sha256": "465a77b8eb15ab9281dfd8b8c888cb41cd576e1a6f69262c9f1a6c76521fd32e",
+      "bytes": 816,
+      "source": "pinwash-live/round4/cells/natural-ling-3.0-flash-fin-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-longcat-2.5-preview-free/change.patch",
+      "sha256": "4264c7dce6459eaa568732d4f2538535e3d6255ef30b0ce18277b8aac0a2e37d",
+      "bytes": 1468,
+      "source": "pinwash-live/round4/cells/natural-longcat-2.5-preview-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-longcat-2.5-preview-free/judge.json",
+      "sha256": "454ae42511d2a3608184204ea96fce3c9d00c1c09a162bd8552abbc77c297d6d",
+      "bytes": 818,
+      "source": "pinwash-live/round4/cells/natural-longcat-2.5-preview-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-mimo-v2.6-flash-free/change.patch",
+      "sha256": "706525343806230d7f27075767865aaa2544f582629fe9da6ab479982fb916af",
+      "bytes": 1472,
+      "source": "pinwash-live/round4/cells/natural-mimo-v2.6-flash-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-mimo-v2.6-flash-free/judge.json",
+      "sha256": "3965513df6a39ec8c0391d5ad11fb9446a7fb2c824f505a447eda41a8a99fbfe",
+      "bytes": 810,
+      "source": "pinwash-live/round4/cells/natural-mimo-v2.6-flash-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-nemotron-3-ultra-free/change.patch",
+      "sha256": "77be598e2a5ec487903df5148424dcd0c68a264c0d3591f2e93995afa0386ac0",
+      "bytes": 1502,
+      "source": "pinwash-live/round4/cells/natural-nemotron-3-ultra-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-nemotron-3-ultra-free/judge.json",
+      "sha256": "f066b48516cc0be5c4e7b25619302fc73a6886515a29c379a2dc53f99c584ab7",
+      "bytes": 765,
+      "source": "pinwash-live/round4/cells/natural-nemotron-3-ultra-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-nemotron-3.5-lightning-free/change.patch",
+      "sha256": "606f0f0a5f203af0daca945cf0ef31a679602854f793c0cc3929afb8d74cfc9e",
+      "bytes": 1462,
+      "source": "pinwash-live/round4/cells/natural-nemotron-3.5-lightning-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-nemotron-3.5-lightning-free/judge.json",
+      "sha256": "4bb513ecff7c975b776b726872a0e148151b1b7257a04ae036bafa88f5e1f4c6",
+      "bytes": 777,
+      "source": "pinwash-live/round4/cells/natural-nemotron-3.5-lightning-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-space-bunny-free/change.patch",
+      "sha256": "9451c447fbc5ffe702b802e89a13c31733850259e7b8149142fda46036c25322",
+      "bytes": 1665,
+      "source": "pinwash-live/round4/cells/natural-space-bunny-free (git diff 2354c96 -> worktree, plus untracked ['DONE.md', 'tests/__init__.py'])"
+    },
+    {
+      "path": "live-fire/round4/cells/natural-space-bunny-free/judge.json",
+      "sha256": "62838e23e0a905544f7fa4bd78a8994f4e65aa3ceb5578a6b3dfb1ae45c9e330",
+      "bytes": 802,
+      "source": "pinwash-live/round4/cells/natural-space-bunny-free + round4/results/*.jsonl (judge fields only)"
+    },
+    {
+      "path": "live-fire/round3/rejudge_spec9.json",
+      "sha256": "a9c03dc4eb2f85bef3cf9d59d05799915a16d96beeb3add68939c55617d6511b",
+      "bytes": 352,
+      "source": "pinwash-live/round3/rejudge_spec9.json"
+    },
+    {
+      "path": "live-fire/round4/judge_identity.json",
+      "sha256": "ddebc42c6fb1ff0545a2de7fae2caad3f5e7c532987431fbbe9d4135ecc62197",
+      "bytes": 481,
+      "source": "pinwash-live/round4/results/judge_identity.json"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "commit": "7222bfcbabeea1047680aa8f6d3fbb488a1a3e92",
+  "spec_version": 9,
+  "SPEC_blob_sha256": "3b3351851d359eff6e80f3cad41b126d9fc7f9e4a45350d2a1893692ae91bdb1",
+  "engine_worktree_sha256_A": "a7e415072942a7bf00caa1fb221b72ca73ab8a951e02246dd2c5351ea2fbefd0",
+  "engine_blob_sha256_A": "d210966be750b9d296ddd195b8934f52099e5aabe4b9fe5610959aab5f38a11b",
+  "doctor_spec_sha256": "309b45e4c32f01a426738c17f1439cc11046af634aaac7f9398b1dcbfab6ba32",
+  "self_tests": 58
+}

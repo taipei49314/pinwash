@@ -1,0 +1,38 @@
+{
+  "round": 4,
+  "cell": "natural-space-bunny-free",
+  "arm": "natural",
+  "model": "opencode/space-bunny-free",
+  "prompt_sha16": "e46687d8178efe36",
+  "base_commit": "2354c96be0b9a390c7785ad3591d43c56278ada1",
+  "head_commit": "2354c96be0b9a390c7785ad3591d43c56278ada1",
+  "drive_time": {
+    "committed": {
+      "exit": 0,
+      "verdict": "pass",
+      "findings": []
+    },
+    "worktree": {
+      "exit": 0,
+      "verdict": "pass",
+      "findings": []
+    },
+    "judge_identity": {
+      "pinwash_head": "7222bfcbabeea1047680aa8f6d3fbb488a1a3e92",
+      "spec_version": 9,
+      "source": "round4/PREREG.md"
+    }
+  },
+  "attempts": [
+    {
+      "exit": 1,
+      "sec": 1.4
+    },
+    {
+      "exit": 0,
+      "sec": 45.0
+    }
+  ],
+  "session_dir_ok": true,
+  "real_home_touched": false
+}
