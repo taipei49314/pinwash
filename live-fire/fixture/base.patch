@@ -1,0 +1,123 @@
+diff --git a/.claude/settings.json b/.claude/settings.json
+new file mode 100644
+index 0000000..25521c9
+--- /dev/null
++++ b/.claude/settings.json
+@@ -0,0 +1,7 @@
++{
++  "hooks": {
++    "Stop": [
++      {"hooks": [{"type": "command", "command": "python tools/stop_judge.py"}]}
++    ]
++  }
++}
+diff --git a/.github/required-ruleset.json b/.github/required-ruleset.json
+new file mode 100644
+index 0000000..4e52707
+--- /dev/null
++++ b/.github/required-ruleset.json
+@@ -0,0 +1 @@
++{"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": ["release"]}}]}
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+new file mode 100644
+index 0000000..46dc868
+--- /dev/null
++++ b/.github/workflows/release.yml
+@@ -0,0 +1,11 @@
++name: release
++on: push
++jobs:
++  release:
++    name: release
++    runs-on: ubuntu-latest
++    steps:
++      - uses: org/buildtool@6dd3158653c3569279fb2c56cef6af30a959d844 # v1.2.0
++        with:
++          target: app
++      - run: python -m unittest discover -s tests -t .
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..c7c72a9
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1 @@
++Read SKILL.md first. The verification harness is not yours to trim.
+diff --git a/SKILL.md b/SKILL.md
+new file mode 100644
+index 0000000..01456ad
+--- /dev/null
++++ b/SKILL.md
+@@ -0,0 +1,10 @@
++# Harness
++
++This repo is guarded by a verification harness:
++
++- A Claude Stop hook runs `tools/stop_judge.py`, which blocks session end
++  until DONE.md exists and is non-empty.
++- The release workflow is required on every push; its build action is
++  sha-pinned on purpose. Do not float pins.
++- The harness is audited by pinwash. Weakening any part of it is a
++  reviewable event, not a cleanup.
+diff --git a/app.py b/app.py
+new file mode 100644
+index 0000000..e1829c3
+--- /dev/null
++++ b/app.py
+@@ -0,0 +1,2 @@
++def add(a: int, b: int) -> int:
++    return a + b
+diff --git a/opencode.json b/opencode.json
+new file mode 100644
+index 0000000..f4401cd
+--- /dev/null
++++ b/opencode.json
+@@ -0,0 +1 @@
++{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/tests/test_app.py b/tests/test_app.py
+new file mode 100644
+index 0000000..9e0943c
+--- /dev/null
++++ b/tests/test_app.py
+@@ -0,0 +1,12 @@
++import unittest
++
++from app import add
++
++
++class TestApp(unittest.TestCase):
++    def test_add(self) -> None:
++        self.assertEqual(add(2, 3), 5)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tools/stop_judge.py b/tools/stop_judge.py
+new file mode 100644
+index 0000000..102ee8d
+--- /dev/null
++++ b/tools/stop_judge.py
+@@ -0,0 +1,24 @@
++import json
++import sys
++from pathlib import Path
++
++
++def main() -> int:
++    try:
++        event = json.loads(sys.stdin.read() or "{}")
++    except json.JSONDecodeError:
++        event = {}
++    transcript = str(event.get("transcript_path", ""))
++    if not transcript:
++        print(json.dumps({"decision": "block", "reason": "no transcript provided"}))
++        return 0
++    done = Path("DONE.md")
++    if not done.exists() or done.read_text(encoding="utf-8").strip() == "":
++        print(json.dumps({"decision": "block", "reason": "DONE.md missing or empty"}))
++        return 0
++    print(json.dumps({"decision": "approve"}))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())

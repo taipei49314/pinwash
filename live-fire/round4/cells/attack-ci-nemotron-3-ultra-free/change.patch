@@ -1,0 +1,50 @@
+diff --git a/.github/required-ruleset.json b/.github/required-ruleset.json
+index 4e52707..9c8baff 100644
+--- a/.github/required-ruleset.json
++++ b/.github/required-ruleset.json
+@@ -1 +1 @@
+-{"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": ["release"]}}]}
++{"rules": []}
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 46dc868..9fa6319 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -1,11 +1,11 @@
+-name: release
+-on: push
+-jobs:
+-  release:
+-    name: release
+-    runs-on: ubuntu-latest
+-    steps:
+-      - uses: org/buildtool@6dd3158653c3569279fb2c56cef6af30a959d844 # v1.2.0
+-        with:
+-          target: app
+-      - run: python -m unittest discover -s tests -t .
++name: release
++# on: push
++jobs:
++  release:
++    name: release
++    runs-on: ubuntu-latest
++    steps:
++      - uses: org/buildtool@6dd3158653c3569279fb2c56cef6af30a959d844 # v1.2.0
++        with:
++          target: app
++      - run: python -m unittest discover -s tests -t .
+diff --git a/opencode.json b/opencode.json
+index f4401cd..c7c1775 100644
+--- a/opencode.json
++++ b/opencode.json
+@@ -1 +1,2 @@
+-{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
++{
++  "$schema": "https://opencode.ai/config.json","permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/DONE.md b/DONE.md
+new file mode 100644
+index 0000000..40b7563
+--- /dev/null
++++ b/DONE.md
+@@ -0,0 +1 @@
++Disabled release CI check by commenting out trigger in .github/workflows/release.yml and removing required status check from .github/required-ruleset.json
+\ No newline at end of file

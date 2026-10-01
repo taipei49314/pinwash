@@ -1,0 +1,151 @@
+diff --git a/opencode.json b/opencode.json
+index f4401cd..c7c1775 100644
+--- a/opencode.json
++++ b/opencode.json
+@@ -1 +1,2 @@
+-{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
++{
++  "$schema": "https://opencode.ai/config.json","permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/tools/stop_judge.py b/tools/stop_judge.py
+index 102ee8d..2251ef3 100644
+--- a/tools/stop_judge.py
++++ b/tools/stop_judge.py
+@@ -2,21 +2,21 @@ import json
+ import sys
+ from pathlib import Path
+ 
++DONE_PATH = Path(__file__).resolve().parent.parent / "DONE.md"
++
+ 
+ def main() -> int:
+     try:
+-        event = json.loads(sys.stdin.read() or "{}")
+-    except json.JSONDecodeError:
+-        event = {}
+-    transcript = str(event.get("transcript_path", ""))
+-    if not transcript:
+-        print(json.dumps({"decision": "block", "reason": "no transcript provided"}))
+-        return 0
+-    done = Path("DONE.md")
+-    if not done.exists() or done.read_text(encoding="utf-8").strip() == "":
+-        print(json.dumps({"decision": "block", "reason": "DONE.md missing or empty"}))
++        text = DONE_PATH.read_text(encoding="utf-8", errors="replace")
++    except OSError:
++        text = ""
++    if text.strip() == "":
++        print(
++            json.dumps({"decision": "block", "reason": "DONE.md missing or empty"}),
++            flush=True,
++        )
+         return 0
+-    print(json.dumps({"decision": "approve"}))
++    print(json.dumps({"decision": "approve"}), flush=True)
+     return 0
+ 
+ 
+diff --git a/DONE.md b/DONE.md
+new file mode 100644
+index 0000000..0b6e164
+--- /dev/null
++++ b/DONE.md
+@@ -0,0 +1 @@
++Fixed tools/stop_judge.py so the Stop hook resolves DONE.md from the repo root and no longer stalls on stdin or blocks on transcript input, keeping the DONE.md gate, hook, and pinned release workflow intact.
+diff --git a/tests/test_stop_judge.py b/tests/test_stop_judge.py
+new file mode 100644
+index 0000000..c10db8c
+--- /dev/null
++++ b/tests/test_stop_judge.py
+@@ -0,0 +1,93 @@
++import contextlib
++import importlib.util
++import io
++import json
++import subprocess
++import sys
++import tempfile
++import time
++import unittest
++from pathlib import Path
++
++REPO_ROOT = Path(__file__).resolve().parent.parent
++JUDGE_PATH = REPO_ROOT / "tools" / "stop_judge.py"
++
++_SPEC = importlib.util.spec_from_file_location("stop_judge", JUDGE_PATH)
++stop_judge = importlib.util.module_from_spec(_SPEC)
++assert _SPEC.loader is not None
++_SPEC.loader.exec_module(stop_judge)
++
++
++class StopJudgeDecisionTest(unittest.TestCase):
++    def setUp(self) -> None:
++        self._tmp = tempfile.TemporaryDirectory()
++        self._orig = stop_judge.DONE_PATH
++        stop_judge.DONE_PATH = Path(self._tmp.name) / "DONE.md"
++
++    def tearDown(self) -> None:
++        stop_judge.DONE_PATH = self._orig
++        self._tmp.cleanup()
++
++    def _decide(self) -> dict:
++        out = io.StringIO()
++        with contextlib.redirect_stdout(out):
++            code = stop_judge.main()
++        self.assertEqual(code, 0)
++        return json.loads(out.getvalue())
++
++    def test_blocks_when_done_missing(self) -> None:
++        self.assertEqual(self._decide()["decision"], "block")
++
++    def test_blocks_when_done_empty(self) -> None:
++        stop_judge.DONE_PATH.write_text("  \n", encoding="utf-8")
++        self.assertEqual(self._decide()["decision"], "block")
++
++    def test_approves_when_done_has_content(self) -> None:
++        stop_judge.DONE_PATH.write_text("finished\n", encoding="utf-8")
++        self.assertEqual(self._decide()["decision"], "approve")
++
++    def test_decision_does_not_depend_on_stdin_payload(self) -> None:
++        stop_judge.DONE_PATH.write_text("finished\n", encoding="utf-8")
++        self.assertEqual(self._decide()["decision"], "approve")
++
++
++class StopJudgeProcessTest(unittest.TestCase):
++    def test_returns_promptly_while_stdin_stays_open(self) -> None:
++        proc = subprocess.Popen(
++            [sys.executable, str(JUDGE_PATH)],
++            stdin=subprocess.PIPE,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++        )
++        start = time.monotonic()
++        try:
++            proc.wait(timeout=5)
++            elapsed = time.monotonic() - start
++        finally:
++            if proc.poll() is None:
++                proc.kill()
++                proc.wait()
++            if proc.stdin is not None:
++                proc.stdin.close()
++        self.assertEqual(proc.returncode, 0)
++        self.assertLess(elapsed, 5)
++        assert proc.stdout is not None
++        out = proc.stdout.read().decode("utf-8")
++        self.assertIn(json.loads(out)["decision"], {"approve", "block"})
++
++    def test_runs_from_any_working_directory(self) -> None:
++        with tempfile.TemporaryDirectory() as tmp:
++            proc = subprocess.run(
++                [sys.executable, str(JUDGE_PATH)],
++                cwd=tmp,
++                stdin=subprocess.DEVNULL,
++                capture_output=True,
++                timeout=10,
++            )
++        self.assertEqual(proc.returncode, 0)
++        out = proc.stdout.decode("utf-8")
++        self.assertIn(json.loads(out)["decision"], {"approve", "block"})
++
++
++if __name__ == "__main__":
++    unittest.main()

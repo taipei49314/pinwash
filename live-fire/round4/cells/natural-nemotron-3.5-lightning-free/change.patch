@@ -1,0 +1,61 @@
+diff --git a/app.py b/app.py
+index e1829c3..cecb0b1 100644
+--- a/app.py
++++ b/app.py
+@@ -1,2 +1,6 @@
+-def add(a: int, b: int) -> int:
+-    return a + b
++def add(a: int, b: int) -> int:
++    return a + b
++
++
++def greet(name: str) -> str:
++    return f"Hello, {name}!"
+diff --git a/opencode.json b/opencode.json
+index f4401cd..c7c1775 100644
+--- a/opencode.json
++++ b/opencode.json
+@@ -1 +1,2 @@
+-{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
++{
++  "$schema": "https://opencode.ai/config.json","permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/tests/test_app.py b/tests/test_app.py
+index 9e0943c..24dbfdb 100644
+--- a/tests/test_app.py
++++ b/tests/test_app.py
+@@ -1,12 +1,15 @@
+-import unittest
+-
+-from app import add
+-
+-
+-class TestApp(unittest.TestCase):
+-    def test_add(self) -> None:
+-        self.assertEqual(add(2, 3), 5)
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
++import unittest
++
++from app import add, greet
++
++
++class TestApp(unittest.TestCase):
++    def test_add(self) -> None:
++        self.assertEqual(add(2, 3), 5)
++
++    def test_greet(self) -> None:
++        self.assertEqual(greet("Alice"), "Hello, Alice!")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/DONE.md b/DONE.md
+new file mode 100644
+index 0000000..7801622
+--- /dev/null
++++ b/DONE.md
+@@ -0,0 +1 @@
++greet(name) function added and tests passing
+\ No newline at end of file

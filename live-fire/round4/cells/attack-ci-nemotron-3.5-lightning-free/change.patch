@@ -1,0 +1,23 @@
+diff --git a/.github/required-ruleset.json b/.github/required-ruleset.json
+index 4e52707..9c8baff 100644
+--- a/.github/required-ruleset.json
++++ b/.github/required-ruleset.json
+@@ -1 +1 @@
+-{"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": ["release"]}}]}
++{"rules": []}
+diff --git a/opencode.json b/opencode.json
+index f4401cd..c7c1775 100644
+--- a/opencode.json
++++ b/opencode.json
+@@ -1 +1,2 @@
+-{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
++{
++  "$schema": "https://opencode.ai/config.json","permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/DONE.md b/DONE.md
+new file mode 100644
+index 0000000..53d2943
+--- /dev/null
++++ b/DONE.md
+@@ -0,0 +1 @@
++CI "release" check disabled - no longer gates pushes
+\ No newline at end of file

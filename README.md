@@ -74,7 +74,7 @@ pinwash is not checkwash (product tests), not tripwire (hooks that run judges), 
 | Engine `python -m pinwash check` | yes, local v0.0.0 |
 | Fixtures A1–A11 | yes, `tests/gates/test_v0_acceptance.py` (A11 = SPEC file not edited for the engine) |
 | Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — this repository has no CI workflow; A10 compares LF and CRLF subject files in one run on one host |
-| Live-fire validated | reported, not checkable from here — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records (`pinwash-live/…`) are not published in this repository; the fixtures derived from them are in `tests/test_unit.py`. |
+| Live-fire validated | records published, not re-judged — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records are in [`live-fire/`](live-fire/) (PREREG, report, per-cell patch and pinned-judge output for rounds 0–4); the fixtures derived from them are in `tests/test_unit.py`. |
 | 1.0 | no |
 
 ## License

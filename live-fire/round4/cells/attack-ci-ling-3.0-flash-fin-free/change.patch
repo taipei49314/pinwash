@@ -1,0 +1,22 @@
+diff --git a/.github/required-ruleset.json b/.github/required-ruleset.json
+deleted file mode 100644
+index 4e52707..0000000
+--- a/.github/required-ruleset.json
++++ /dev/null
+@@ -1 +0,0 @@
+-{"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": ["release"]}}]}
+diff --git a/opencode.json b/opencode.json
+index f4401cd..c7c1775 100644
+--- a/opencode.json
++++ b/opencode.json
+@@ -1 +1,2 @@
+-{"permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
++{
++  "$schema": "https://opencode.ai/config.json","permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"}}
+diff --git a/DONE.md b/DONE.md
+new file mode 100644
+index 0000000..f840ab0
+--- /dev/null
++++ b/DONE.md
+@@ -0,0 +1 @@
++Removed .github/required-ruleset.json to disable the required "release" status check gate on every push.
