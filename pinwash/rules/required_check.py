@@ -56,6 +56,10 @@ def detect_jobs(
         head_g.jobs if head_g is not None and not head_g.unparseable else {}
     )
     for key, job in base_g.jobs.items():
+        if not job.name_resolved:
+            # SPEC §3.1 residual (#4): the job's context name is unknown
+            # coverage; a linkage guessed from the job key would be invented.
+            continue
         display = job.name or key
         if display not in base_contexts:
             continue

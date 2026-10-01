@@ -398,16 +398,101 @@ class DoctorAvailability(_CLIIntegration):
                 self.assertIs(payload["subject_judged"], False)
                 self.assertEqual(len(payload["spec_sha256"]), 64)
 
-    def test_nested_doctor_guard_remains_compatible_when_tests_exist(self) -> None:
-        proc, payload = self._cli(
-            ROOT, "doctor", overrides={"PINWASH_DOCTOR_SELFTEST": "1"}
+    def _fake_package(self, test_body: str) -> Path:
+        root = self._temporary_root()
+        shutil.copytree(ROOT / "pinwash", root / "pinwash",
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        shutil.copyfile(ROOT / "SPEC.md", root / "SPEC.md")
+        (root / "tests").mkdir()
+        (root / "tests" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "tests" / "test_fixture.py").write_text(test_body, encoding="utf-8")
+        return root
+
+    def test_preset_guard_still_runs_and_judges_own_tests(self) -> None:
+        """#3: a preset guard is a nested run of real tests, never a free pass."""
+        suites = (
+            ("passing", "self.assertTrue(True)", 0, True, 0),
+            ("failing", "self.fail('fixture')", 2, False, 1),
         )
-        self._assert_exit(proc, payload, 0)
-        self.assertIs(payload["self_tests"]["available"], True)
-        self.assertIs(payload["self_tests"]["ok"], True)
-        self.assertEqual(payload["self_tests"]["tests_run"], 0)
-        self.assertEqual(payload["self_tests"]["skipped"], "nested doctor invocation")
-        self.assertIs(payload["subject_judged"], False)
+        for guard in ("1", "0", "yes"):
+            for label, body, code, ok, failures in suites:
+                with self.subTest(guard=guard, suite=label):
+                    root = self._fake_package(
+                        "import unittest\n"
+                        "class Fixture(unittest.TestCase):\n"
+                        "    def test_fixture(self):\n"
+                        f"        {body}\n"
+                    )
+                    proc, payload = self._cli(
+                        root, "doctor", package_root=root,
+                        overrides={"PINWASH_DOCTOR_SELFTEST": guard},
+                    )
+                    self._assert_exit(proc, payload, code)
+                    tests = payload["self_tests"]
+                    self.assertIs(tests["available"], True)
+                    self.assertIs(tests["ok"], ok)
+                    self.assertEqual(tests["tests_run"], 1)
+                    self.assertEqual(tests["failures"], failures)
+                    self.assertEqual(tests["nested_depth"], 1)
+                    self.assertEqual(tests["excluded"], [])
+                    self.assertNotIn("skipped", tests)
+                    self.assertIs(payload["subject_judged"], False)
+
+    def test_deeper_nesting_is_refused_not_passed(self) -> None:
+        root = self._fake_package(
+            "import unittest\n"
+            "class Fixture(unittest.TestCase):\n"
+            "    def test_fixture(self):\n"
+            "        self.assertTrue(True)\n"
+        )
+        for guard in ("2", "17"):
+            with self.subTest(guard=guard):
+                proc, payload = self._cli(
+                    root, "doctor", package_root=root,
+                    overrides={"PINWASH_DOCTOR_SELFTEST": guard},
+                )
+                self._assert_exit(proc, payload, 2)
+                tests = payload["self_tests"]
+                self.assertIs(tests["ok"], False)
+                self.assertEqual(tests["tests_run"], 0)
+                self.assertEqual(tests["nested_depth"], int(guard))
+                self.assertIn("refused", tests)
+
+    def test_expected_failure_is_not_a_passing_own_test(self) -> None:
+        root = self._fake_package(
+            "import unittest\n"
+            "class Fixture(unittest.TestCase):\n"
+            "    @unittest.expectedFailure\n"
+            "    def test_fixture(self):\n"
+            "        self.fail('fixture')\n"
+        )
+        proc, payload = self._cli(
+            root, "doctor", package_root=root,
+            overrides={"PINWASH_DOCTOR_SELFTEST": None},
+        )
+        self._assert_exit(proc, payload, 2)
+        tests = payload["self_tests"]
+        self.assertIs(tests["ok"], False)
+        self.assertEqual(tests["tests_run"], 1)
+        self.assertEqual(tests["expected_failures"], 1)
+        self.assertEqual(tests["nested_depth"], 0)
+        self.assertNotIn("excluded", tests)
+
+
+class DoctorNestedExclusion(unittest.TestCase):
+    def test_nested_run_drops_exactly_the_doctor_spawning_gate(self) -> None:
+        """#3: the nested suite differs from the full one by the spawner only."""
+        from pinwash import cli
+
+        suite = unittest.defaultTestLoader.loadTestsFromName(
+            "tests.gates.test_v0_acceptance"
+        )
+        full = [test.id() for test in cli._flatten(suite)]
+        kept_suite, excluded = cli._without_nested_spawners(suite)
+        kept = [test.id() for test in cli._flatten(kept_suite)]
+        self.assertEqual(excluded, sorted(cli._NESTED_EXCLUDED))
+        self.assertEqual(sorted(kept + excluded), sorted(full))
+        self.assertEqual(len(kept), len(full) - len(excluded))
 
 
 if __name__ == "__main__":

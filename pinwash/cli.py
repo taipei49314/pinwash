@@ -20,45 +20,118 @@ HELP = """pinwash — flag harness-weakening git diffs
 """
 
 _SELFTEST_ENV = "PINWASH_DOCTOR_SELFTEST"
+# The frozen gate spawns `pinwash doctor` from inside the suite. A nested
+# doctor runs the same suite without that one test, so it cannot recurse and
+# still runs real tests whatever value the environment carries (#3).
+_NESTED_EXCLUDED = frozenset(
+    {"tests.gates.test_v0_acceptance.V0Acceptance.test_doctor_does_not_judge_subject"}
+)
+_MAX_NESTED_DEPTH = 1
+
+
+def _nested_depth() -> int:
+    """0 for a public invocation; any other value counts as nested."""
+    raw = os.environ.get(_SELFTEST_ENV)
+    if not raw:
+        return 0
+    try:
+        depth = int(raw)
+    except ValueError:
+        return 1
+    return max(depth, 1)
+
+
+def _flatten(suite: Any) -> list[Any]:
+    import unittest
+
+    found: list[Any] = []
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            found.extend(_flatten(item))
+        else:
+            found.append(item)
+    return found
+
+
+def _without_nested_spawners(suite: Any) -> tuple[Any, list[str]]:
+    """Drop the doctor-spawning tests; return the kept suite and dropped ids."""
+    import unittest
+
+    kept: list[Any] = []
+    excluded: list[str] = []
+    for test in _flatten(suite):
+        if test.id() in _NESTED_EXCLUDED:
+            excluded.append(test.id())
+        else:
+            kept.append(test)
+    return unittest.TestSuite(kept), sorted(excluded)
+
+
+def _suite_passed(result: Any) -> bool:
+    """One predicate: every own test ran and really passed (#3)."""
+    return (
+        result.testsRun > 0
+        and not result.failures
+        and not result.errors
+        and not result.skipped
+        and not result.expectedFailures
+        and not result.unexpectedSuccesses
+    )
 
 
 def _self_tests() -> dict[str, Any]:
     """SPEC §13: doctor covers own tests as well as the spec hash.
 
-    The gate suite spawns `pinwash doctor`, so the guard keeps a doctor
-    running inside its own test run from recursing.
+    The gate suite spawns `pinwash doctor`, so a doctor running inside its
+    own test run is nested: it runs the suite minus the spawning test. A
+    deeper nesting is refused rather than recursing or reporting success.
     """
     root = Path(__file__).resolve().parent.parent
     tests_dir = root / "tests"
     if not tests_dir.is_dir():
         return {"available": False, "ok": False, "tests_run": 0}
-    if os.environ.get(_SELFTEST_ENV):
+    depth = _nested_depth()
+    if depth > _MAX_NESTED_DEPTH:
         return {
             "available": True,
-            "ok": True,
+            "ok": False,
             "tests_run": 0,
-            "skipped": "nested doctor invocation",
+            "nested_depth": depth,
+            "refused": f"nested doctor depth above {_MAX_NESTED_DEPTH}",
         }
     import unittest
 
-    os.environ[_SELFTEST_ENV] = "1"
+    previous = os.environ.get(_SELFTEST_ENV)
+    os.environ[_SELFTEST_ENV] = str(depth + 1)
     try:
         if str(root) not in sys.path:
             sys.path.insert(0, str(root))
         suite = unittest.defaultTestLoader.discover(
             start_dir=str(tests_dir), top_level_dir=str(root)
         )
+        excluded: list[str] = []
+        if depth:
+            suite, excluded = _without_nested_spawners(suite)
         result = unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
     finally:
-        os.environ.pop(_SELFTEST_ENV, None)
-    return {
+        if previous is None:
+            os.environ.pop(_SELFTEST_ENV, None)
+        else:
+            os.environ[_SELFTEST_ENV] = previous
+    tests: dict[str, Any] = {
         "available": True,
-        "ok": result.wasSuccessful() and result.testsRun > 0 and not result.skipped,
+        "ok": _suite_passed(result),
         "tests_run": result.testsRun,
         "failures": len(result.failures),
         "errors": len(result.errors),
         "skipped_count": len(result.skipped),
+        "expected_failures": len(result.expectedFailures),
+        "unexpected_successes": len(result.unexpectedSuccesses),
+        "nested_depth": depth,
     }
+    if depth:
+        tests["excluded"] = excluded
+    return tests
 
 
 def doctor() -> int:

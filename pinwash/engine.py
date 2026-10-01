@@ -157,9 +157,17 @@ def scan_pair(
             if unp:
                 add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
                 continue
-            if head_g is not None and not head_g.unparseable:
-                for reason in head_g.unknown:
-                    unknown.append({"path": path, "reason": reason})
+            # #4: a base-side residual can hide a comparison as well as a
+            # head-side one; each (path, reason) is reported once.
+            reasons: list[str] = []
+            for side in (head_g, base_g):
+                if side is None or side.unparseable:
+                    continue
+                for reason in side.unknown:
+                    if reason not in reasons:
+                        reasons.append(reason)
+            for reason in reasons:
+                unknown.append({"path": path, "reason": reason})
             pin_rules.detect_workflow_pins(path, base_g, head_g, add)
             required_check.detect_jobs(path, base_g, head_g, base_contexts, add)
         elif is_gha_ruleset(path):
