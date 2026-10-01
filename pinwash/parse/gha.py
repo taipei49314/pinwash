@@ -11,17 +11,24 @@ from pinwash.textutil import crlf_to_lf
 _JOB_KEY = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 _USES = re.compile(r"^(\s*)(?:-\s+)?uses:\s*(.*)$")
 _CONTINUE = re.compile(r"^(\s*)continue-on-error:\s*(.*)$")
-_IF = re.compile(r"^(\s*)if:\s*(.*)$")
+_IF = re.compile(r"^(\s*)(-\s+)?if:\s*(.*)$")
 _NAME = re.compile(r"^(\s*)name:\s*(.*)$")
 _JOBS = re.compile(r"^jobs:\s*$")
 _ON = re.compile(r"^on:\s*(.*)$")
 _BLOCK_SCALAR = re.compile(r"^[>|](?:[+-][1-9]?|[1-9][+-]?)?$")
+
+MULTILINE = "multiline uses or scalar"
+ON_UNRESOLVED = "on triggers unresolved"
+CONTINUE_UNRESOLVED = "continue-on-error value unresolved"
 
 
 @dataclass
 class GhaJob:
     key: str
     name: str | None = None
+    # False when the job's `name:` value is a residual: its status context
+    # is then unknown and must not be guessed from the job key.
+    name_resolved: bool = True
     if_value: str | None = None
     continue_on_error: bool | None = None
 
@@ -47,6 +54,24 @@ def truncate_inline_comment(value: str) -> str:
     """SPEC §3.1 (spec 5): a recorded value ends at the first ' #' sequence."""
     idx = value.find(" #")
     return value[:idx] if idx != -1 else value
+
+
+def _recorded(remainder: str) -> str:
+    """The §3.1 recorded value of a key's line remainder.
+
+    The regexes consume the space after the colon, so a remainder that
+    starts with `#` is a comment only: the value is empty there.
+    """
+    value = remainder.strip()
+    if value.startswith("#"):
+        return ""
+    return truncate_inline_comment(value).strip()
+
+
+def _continues(value: str) -> bool:
+    """§3.1 residual (#4): a block-scalar header or an empty value means
+    the real value is on later lines, which the line grammar does not read."""
+    return not value or bool(_BLOCK_SCALAR.fullmatch(value))
 
 
 def parse_workflow(text: str) -> GhaFile:
@@ -81,11 +106,17 @@ def parse_workflow(text: str) -> GhaFile:
                     continue
                 continue
             result.on_seen = True
-            val = strip_quotes(truncate_inline_comment(mon.group(1))).strip()
+            raw = _recorded(mon.group(1))
+            if raw and _continues(raw):
+                # #4: a block-scalar header is not a trigger name.
+                in_on = False
+                result.unknown.append(ON_UNRESOLVED)
+                continue
+            val = strip_quotes(raw).strip()
             if val:
                 in_on = False
                 if val.startswith("{"):
-                    result.unknown.append("on triggers unresolved")
+                    result.unknown.append(ON_UNRESOLVED)
                 elif val.startswith("[") and val.endswith("]"):
                     for item in val[1:-1].split(","):
                         t = strip_quotes(item.strip())
@@ -104,7 +135,7 @@ def parse_workflow(text: str) -> GhaFile:
                     truncate_inline_comment(item.split(":")[0]).strip()
                 )
                 if "{" in item or not item:
-                    result.unknown.append("on triggers unresolved")
+                    result.unknown.append(ON_UNRESOLVED)
                 else:
                     result.triggers.add(item)
             continue
@@ -116,7 +147,12 @@ def parse_workflow(text: str) -> GhaFile:
                 continue
         mu = _USES.match(line)
         if mu:
-            val = strip_quotes(truncate_inline_comment(mu.group(2)))
+            raw = _recorded(mu.group(2))
+            if _continues(raw):
+                # §3.1 residual: `uses` split across lines (#4).
+                result.unknown.append(MULTILINE)
+                continue
+            val = strip_quotes(raw)
             parsed = parse_uses(val)
             if parsed:
                 loc, ref = parsed
@@ -128,32 +164,44 @@ def parse_workflow(text: str) -> GhaFile:
             continue
         mc = _CONTINUE.match(line)
         if mc and current_job is not None and indent == 4:
-            flag = strip_quotes(truncate_inline_comment(mc.group(2))).lower()
+            raw = _recorded(mc.group(2))
+            flag = strip_quotes(raw).lower()
             if flag == "true":
                 result.jobs[current_job].continue_on_error = True
             elif flag == "false":
                 result.jobs[current_job].continue_on_error = False
+            elif _continues(raw):
+                result.unknown.append(MULTILINE)
+            else:
+                # §3.1 records `true` / `false` only; an expression or a
+                # YAML 1.1 boolean is unresolved, never a silent `None` (#4).
+                result.unknown.append(CONTINUE_UNRESOLVED)
             continue
         mi = _IF.match(line)
         if mi:
-            if_value = truncate_inline_comment(mi.group(2)).strip()
+            if_value = _recorded(mi.group(3))
             # SPEC §3.1: multiline scalars stay residuals, but must be
             # visible as unknown coverage rather than a silent clean scan.
-            if _BLOCK_SCALAR.fullmatch(if_value):
-                result.unknown.append("multiline uses or scalar")
-            if current_job is not None and indent == 4:
-                result.jobs[current_job].if_value = if_value
+            unresolved = _continues(if_value)
+            if unresolved:
+                result.unknown.append(MULTILINE)
+            if current_job is not None and indent == 4 and mi.group(2) is None:
+                result.jobs[current_job].if_value = None if unresolved else if_value
                 continue
         mn = _NAME.match(line)
         if mn and current_job is not None and indent == 4:
-            if result.jobs[current_job].name is None:
-                result.jobs[current_job].name = strip_quotes(
-                    truncate_inline_comment(mn.group(2))
-                )
+            job = result.jobs[current_job]
+            if job.name is None and job.name_resolved:
+                raw = _recorded(mn.group(2))
+                if _continues(raw):
+                    job.name_resolved = False
+                    result.unknown.append(MULTILINE)
+                else:
+                    job.name = strip_quotes(raw)
             continue
     if result.on_seen and not result.triggers:
-        if "on triggers unresolved" not in result.unknown:
-            result.unknown.append("on triggers unresolved")
+        if ON_UNRESOLVED not in result.unknown:
+            result.unknown.append(ON_UNRESOLVED)
     return result
 
 
