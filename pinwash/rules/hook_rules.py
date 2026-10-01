@@ -33,34 +33,43 @@ def _non_stub_stop_count(
     return n
 
 
-def _command_skip_added(base: dict[str, Any], head: dict[str, Any]) -> bool:
-    """An already skipped sibling must not hide loss of an active command.
+def _tally(states: list[tuple[str, dict[str, bool]]]) -> tuple[dict[str, int], dict[str, int]]:
+    """Per command string: (active occurrences, skipped occurrences)."""
+    active: dict[str, int] = {}
+    skipped: dict[str, int] = {}
+    for command, flags in states:
+        bucket = skipped if any(flags.values()) else active
+        bucket[command] = bucket.get(command, 0) + 1
+    return active, skipped
 
-    Supplement the exact-key event comparison only when fewer commands
-    remain active and more are skipped, globally or under a command that
-    exists on both sides. Counts preserve rename/reorder and adding an
-    already skipped sibling without inventing a new command identity.
+
+def _command_skip_added(base: dict[str, Any], head: dict[str, Any]) -> bool:
+    """SPEC §5.1 (spec 10): a skip flag judged per command, not per event.
+
+    A flag weakens an existing hook when (1) a command present on both
+    sides lost active occurrences and gained skipped ones; (2) fewer
+    commands stay active while more are skipped overall (a removal paired
+    with a skip); or (3) an active base command disappeared while a new,
+    already skipped command appeared (rename plus skip). Adding a new
+    flagged command next to unchanged ones weakens nothing, whatever flag
+    name it carries, and reordering is not a change.
     """
-    base_states = base["command_states"]
-    head_states = head["command_states"]
-    base_skipped = sum(any(flags.values()) for _command, flags in base_states)
-    head_skipped = sum(any(flags.values()) for _command, flags in head_states)
-    if len(head_states) - head_skipped >= len(base_states) - base_skipped:
-        return False
-    if head_skipped > base_skipped:
+    base_active, base_skipped = _tally(base["command_states"])
+    head_active, head_skipped = _tally(head["command_states"])
+    base_names = base_active.keys() | base_skipped.keys()
+    head_names = head_active.keys() | head_skipped.keys()
+    for command in base_names:
+        if head_active.get(command, 0) < base_active.get(command, 0) and (
+            head_skipped.get(command, 0) > base_skipped.get(command, 0)
+        ):
+            return True
+    if sum(head_active.values()) < sum(base_active.values()) and (
+        sum(head_skipped.values()) > sum(base_skipped.values())
+    ):
         return True
-    # Removing an already skipped sibling can cancel the total increase
-    # while the surviving active command gets its own skip flag.
-    base_counts: dict[str, int] = {}
-    head_counts: dict[str, int] = {}
-    for command, flags in base_states:
-        base_counts[command] = base_counts.get(command, 0) + any(flags.values())
-    for command, flags in head_states:
-        head_counts[command] = head_counts.get(command, 0) + any(flags.values())
-    return any(
-        command in base_counts and count > base_counts[command]
-        for command, count in head_counts.items()
-    )
+    vanished_active = any(command not in head_names for command in base_active)
+    new_skipped = any(command not in base_names for command in head_skipped)
+    return vanished_active and new_skipped
 
 
 def detect(
@@ -114,12 +123,7 @@ def detect(
                     locator=event,
                 )
             continue
-        bf, hf = info["flags"], head_info["flags"]
-        if (not bf["disabled"] and hf["disabled"]) or (
-            not bf["hookEnabled_false"] and hf["hookEnabled_false"]
-        ) or (not bf["continueOnError"] and hf["continueOnError"]) or (
-            not bf["failOpen"] and hf["failOpen"]
-        ) or _command_skip_added(info, head_info):
+        if _command_skip_added(info, head_info):
             sev = escalate_stop("HOOK_BYPASSED", event, "warn")
             add(
                 rule="HOOK_BYPASSED",

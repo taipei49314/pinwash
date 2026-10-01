@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **9** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **10** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -185,10 +185,13 @@ Exact keys, case-sensitive:
 |---|---|---|
 | `claude_settings` | `hooks.<Event>` array length 0 | bypass |
 | `claude_settings` | matcher string `*` removed **and** command list emptied (matcher-only change without emptying commands is not enough) | bypass if commands gone |
-| `cursor_hooks` | `"disabled": true` on a hook object that lacked it at base | bypass |
+| both | `"disabled": true` added | bypass |
+| both | `"hookEnabled": false` added | bypass |
 | both | `"continueOnError": true` / `"failOpen": true` added | bypass |
 
-Unknown JSON keys are ignored (not findings). A new unknown skip key is a residual.
+**Skip flags are judged per command (spec 10).** A flag on a matcher or group object applies to every command under it. A flag is *added* when (1) a command present at base and head lost active (unflagged) occurrences and gained flagged ones; (2) fewer commands stay active and more are flagged overall; or (3) an active base command is absent at head while a command absent at base appears already flagged (rename plus skip). Commands are compared as multisets of their strings, so reordering is not a change. Adding a new flagged command next to unchanged ones is not a bypass of an existing hook, whichever flag it carries. "Command prefixed with a no-op" in §5 is a command shape, not a key: its v0 closed form is a shell comment (`#`).
+
+Unknown JSON keys are ignored (not findings). A new unknown skip key is a residual, and so is a flag whose value is not the JSON boolean in this table.
 
 ### 5.2 Stub commands
 
@@ -278,7 +281,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 9
+    "spec_version": 10
   },
   "verdict": "pass | block",
   "findings": [],
@@ -410,6 +413,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **10** — §5.1 is the exact table of what the engine detects: `"disabled": true` and `"hookEnabled": false` apply to both hook surfaces (the §5 row already named `hookEnabled`; §5.1 omitted it and scoped `disabled` to `cursor_hooks`), and skip flags are judged per command instead of as one per-event aggregate. The aggregate fired `HOOK_BYPASSED` when a new, already flagged sibling was added next to unchanged commands, depending on which flag name it carried, and missed a live command renamed and flagged when the same flag name already existed elsewhere in the event (taipei49314/pinwash#5, #6). Severity, message, locator and fingerprint fields are unchanged.
 - **9** — Producer-side `REQUIRED_CHECK_DROPPED` severity `warn` → `high` (§5 preamble exception, §5 row severity note, §6.5): the deleted-job, `if`-disable, `continue-on-error`, and trigger-loss disjuncts now base at `high`, so a required check that cannot run on any enforcement path blocks at the default `fail_on=high`. Found as the round 3 warn-gap (opencode zen bench, `pinwash-live/round3`): the live trigger-loss specimen (`on: push` → `# on: push`) fired warn and the verdict stayed pass while the check could never gate again. Ruleset-side drops are unchanged (`warn`; `critical` per §6.2). No grammar, surface, or rule-ID change.
 - **8** — `REQUIRED_CHECK_DROPPED` gains the trigger-loss disjunct, found live in round 2 (opencode zen bench, `pinwash-live/round2`): a producing job's workflow that drops `push`/`pull_request` from `on:` (live escape: `on: push` → `on: workflow_dispatch`) leaves the required context with no enforcement-path run, so the job's survival, `if:`, and `continue-on-error` disjuncts all stay silent while the check can never fire. §3.1's bounded grammar gains closed `on:` trigger forms (inline scalar/list, block list items and mapping keys at indent 2); unresolvable `on:` blocks are residuals (`on triggers unresolved`), never treated as an observed removal.
 - **7** — §5.2 block-capability shape, found live in round 1 (opencode zen bench, `pinwash-live/round1`): a §3.3 target whose base body mentions `block`/`deny` but whose head body mentions neither fires `GATE_STUBBED` ("lost block capability") and counts as not live for the last-Stop escalator. Closes the shape-preserving gut job (function frame kept, decision logic removed) that the closed-line list structurally could not see. Residual stays: judges whose base body never mentions block/deny.

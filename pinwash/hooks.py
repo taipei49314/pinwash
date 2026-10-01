@@ -66,20 +66,12 @@ def _command_states_from_hook_object(
     return found
 
 
-def _flags_from_obj(obj: dict[str, Any]) -> dict[str, bool]:
-    flags = _direct_flags_from_obj(obj)
-    inner = obj.get("hooks")
-    if isinstance(inner, list):
-        for item in inner:
-            if isinstance(item, dict):
-                child = _flags_from_obj(item)
-                for key, val in child.items():
-                    flags[key] = flags[key] or val
-    return flags
-
-
 def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
-    """Map event name -> commands, command states, matchers, flags, array_len."""
+    """Map event name -> commands, command states, matchers, array_len.
+
+    Skip flags live only in the command-local states (SPEC §5.1, spec 10);
+    there is no per-event aggregate.
+    """
     root = _as_dict(doc)
     if root is None:
         return {}
@@ -94,12 +86,6 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
             commands: list[str] = []
             command_states: list[tuple[str, dict[str, bool]]] = []
             matchers: list[str] = []
-            flags = {
-                "disabled": False,
-                "hookEnabled_false": False,
-                "continueOnError": False,
-                "failOpen": False,
-            }
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
@@ -107,14 +93,10 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
                     matchers.append(entry["matcher"])
                 commands.extend(_commands_from_hook_object(entry))
                 command_states.extend(_command_states_from_hook_object(entry))
-                child = _flags_from_obj(entry)
-                for key, val in child.items():
-                    flags[key] = flags[key] or val
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,
                 "command_states": command_states,
-                "flags": flags,
                 "matchers": matchers,
             }
         return out
@@ -131,25 +113,15 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
             commands: list[str] = []
             command_states: list[tuple[str, dict[str, bool]]] = []
             matchers: list[str] = []
-            flags = {
-                "disabled": False,
-                "hookEnabled_false": False,
-                "continueOnError": False,
-                "failOpen": False,
-            }
             for entry in entries:
                 if isinstance(entry.get("matcher"), str):
                     matchers.append(entry["matcher"])
                 commands.extend(_commands_from_hook_object(entry))
                 command_states.extend(_command_states_from_hook_object(entry))
-                child = _flags_from_obj(entry)
-                for key, val in child.items():
-                    flags[key] = flags[key] or val
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,
                 "command_states": command_states,
-                "flags": flags,
                 "matchers": matchers,
             }
     return out

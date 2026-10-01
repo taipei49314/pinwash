@@ -168,5 +168,73 @@ class WorkflowValueResiduals(unittest.TestCase):
         self.assertEqual(payload["unknown_coverage"], [self.MULTILINE])
 
 
+def _hooks(event: str, entries: list[dict[str, Any]]) -> str:
+    return json.dumps({"hooks": {event: entries}})
+
+
+class CommandLocalSkipFlags(unittest.TestCase):
+    """#5 / spec 10 §5.1: skip flags are judged per command, not per event."""
+
+    CASES = (
+        (".claude/settings.json", "Stop"),
+        (".cursor/hooks.json", "stop"),
+    )
+    FLAGS = (
+        ("disabled", True), ("hookEnabled", False),
+        ("continueOnError", True), ("failOpen", True),
+    )
+
+    def test_new_flagged_sibling_beside_unchanged_commands_is_silent(self) -> None:
+        for path, event in self.CASES:
+            for flag, value in self.FLAGS:
+                for base_entries in (
+                    [{"command": "judge-live"}],
+                    [{"command": "judge-live"},
+                     {"command": "judge-old", "disabled": True}],
+                ):
+                    with self.subTest(path=path, flag=flag, siblings=len(base_entries)):
+                        head_entries = base_entries + [
+                            {"command": "judge-new", flag: value},
+                        ]
+                        payload = _pair(
+                            {path: _hooks(event, base_entries)},
+                            {path: _hooks(event, head_entries)},
+                        )
+                        self.assertEqual(payload["findings"], [])
+                        self.assertEqual(payload["verdict"], "pass")
+
+    def test_rename_plus_flag_is_caught_when_the_flag_already_exists(self) -> None:
+        path, event = self.CASES[0]
+        base = _hooks(event, [
+            {"command": "judge"}, {"command": "other", "failOpen": True},
+        ])
+        head = _hooks(event, [
+            {"command": "judge-v2", "failOpen": True},
+            {"command": "judge-extra"},
+            {"command": "other", "failOpen": True},
+        ])
+        payload = _pair({path: base}, {path: head})
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+
+    def test_flagging_an_existing_command_while_adding_a_live_one_fires(self) -> None:
+        for path, event in self.CASES:
+            for flag, value in self.FLAGS:
+                with self.subTest(path=path, flag=flag):
+                    base = _hooks(event, [{"command": "judge"}])
+                    head = _hooks(event, [
+                        {"command": "judge", flag: value}, {"command": "judge-extra"},
+                    ])
+                    payload = _pair({path: base}, {path: head})
+                    self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+
+    def test_rename_plus_flag_of_the_only_command_is_critical(self) -> None:
+        path, event = self.CASES[0]
+        base = _hooks(event, [{"command": "judge"}])
+        head = _hooks(event, [{"command": "judge-v2", "failOpen": True}])
+        payload = _pair({path: base}, {path: head})
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
+        self.assertEqual(payload["verdict"], "block")
+
+
 if __name__ == "__main__":
     unittest.main()
