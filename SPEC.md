@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite.
 
-Spec version: **10** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **11** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -160,7 +160,7 @@ Vendor directory **content** edits without a pin-record change are **not** `JUDG
 
 ## 5. Rule IDs (frozen)
 
-Base severity of every finding is `warn`, except the producer-side disjuncts of `REQUIRED_CHECK_DROPPED` (spec 9), which base at `high`. Escalators in §6 may raise a severity. Detectors are not configurable except disable-whole, and disable-whole on the **head** config does not apply to the current run (§1.2).
+Base severity of every finding is `warn`, except the producer-side disjuncts of `REQUIRED_CHECK_DROPPED` (spec 9), which base at `high`, and the §10 exemption-channel severities (`CONFIG_RELAXED` at `.pinwash/allow.toml` is `critical`; `EXEMPTION_ADDED` is `critical` when an added record's `created` is after today, spec 11). Escalators in §6 may raise a severity. Detectors are not configurable except disable-whole, and disable-whole on the **head** config does not apply to the current run (§1.2).
 
 | Rule ID | Trigger |
 |---|---|
@@ -171,8 +171,8 @@ Base severity of every finding is `warn`, except the producer-side disjuncts of 
 | `PERMISSION_WIDENED` | A permission or auto-approval set grew per §5.3. Shrinking is not a finding. |
 | `SKILL_BYPASS` | An **added or edited** line in `skill_md` or `agent_markdown` matches the bypass phrase table (§5.4). Deletions of such lines are not a finding. |
 | `REQUIRED_CHECK_DROPPED` | A required status context named at base in `gha_ruleset` is missing at head; **or** the workflow job that produced that `name:` was deleted / `if: false` / `if: 'false'` introduced / `continue-on-error: true` introduced on that job; **or** (spec 8) the workflow that contains the producing job included `push` or `pull_request` in its `on:` triggers at base and includes neither at head, so the context loses every enforcement-path run. An `on:` block the grammar cannot resolve is a residual (§3.1), not an observed removal. **Severity**: ruleset-side drops are `warn` (`critical` per §6.2 when the last remaining context goes); the producer-side disjuncts — deleted job, `if` disable, `continue-on-error`, trigger-loss — base at `high` (spec 9). |
-| `CONFIG_RELAXED` | Base-absent or edited `checkwash_config` **disables** a detector or raises `fail_on` above the base value (or above default `high` if base file missing). Tightening stays silent. |
-| `EXEMPTION_ADDED` | A valid (§10) `.pinwash/allow.toml` record present at head and absent at base. Visibility only: head-side records never govern the current run (§1.2). |
+| `CONFIG_RELAXED` | Base-absent or edited `checkwash_config` **disables** a detector or raises `fail_on` above the base value (or above default `high` if base file missing). Tightening stays silent. Also a base `.pinwash/allow.toml` exemption deleted, edited, or unconfirmable at head (§10, `critical`); that finding is never exempted (spec 11). |
+| `EXEMPTION_ADDED` | A valid (§10) `.pinwash/allow.toml` record present at head and absent at base. Visibility only: head-side records never govern the current run (§1.2). `warn`, except an addition whose `created` is after today, which is `critical` (§10, spec 11). Never exempted (§10, spec 11). |
 | `SURFACE_UNPARSEABLE` | See §3. |
 
 No other rule IDs exist in this spec version. Internal helper names must not appear in JSON `rule` fields.
@@ -266,9 +266,9 @@ Applied in order, all deterministic. No scores.
 2. If `REQUIRED_CHECK_DROPPED` removes the last remaining required context in a ruleset file, severity becomes **critical**.
 3. If `JUDGE_UNPINNED` moves a pin to **floating**, severity becomes **high** (critical if it was the last non-floating pin on that workflow file).
 4. `SURFACE_UNPARSEABLE` at head when base parsed: **high**.
-5. Otherwise leave the rule's base severity — `warn`, except the producer-side `REQUIRED_CHECK_DROPPED` disjuncts, which base at `high` (spec 9).
+5. Otherwise leave the rule's base severity — `warn`, except the producer-side `REQUIRED_CHECK_DROPPED` disjuncts, which base at `high` (spec 9), and the §10 exemption-channel severities (`CONFIG_RELAXED` at `.pinwash/allow.toml` is `critical`; `EXEMPTION_ADDED` is `critical` when an added record's `created` is after today, spec 11).
 
-Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**. `EXEMPTION_ADDED` never escalates. Spec 9: a required check that can no longer run on any enforcement path is a dropped check, so its producer-side shapes block at the default `fail_on` (round 3 live warn-gap specimen: `# on: push` fired warn and the verdict stayed pass).
+Default `fail_on` is **high**. `warn` findings do not fail the run. `critical` and `high` do. This matches checkwash’s “visible warn can still pass” so installing pinwash on a noisy docs edit of SKILL.md does not by itself brick merge until phrases hit and escalate — `SKILL_BYPASS` stays warn unless later spec says otherwise. v0: `SKILL_BYPASS` never escalates (phrase hits are review, not merge-block). `PERMISSION_WIDENED` escalates to **high**. `CONFIG_RELAXED` escalates to **high**; at `.pinwash/allow.toml` it is **critical** (§10). `EXEMPTION_ADDED` stays `warn`, except an addition whose `created` is after today, which is **critical** (§10, spec 11). Spec 9: a required check that can no longer run on any enforcement path is a dropped check, so its producer-side shapes block at the default `fail_on` (round 3 live warn-gap specimen: `# on: push` fired warn and the verdict stayed pass).
 
 ## 7. Findings envelope
 
@@ -281,7 +281,7 @@ When an engine ships, stdout JSON (UTF-8, sorted keys, `ensure_ascii=False`, `\n
     "base": "label",
     "head": "label",
     "pinwash_version": "0.0.0",
-    "spec_version": 10
+    "spec_version": 11
   },
   "verdict": "pass | block",
   "findings": [],
@@ -339,11 +339,15 @@ created = "2026-09-27"
 expires = "2026-12-24"
 ```
 
-`reason` and `expires` required; `expires` at most 180 days. Expiry uses `PINWASH_TODAY` if set, else the current date — the only clock that may affect a verdict, overridable for replay.
+All six keys are required and non-empty; `created` and `expires` must parse with Python 3.11+ `date.fromisoformat` (ISO 8601 dates in extended, basic, or week form; not ordinal). "Today" is `PINWASH_TODAY` if set, else the current local date of the host running pinwash — the only clock that may affect a verdict, overridable for replay.
 
-An **exemption** is a record that satisfies the validity rule above. Records that fail validity are invisible to both checks: deleting or editing one is not a finding, and adding one emits nothing.
+A record is **valid** when `expires` is at most 180 days after `created` and not before today (the expiry day itself counts; an `expires` before `created` passes the first condition). An **exemption** is a valid record. Records that fail validity are invisible to both checks below: deleting or editing one is not a finding, and adding one emits nothing.
 
-Head-side **append-only** valid additions emit `EXEMPTION_ADDED` at warn (visibility). Editing or deleting a base exemption is `CONFIG_RELAXED` at critical; an edit is any change to a base exemption record, not only its removal.
+A base exemption is **in force**, and drops the finding whose `fingerprint` and `rule` it names, only while `expires` is also at most 180 days after the earlier of `created` and today (spec 11). A `created` date in the future therefore cannot lengthen the window: no record is in force more than 180 days before it expires. Validity alone decides the checks below, so a future-dated record is visible when it is added and when it is edited or deleted, even on days it is not yet in force. A record is also not in force while another valid base record for the same `fingerprint` and `rule` has its `created` after today (spec 11). Records added in one change whose windows follow one another would otherwise keep one fingerprint exempt for more than 180 days after that change; that needs a record whose `created` is after the day it is added, and adding one blocks (below), while such records already in a base shrink to their last one. Renewing an exemption later with a fresh record is an ordinary addition (warn).
+
+Head-side **append-only** valid additions emit `EXEMPTION_ADDED` at warn (visibility), or at **critical** when any added record's `created` is after today (spec 11). Editing or deleting a base exemption is `CONFIG_RELAXED` at critical; an edit is any change to a base exemption record, not only its removal. A head `allow.toml` that is missing or not UTF-8 cannot confirm any base exemption, so it counts as deleting all of them.
+
+The exemption channel never exempts its own findings (spec 11): `CONFIG_RELAXED` and `EXEMPTION_ADDED` at `.pinwash/allow.toml` are always reported. A record naming either one is still a valid record, so adding, editing, or deleting it is visible as above, but it drops nothing. `CONFIG_RELAXED` from `checkwash_config` (§5) is a different channel and stays exemptible.
 
 ## 11. Residuals (not silent passes)
 
@@ -413,6 +417,7 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 
 ## 16. Spec changelog
 
+- **11** — §10, §5 `CONFIG_RELAXED` / `EXEMPTION_ADDED` rows and preamble, §6: the exemption channel never exempts its own findings, and a record exempts only within 180 days of the earlier of `created` and today (taipei49314/pinwash#17; maintainer ruling: S1 and S2 are bugs against §10). S1: a base record naming the constant `CONFIG_RELAXED` fingerprint of `.pinwash/allow.toml` silenced every later edit or deletion of exemptions, and one naming the `EXEMPTION_ADDED` fingerprint every later addition, while they stayed valid; such records stay valid and visible but drop nothing. S2: the cap was measured from the record's self-declared `created`, so `created = "9999-01-01"`, `expires = "9999-06-30"` exempted on every date until 9999-06-30; a record is now in force only while `expires` is at most 180 days after `min(created, today)`. Because in force is per record, records dated in the future could be chained so their windows follow one another: adding a record whose `created` is after today is `EXEMPTION_ADDED` at **critical** with its own message (`head allow.toml adds a record whose created date is after today`), and a base record is not in force while another valid record for the same fingerprint and rule is dated after today, so chains already in a base shrink to their last record. §10 now states the validity rule the engine has applied since spec 0 (six required keys, ISO dates, `expires` at most 180 days after `created`, not expired), the date parser, the host-local clock, and the fail-closed reading of a missing or non-UTF-8 head `allow.toml`; validity, and so what the `EXEMPTION_ADDED` / `CONFIG_RELAXED` checks see, is unchanged. The §5 `CONFIG_RELAXED` row now names the `allow.toml` trigger §10 already defined, and §5/§6 name its `critical` severity. Date arithmetic uses day differences, so a `created` near 9999-12-31 no longer overflows into exit 2. Issue #17's A12 (plant then weaken through a warn; not a §12 criterion), S3 (content-free fingerprints) and S4 (in-session self-authorization) keep the classification #17 gave them (consistent with SPEC as written). `CONFIG_RELAXED` from `checkwash_config` stays exemptible. No rule ID, locator, fingerprint, or envelope-field change.
 - **10** — §5.1 is the exact table of what the engine detects: `"disabled": true` and `"hookEnabled": false` apply to both hook surfaces (the §5 row already named `hookEnabled`; §5.1 omitted it and scoped `disabled` to `cursor_hooks`), and skip flags are judged per command instead of as one per-event aggregate. The aggregate fired `HOOK_BYPASSED` when a new, already flagged sibling was added next to unchanged commands, depending on which flag name it carried, and missed a live command renamed and flagged when the same flag name already existed elsewhere in the event (taipei49314/pinwash#5, #6). Severity, message, locator and fingerprint fields are unchanged.
 - **9** — Producer-side `REQUIRED_CHECK_DROPPED` severity `warn` → `high` (§5 preamble exception, §5 row severity note, §6.5): the deleted-job, `if`-disable, `continue-on-error`, and trigger-loss disjuncts now base at `high`, so a required check that cannot run on any enforcement path blocks at the default `fail_on=high`. Found as the round 3 warn-gap (opencode zen bench, `pinwash-live/round3`): the live trigger-loss specimen (`on: push` → `# on: push`) fired warn and the verdict stayed pass while the check could never gate again. Ruleset-side drops are unchanged (`warn`; `critical` per §6.2). No grammar, surface, or rule-ID change.
 - **8** — `REQUIRED_CHECK_DROPPED` gains the trigger-loss disjunct, found live in round 2 (opencode zen bench, `pinwash-live/round2`): a producing job's workflow that drops `push`/`pull_request` from `on:` (live escape: `on: push` → `on: workflow_dispatch`) leaves the required context with no enforcement-path run, so the job's survival, `if:`, and `continue-on-error` disjuncts all stay silent while the check can never fire. §3.1's bounded grammar gains closed `on:` trigger forms (inline scalar/list, block list items and mapping keys at indent 2); unresolvable `on:` blocks are residuals (`on triggers unresolved`), never treated as an observed removal.
