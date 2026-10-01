@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any
 
 from pinwash.textutil import crlf_to_lf
@@ -64,7 +64,9 @@ def parse_allow_toml(text: str) -> list[dict[str, str]]:
     return records
 
 
-def allow_valid(record: dict[str, str], today: date) -> bool:
+def allow_valid(record: dict[str, str], today: date, *, in_force: bool = False) -> bool:
+    """SPEC §10 validity. Without in_force: the record is visible to the
+    add/edit/delete checks. With in_force: it may also exempt a finding today."""
     required = ("fingerprint", "rule", "reason", "author", "created", "expires")
     if any(not record.get(key) for key in required):
         return False
@@ -73,9 +75,15 @@ def allow_valid(record: dict[str, str], today: date) -> bool:
         expires = date.fromisoformat(record["expires"])
     except ValueError:
         return False
-    if expires > created + timedelta(days=180):
+    # Day differences, not date + timedelta: a created date near 9999-12-31
+    # must not overflow into an engine error.
+    if (expires - created).days > 180:
         return False
     if expires < today:
+        return False
+    # SPEC §10 (spec 11): the 180 days run from the earlier of created and
+    # today, so a self-declared future created cannot lengthen the window.
+    if in_force and (expires - min(created, today)).days > 180:
         return False
     return True
 

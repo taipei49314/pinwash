@@ -23,7 +23,8 @@ def detect_allow(
     if b_st == "unparseable":
         config_errors.append("base allow.toml unreadable as utf-8")
     # SPEC §10: an exemption is a record satisfying the validity rule.
-    # Invalid records are invisible to both checks.
+    # Invalid records are invisible to both checks. Visibility ignores the
+    # spec 11 in-force window, so a future-dated record is still seen.
     base_recs = [
         r for r in (parse_allow_toml(b_txt) if b_st == "ok" and b_txt else [])
         if allow_valid(r, today)
@@ -44,10 +45,21 @@ def detect_allow(
             path=path,
         )
     elif head_set - base_set:
+        # SPEC §10 (spec 11): a record dated after today could come into force
+        # later than any run shows it, and such records chain past 180 days.
+        future = any(
+            date.fromisoformat(r["created"]) > today
+            for r in head_recs
+            if canonical_json(r) not in base_set
+        )
         add(
             rule="EXEMPTION_ADDED",
-            severity="warn",
-            message="head allow.toml append-only additions are visible, not trusted for this run",
+            severity="critical" if future else "warn",
+            message=(
+                "head allow.toml adds a record whose created date is after today"
+                if future
+                else "head allow.toml append-only additions are visible, not trusted for this run"
+            ),
             path=path,
         )
 
@@ -61,14 +73,29 @@ def apply_allow(
     text, status = text_load(base_files.get(path))
     if status != "ok" or text is None:
         return findings
+    records = [
+        r for r in parse_allow_toml(text) if r.get("fingerprint") and allow_valid(r, today)
+    ]
+    key_of = lambda r: (r["fingerprint"], r.get("rule", ""))
+    # SPEC §10 (spec 11): a record is not in force while another valid base
+    # record for the same fingerprint and rule has its created after today,
+    # so windows chained before spec 11 shrink to their last record.
+    dated_later: dict[tuple[str, str], set[str]] = {}
+    for rec in records:
+        if date.fromisoformat(rec["created"]) > today:
+            dated_later.setdefault(key_of(rec), set()).add(canonical_json(rec))
     allowed = set()
-    for rec in parse_allow_toml(text):
-        if allow_valid(rec, today) and rec.get("fingerprint"):
-            allowed.add((rec["fingerprint"], rec.get("rule", "")))
+    for rec in records:
+        if not allow_valid(rec, today, in_force=True):
+            continue
+        if dated_later.get(key_of(rec), set()) - {canonical_json(rec)}:
+            continue
+        allowed.add(key_of(rec))
     kept: list[dict[str, Any]] = []
     for item in findings:
-        key = (item["fingerprint"], item["rule"])
-        if key in allowed:
+        # SPEC §10 (spec 11): the exemption channel never exempts its own
+        # findings (CONFIG_RELAXED, EXEMPTION_ADDED on this path).
+        if item["path"] != path and (item["fingerprint"], item["rule"]) in allowed:
             continue
         kept.append(item)
     return kept

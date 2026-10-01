@@ -45,7 +45,7 @@ python -m pinwash check              # uncommitted worktree edits against HEAD
 
 **Record the judge's identity with the verdict.** A pass or block that cannot name the judge is not reproducible. Record the pinwash git revision and the `python -m pinwash doctor` output (`spec_version`, self-test state; a judge record needs `nested_depth` 0, the full own suite), and the exit codes of both ranges, e.g. "pass @ pinwash `86bdcce`, spec 7, 51 self-tests ok, exit 0 on both ranges". Round 1's judge was pinned this way (`416b962`, spec 6); its reports are not published in this repository.
 
-**Exemptions are per finding fingerprint, on the base side only** (SPEC §10). Take the `fingerprint` field from the finding JSON (`rule/path/v1:<64hex>`), and write a `[[allow]]` record into `.pinwash/allow.toml` at the pinned base — `reason` and `expires` (≤ 180 days) required, never a rule glob:
+**Exemptions are per finding fingerprint, on the base side only** (SPEC §10). Take the `fingerprint` field from the finding JSON (`rule/path/v1:<64hex>`), and write a `[[allow]]` record into `.pinwash/allow.toml` at the pinned base — all six keys required (`fingerprint`, `rule`, `reason`, `author`, `created`, `expires`), `expires` at most 180 days after `created`, never a rule glob. Set `created` to the day you add the record by the judge's clock (`PINWASH_TODAY`, else the judge host's local date), never a later date:
 
 ```toml
 [[allow]]
@@ -57,7 +57,7 @@ created = "2026-09-28"
 expires = "2026-12-01"
 ```
 
-Head-side valid additions surface as `EXEMPTION_ADDED` (warn); editing or deleting a base exemption is `CONFIG_RELAXED` (critical).
+Head-side valid additions surface as `EXEMPTION_ADDED` (warn), or critical when an added record's `created` is after today; editing or deleting a base exemption is `CONFIG_RELAXED` (critical). A base record exempts its finding only while `expires` is at most 180 days after the earlier of `created` and today, and the exemption channel never exempts its own findings (`CONFIG_RELAXED` and `EXEMPTION_ADDED` at `.pinwash/allow.toml`) (SPEC §10, spec 11).
 
 Exit codes: `0` no finding at or above `fail_on` · `1` verdict block · `2` engine error. A crash must not exit 1; exit 0 is never proof the harness works.
 

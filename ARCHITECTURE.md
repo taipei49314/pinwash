@@ -6,7 +6,7 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over SPEC and `tests/gates/**`. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `10` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
+SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `11` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
 
 ## 0. What this product is allowed to be
 
@@ -59,7 +59,7 @@ Of the neighbour products in this diagram and table (pinwash itself aside), only
 6. Missing observation is never a pass: unobservable inputs surface as `SURFACE_UNPARSEABLE` findings, `config_errors` entries, or `unknown_coverage` rows. A crashed engine is exit **2**, never a block (exit 1). Subject-surface parse failure is `SURFACE_UNPARSEABLE`, not exit 2, unless git itself cannot be read.
 7. Artifacts the agent wrote in the same diff (logs, screenshots, “CI is green” prose) are never evidence that a harness still runs.
 
-The only clock that may affect a verdict is exemption expiry on **base** `.pinwash/allow.toml`, overridable with `PINWASH_TODAY` for replay.
+The only clock that may affect a verdict is the exemption window on `.pinwash/allow.toml` (expiry, the spec 11 in-force start, and the spec 11 check for added records whose `created` is after today), overridable with `PINWASH_TODAY` for replay.
 
 Range notation matches checkwash: `BASE..HEAD` is tree-to-tree; `BASE...HEAD` is `merge-base(BASE, HEAD)..HEAD` and must not silently become two-dot. Paths use forward slashes. Comparison text is CRLF→LF before parse.
 
@@ -135,10 +135,10 @@ sequenceDiagram
 ```
 
 - `pinwash check` with no range: `HEAD` versus worktree. Worktree is the attack surface (tracked and untracked, `--exclude-standard`).
-- Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high**. Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
+- Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high** (`CONFIG_RELAXED` at `.pinwash/allow.toml` is **critical**, SPEC §10); `EXEMPTION_ADDED` is **critical** when an added record's `created` is after today (spec 11). Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not.
 - `unknown_coverage` does not change `verdict`. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `10`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `11`). `pinwash_version` is `0.0.0`.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 
@@ -166,7 +166,7 @@ Internal helper names must not appear in JSON `rule`.
 
 Files outside these paths are invisible to v0. A harness that lives only in `$HOME`, a SaaS UI, or a gitignored local settings file is residual R02.
 
-`.pinwash/allow.toml` is the **exemption channel**, not a §3 surface. Today `pinwash/surfaces.py` lists it in `EXACT` so the tree loader keeps the bytes. Architecturally it is config, not a detection surface. Head-side append-only additions are visibility only; the current run still trusts **base**.
+`.pinwash/allow.toml` is the **exemption channel**, not a §3 surface. Today `pinwash/surfaces.py` lists it in `EXACT` so the tree loader keeps the bytes. Architecturally it is config, not a detection surface. Head-side additions never govern the current run, which still trusts **base**; they surface as `EXEMPTION_ADDED` (critical when an added record's `created` is after today, SPEC §10).
 
 `SKILL_BYPASS` compares **added or edited lines** (not deletions) against the closed phrase table in SPEC §5.4. Documentation of those phrases in `SPEC.md` / `THREATMODEL.md` / `README.md` is excluded by path. **This file is not in that exclude set.** Do not paste the phrase table here. Extra exclude globs are a spec bump.
 
@@ -194,7 +194,7 @@ Tightening (tag → sha, sha + digest added) is not a finding. Vendor-directory 
 
 `.pinwash/pins.json` is optional. Head-only creation is not a finding. If present at base, every record must keep kind/value or a documented allow fingerprint.
 
-Fingerprint (exemption key): `rule/path/v1:` plus hex sha256 of canonical JSON `{rule, path, locator, before_digest, after_digest}`. Allow entries are per fingerprint, never per-rule-glob; `reason` and `expires` required; `expires` at most 180 days.
+Fingerprint (exemption key): `rule/path/v1:` plus hex sha256 of canonical JSON `{rule, path, locator, before_digest, after_digest}`. Allow entries are per fingerprint, never per-rule-glob; all six keys required; `expires` at most 180 days after `created` and not before today to be valid (visible to the add/edit/delete checks), and at most 180 days after the earlier of `created` and today to be in force, with no other valid record for the same fingerprint and rule whose `created` is after today (spec 11). Allow-channel findings at `.pinwash/allow.toml` are never exempted (spec 11).
 
 ## 6. Exit codes and determinism
 
@@ -227,12 +227,12 @@ Forbidden consumer fantasies:
 
 ## 8. v0 held versus 1.0 license
 
-**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 10`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
+**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 11`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
 
 **1.0 license (every item is a human decision; missing one forbids saying 1.0):**
 
 1. ~~Human edits SPEC's "No engine exists yet"~~ Held: updated in spec 3 under the 2026-09-27 delegation (own commit; A11's original constraint — the first satisfying engine PR did not touch SPEC — still holds historically).
-2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `10` (SPEC §16).
+2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `11` (SPEC §16).
 3. THREATMODEL R01–R10: each row is **Closed** with a named fixture, or **Permanent** with a human signature that it will not be closed and will not be pretended closed. Closed without a fixture fails the suite.
 4. Findings envelope and fingerprint stay backward compatible (`pinwash_findings_version: 1` already).
 5. `doctor` actually runs this package’s tests. (Held in v0 as of this change set; the item stays on the list as a 1.0 check.)
@@ -264,6 +264,7 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
 - Fidelity fixes in this change set (engine side only; SPEC untouched): `SURFACE_UNPARSEABLE` now follows the §3 closed table on every surface including `.claude/hooks/**` and `.pinwash/pins.json`; a deleted or unparseable head `allow.toml` with base exemptions is `CONFIG_RELAXED` critical; job-side `REQUIRED_CHECK_DROPPED` is ruleset-linked per §5; declared `action_ref` pins rank per the §4 lattice; a commented-out hook command is the v0 closed shape of "command prefixed with a no-op" (`HOOK_BYPASSED`, and non-live for the last-Stop escalator); a corrupt or absent baseline no longer produces invented findings on `cursor_mcp` / `claude_settings` permissions.
 - ~~Still open: hook `command` strings that resolve to repo-relative files...~~ **Resolved in spec 4:** §3.3 restores target resolution with a closed tokenizer rule, and §5.2 body stubs wire into `GATE_STUBBED` and the last-Stop escalator.
 - `HOOK_BYPASSED` judged skip flags on a per-event aggregate while SPEC §5 speaks of an existing hook, and §5.1 omitted `hookEnabled` and scoped `disabled` to Cursor. → **Ruled 2026-10-01 (delegated): spec 10** — §5.1 is the exact key table on both hook surfaces and flags are command-local (pinwash#5, #6).
+- A base allow.toml record could exempt the exemption channel's own constant-fingerprint findings (`CONFIG_RELAXED`, `EXEMPTION_ADDED`), and the 180-day cap ran from a self-declared `created`, so a future date kept a record in force for as long as that date allowed (to 9999-06-30 in #17's example). → **Ruled 2026-10-01 (maintainer, pinwash#17): S1 and S2 are bugs against §10.** Design (delegated), **spec 11**: `apply_allow` never drops findings at `.pinwash/allow.toml`; an exemption is in force only while `expires` is at most 180 days after `min(created, today)`; validity for the visibility checks is unchanged; adding a record whose `created` is after today is `EXEMPTION_ADDED` critical, and a record is not in force while another for the same fingerprint and rule has its `created` after today, because per-record windows could otherwise be chained. Issue #17's A12, S3 and S4 keep the classification #17 gave them.
 - No typed IR (escalators are centralized in `escalate.py`, but detectors still speak raw dicts and callback `add`).
 - ~~`gitrepo.ls_tree` calls `git show` per blob (N+1).~~ Fixed: one `cat-file --batch` round trip per tree; the analysis unit is unchanged.
 - `.pinwash/allow.toml` is mixed into the surface `EXACT` set.
