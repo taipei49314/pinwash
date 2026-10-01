@@ -60,22 +60,31 @@ def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str
 def ls_tree(repo: Path, spec: str) -> dict[str, bytes]:
     if spec == "WORKTREE":
         return _ls_worktree(repo)
-    proc = _run(repo, ["ls-tree", "-r", "--name-only", spec])
+    proc = _run(repo, ["ls-tree", "-r", "-z", spec])
     if proc.returncode != 0:
         raise GitError("unreadable git repository")
-    names = proc.stdout.decode("utf-8", "replace").replace("\r\n", "\n").split("\n")
-    paths = [name.replace("\\", "/").strip() for name in names]
-    paths = [p for p in paths if p]
-    return _cat_file_batch(repo, spec, paths)
+    entries: list[tuple[str, bytes]] = []
+    for entry in proc.stdout.split(b"\0"):
+        if not entry:
+            continue
+        metadata, separator, name = entry.partition(b"\t")
+        parts = metadata.split()
+        if not separator or len(parts) != 3:
+            raise GitError("unreadable git repository")
+        # -z preserves literal names, including Git-quoted Unicode and
+        # whitespace. Batch requests use object IDs so a filename cannot
+        # become part of cat-file's newline-delimited request protocol.
+        entries.append((name.decode("utf-8", "surrogateescape"), parts[2]))
+    return _cat_file_batch(repo, entries)
 
 
 def _cat_file_batch(
-    repo: Path, spec: str, paths: list[str]
+    repo: Path, entries: list[tuple[str, bytes]]
 ) -> dict[str, bytes]:
     """One cat-file --batch round trip instead of one `git show` per blob."""
-    if not paths:
+    if not entries:
         return {}
-    request = b"".join(f"{spec}:{p}\n".encode("utf-8", "surrogateescape") for p in paths)
+    request = b"".join(oid + b"\n" for _path, oid in entries)
     proc = _run_input(repo, ["cat-file", "--batch"], request)
     if proc.returncode != 0:
         raise GitError("unreadable git repository")
@@ -83,7 +92,7 @@ def _cat_file_batch(
     out_len = len(out)
     result: dict[str, bytes] = {}
     pos = 0
-    for p in paths:
+    for p, _oid in entries:
         nl = out.find(b"\n", pos)
         if nl < 0:
             raise GitError("unreadable git repository")
@@ -113,15 +122,14 @@ def _run_input(
 
 
 def _ls_worktree(repo: Path) -> dict[str, bytes]:
-    proc = _run(repo, ["ls-files", "-co", "--exclude-standard"])
+    proc = _run(repo, ["ls-files", "-z", "-co", "--exclude-standard"])
     if proc.returncode != 0:
         raise GitError("unreadable git repository")
-    names = proc.stdout.decode("utf-8", "replace").replace("\r\n", "\n").split("\n")
     out: dict[str, bytes] = {}
-    for name in names:
-        path = name.replace("\\", "/").strip()
-        if not path:
+    for name in proc.stdout.split(b"\0"):
+        if not name:
             continue
+        path = name.decode("utf-8", "surrogateescape")
         full = repo.joinpath(*path.split("/"))
         if full.is_file():
             out[path] = full.read_bytes()

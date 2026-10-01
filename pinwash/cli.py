@@ -31,7 +31,7 @@ def _self_tests() -> dict[str, Any]:
     root = Path(__file__).resolve().parent.parent
     tests_dir = root / "tests"
     if not tests_dir.is_dir():
-        return {"available": False, "ok": True, "tests_run": 0}
+        return {"available": False, "ok": False, "tests_run": 0}
     if os.environ.get(_SELFTEST_ENV):
         return {
             "available": True,
@@ -53,10 +53,11 @@ def _self_tests() -> dict[str, Any]:
         os.environ.pop(_SELFTEST_ENV, None)
     return {
         "available": True,
-        "ok": result.wasSuccessful(),
+        "ok": result.wasSuccessful() and result.testsRun > 0 and not result.skipped,
         "tests_run": result.testsRun,
         "failures": len(result.failures),
         "errors": len(result.errors),
+        "skipped_count": len(result.skipped),
     }
 
 

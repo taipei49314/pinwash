@@ -20,8 +20,9 @@ def _non_stub_stop_count(
             continue
         live = [
             c
-            for c in info["commands"]
-            if not stub_command(c)
+            for c, flags in info["command_states"]
+            if not any(flags.values())
+            and not stub_command(c)
             and not c.lstrip().startswith("#")
             and not (c in body_map and (body_map[c][0] or body_map[c][1]))
         ]
@@ -30,6 +31,36 @@ def _non_stub_stop_count(
         elif info["array_len"] > 0 and not info["commands"]:
             n += 0
     return n
+
+
+def _command_skip_added(base: dict[str, Any], head: dict[str, Any]) -> bool:
+    """An already skipped sibling must not hide loss of an active command.
+
+    Supplement the exact-key event comparison only when fewer commands
+    remain active and more are skipped, globally or under a command that
+    exists on both sides. Counts preserve rename/reorder and adding an
+    already skipped sibling without inventing a new command identity.
+    """
+    base_states = base["command_states"]
+    head_states = head["command_states"]
+    base_skipped = sum(any(flags.values()) for _command, flags in base_states)
+    head_skipped = sum(any(flags.values()) for _command, flags in head_states)
+    if len(head_states) - head_skipped >= len(base_states) - base_skipped:
+        return False
+    if head_skipped > base_skipped:
+        return True
+    # Removing an already skipped sibling can cancel the total increase
+    # while the surviving active command gets its own skip flag.
+    base_counts: dict[str, int] = {}
+    head_counts: dict[str, int] = {}
+    for command, flags in base_states:
+        base_counts[command] = base_counts.get(command, 0) + any(flags.values())
+    for command, flags in head_states:
+        head_counts[command] = head_counts.get(command, 0) + any(flags.values())
+    return any(
+        command in base_counts and count > base_counts[command]
+        for command, count in head_counts.items()
+    )
 
 
 def detect(
@@ -88,7 +119,7 @@ def detect(
             not bf["hookEnabled_false"] and hf["hookEnabled_false"]
         ) or (not bf["continueOnError"] and hf["continueOnError"]) or (
             not bf["failOpen"] and hf["failOpen"]
-        ):
+        ) or _command_skip_added(info, head_info):
             sev = escalate_stop("HOOK_BYPASSED", event, "warn")
             add(
                 rule="HOOK_BYPASSED",
