@@ -581,5 +581,96 @@ class NonUtf8PathThroughGit(unittest.TestCase):
         self.assertEqual([f["path"] for f in skills], ["x\udcff/SKILL.md"])
         self.assertIn(b'"x\\udcff/SKILL.md"', proc.stdout)
 
+
+class QuotedOnKey(unittest.TestCase):
+    """SPEC §3.1 / §5: an on: block the bounded grammar cannot resolve is
+    unknown `on triggers unresolved`, never an observed trigger removal.
+    A quoted column-0 "on" / 'on' key is such a block; its triggers are
+    not read (reading them would widen the grammar)."""
+
+    WF = ".github/workflows/ci.yml"
+    RULESET = json.dumps({"required_status_checks": ["tripwire"]})
+    JOBS = "jobs:\n  tripwire:\n    name: tripwire\n    runs-on: ubuntu-latest\n"
+    ON = {"path": WF, "reason": "on triggers unresolved"}
+
+    def _scan(self, base_on: str, head_on: str) -> dict[str, Any]:
+        rs = ".github/required-ruleset.json"
+        return _pair(
+            {self.WF: base_on + self.JOBS, rs: self.RULESET},
+            {self.WF: head_on + self.JOBS, rs: self.RULESET},
+        )
+
+    def test_parse_records_a_seen_unresolved_block(self) -> None:
+        from pinwash.parse.gha import ON_UNRESOLVED, parse_workflow
+
+        for line in ('"on": push', "'on': [push]", '"on":', "'on' : push # why"):
+            with self.subTest(line=line):
+                parsed = parse_workflow(line + "\n  pull_request:\n" + self.JOBS)
+                self.assertTrue(parsed.on_seen)
+                self.assertEqual(parsed.triggers, set())
+                self.assertIn(ON_UNRESOLVED, parsed.unknown)
+                self.assertIn("tripwire", parsed.jobs)
+
+    def test_honest_requote_is_not_a_trigger_removal(self) -> None:
+        for head in ('"on": push\n', "'on': push\n", '"on":\n  push:\n'):
+            with self.subTest(head=head):
+                payload = self._scan("on: push\n", head)
+                self.assertEqual(payload["findings"], [])
+                self.assertEqual(payload["unknown_coverage"], [self.ON])
+                self.assertEqual(payload["verdict"], "pass")
+
+    def test_quoted_base_is_no_observation_but_visible(self) -> None:
+        for base, head in (
+            ('"on": [push, pull_request]\n', '"on": [workflow_dispatch]\n'),
+            ("'on': push\n", "on: workflow_dispatch\n"),
+            ("on: push\n", '"on":\n  workflow_dispatch:\n'),
+        ):
+            with self.subTest(base=base, head=head):
+                payload = self._scan(base, head)
+                self.assertEqual(payload["findings"], [])
+                self.assertEqual(payload["unknown_coverage"], [self.ON])
+
+    def test_partly_unresolved_head_is_no_observation(self) -> None:
+        for head in (
+            "on:\n  - workflow_dispatch\n  - {push: {}}\n",
+            "on:\n  schedule:\n  - {cron: '0 0 * * *'}\n",
+        ):
+            with self.subTest(head=head):
+                payload = self._scan("on: push\n", head)
+                self.assertEqual(payload["findings"], [])
+                self.assertEqual(payload["unknown_coverage"], [self.ON])
+
+    def test_unresolved_base_items_cannot_hide_an_observed_loss(self) -> None:
+        # The base resolved push; an unresolved base item could only add
+        # triggers. The head is fully resolved without push or
+        # pull_request, so the loss is observed on both sides.
+        for base, head in (
+            ("on:\n  - push\n  - {pull_request: {}}\n", "on: workflow_dispatch\n"),
+            (
+                "on:\n  push:\n  schedule:\n  - {cron: '0 0 * * *'}\n",
+                "on:\n  schedule:\n    - cron: '0 0 * * *'\n",
+            ),
+        ):
+            with self.subTest(base=base, head=head):
+                payload = self._scan(base, head)
+                self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high")])
+                self.assertEqual(payload["unknown_coverage"], [self.ON])
+
+    def test_only_the_exact_quoted_key_is_recognised(self) -> None:
+        # Not an on: key at all: the block is gone, as before.
+        for head in ('"one": push\n', '"on_": push\n', ' "on": push\n'):
+            with self.subTest(head=head):
+                payload = self._scan("on: push\n", head)
+                self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high")])
+
+    def test_resolved_trigger_loss_still_fires(self) -> None:
+        payload = self._scan("on: [push, pull_request]\n", "on: workflow_dispatch\n")
+        self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high")])
+        self.assertEqual(payload["findings"][0]["after"], "on: workflow_dispatch")
+
+    def test_tab_handling_unchanged(self) -> None:
+        payload = self._scan("on: push\n", '"on":\tpush\n')
+        self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
+
 if __name__ == "__main__":
     unittest.main()

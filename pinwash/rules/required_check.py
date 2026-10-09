@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from pinwash.escalate import last_context_gone
-from pinwash.parse.gha import job_disabled
+from pinwash.parse.gha import ON_UNRESOLVED, job_disabled
 
 # SPEC §5 (spec 8): the events on which a workflow's run provides a
 # required status context to merge gating. A context reported only from
@@ -78,13 +78,20 @@ def detect_jobs(
         elif head_job.continue_on_error is True and job.continue_on_error is not True:
             dropped = True
             after = "continue-on-error: true"
-        elif (base_g.triggers & ENFORCEMENT_EVENTS) and not (
-            head_g.triggers & ENFORCEMENT_EVENTS
-        ) and (not head_g.on_seen or head_g.triggers):
+        elif (
+            (base_g.triggers & ENFORCEMENT_EVENTS)
+            and not (head_g.triggers & ENFORCEMENT_EVENTS)
+            and ON_UNRESOLVED not in head_g.unknown
+        ):
             # spec 8: the job survives, but its workflow no longer runs on
             # any enforcement-path event, so the context is never produced.
-            # An `on:` block whose forms the bounded grammar cannot resolve
-            # is a residual (§3.1), not an observed removal — silent here.
+            # A head `on:` block whose forms the bounded grammar cannot
+            # resolve (wholly or in part) is a residual (§3.1), not an
+            # observed removal — silent here. A seen block that resolves no
+            # trigger is recorded as unresolved, so it is covered too. At
+            # base only the resolved triggers count: an unresolved base item
+            # could only add triggers, never hide the push / pull_request
+            # the base resolved.
             dropped = True
             after = "on: " + (", ".join(sorted(head_g.triggers)) or "none")
         if dropped:
