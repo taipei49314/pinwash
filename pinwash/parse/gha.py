@@ -10,7 +10,7 @@ from pinwash.textutil import crlf_to_lf
 
 _JOB_KEY = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 _USES = re.compile(r"^(\s*)(?:-\s+)?uses:\s*(.*)$")
-_CONTINUE = re.compile(r"^(\s*)continue-on-error:\s*(.*)$")
+_CONTINUE = re.compile(r"^(\s*)(-\s+)?continue-on-error:\s*(.*)$")
 _IF = re.compile(r"^(\s*)(-\s+)?if:\s*(.*)$")
 _NAME = re.compile(r"^(\s*)name:\s*(.*)$")
 _JOBS = re.compile(r"^jobs:\s*$")
@@ -173,19 +173,28 @@ def parse_workflow(text: str) -> GhaFile:
                 result.unknown.append("docker uses")
             continue
         mc = _CONTINUE.match(line)
-        if mc and current_job is not None and indent == 4:
-            raw = _recorded(mc.group(2))
-            flag = strip_quotes(raw).lower()
-            if flag == "true":
-                result.jobs[current_job].continue_on_error = True
-            elif flag == "false":
-                result.jobs[current_job].continue_on_error = False
-            elif _continues(raw):
+        if mc:
+            raw = _recorded(mc.group(3))
+            if current_job is not None and indent == 4 and mc.group(2) is None:
+                flag = strip_quotes(raw).lower()
+                if flag == "true":
+                    result.jobs[current_job].continue_on_error = True
+                elif flag == "false":
+                    result.jobs[current_job].continue_on_error = False
+                elif _continues(raw):
+                    result.unknown.append(MULTILINE)
+                else:
+                    # §3.1 records `true` / `false` only; an expression or a
+                    # YAML 1.1 boolean is unresolved, never a silent `None` (#4).
+                    result.unknown.append(CONTINUE_UNRESOLVED)
+                continue
+            if _continues(raw):
+                # SPEC §3.1 lists multiline scalars as residuals at any
+                # indent: a step-level block scalar or empty value (`- `
+                # first included) is unknown coverage, as the same forms of
+                # step `if:` already are (#14, #4 parity). Its value is not
+                # otherwise recorded.
                 result.unknown.append(MULTILINE)
-            else:
-                # §3.1 records `true` / `false` only; an expression or a
-                # YAML 1.1 boolean is unresolved, never a silent `None` (#4).
-                result.unknown.append(CONTINUE_UNRESOLVED)
             continue
         mi = _IF.match(line)
         if mi:
