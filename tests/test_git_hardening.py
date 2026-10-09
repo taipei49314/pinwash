@@ -388,6 +388,50 @@ class ForgedObjectsExit2(_Lab):
         self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
 
 
+class MalformedTreesExit2(_Lab):
+    """A tree that git fsck rejects has no single content: ls-tree -r lists
+    a duplicated name twice, diff-tree and show take the first entry. The
+    reader kept the last one, so a committed Stop removal whose head tree
+    lists `settings.json` twice (removed first, live last) passed BASE..HEAD.
+    A duplicated name or an entry out of git's order is now exit 2."""
+
+    def head_with_claude_tree(self, repo: Path, base: str, raw: bytes) -> None:
+        sub = self.git(repo, "hash-object", "-t", "tree", "-w", "--literally",
+                       "--stdin", stdin=raw)
+        hooks = self.git(repo, "rev-parse", f"{base}:hooks")
+        root = self.git(repo, "mktree", stdin=(
+            f"040000 tree {sub}\t.claude\n040000 tree {hooks}\thooks\n").encode())
+        head = self.git(repo, "commit-tree", root, "-p", base, "-m", "weaken")
+        self.git(repo, "update-ref", "HEAD", head)
+
+    def entry(self, repo: Path, name: str, text: str) -> bytes:
+        oid = self.git(repo, "hash-object", "-w", "--stdin", stdin=text.encode())
+        return b"100644 " + name.encode() + b"\0" + bytes.fromhex(oid)
+
+    def test_duplicate_name(self) -> None:
+        repo, base = self.weakened()
+        raw = self.entry(repo, "settings.json", EMPTY) + self.entry(repo, "settings.json", STOP)
+        self.head_with_claude_tree(repo, base, raw)
+        fsck = subprocess.run(["git", "fsck", "--no-dangling"], cwd=repo,
+                              env=_git_env(), capture_output=True)
+        self.assertIn(b"duplicateEntries", fsck.stdout + fsck.stderr)
+        self.assertExit2(self.check(repo, f"{base}..HEAD"))
+        self.assertExit2(self.check(repo, f"{base}...HEAD"))
+
+    def test_entries_out_of_order(self) -> None:
+        repo, base = self.weakened()
+        raw = self.entry(repo, "settings.json", EMPTY) + self.entry(repo, "aaa.json", "{}")
+        self.head_with_claude_tree(repo, base, raw)
+        self.assertExit2(self.check(repo, f"{base}..HEAD"))
+
+    def test_git_ordered_tree_with_a_directory_is_judged(self) -> None:
+        """Control: git sorts a directory as its name plus "/", so `a.b`
+        before `a/` is git's order, not a malformed tree."""
+        repo, base = self.weakened()
+        self.commit(repo, {"a.b": "x", "a/c": "y"}, "control")
+        self.assertBlocks(self.check(repo, f"{base}..HEAD"))
+
+
 @unittest.skipUnless(POSIX, "marker programs are POSIX shell scripts")
 class PromisorRemoteNeverFetches(_Lab):
     """A partial-clone promisor remote made git lazily fetch a missing BASE

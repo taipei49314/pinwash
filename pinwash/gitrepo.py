@@ -557,6 +557,20 @@ class _Store:
                 entries.append((b"tree", name, child))
             else:
                 entries.append((b"commit", name, child))
+        # git fsck rejects a tree that lists one name twice (duplicateEntries)
+        # or out of git's order, where a directory sorts as its name plus
+        # "/" (treeNotSorted). git itself then reads such a tree in ways
+        # that disagree (ls-tree -r lists both entries, diff-tree and show
+        # take the first), so no single content is the tree's: it is a
+        # malformed object, exit 2 like a hash mismatch, never a pass.
+        seen: set[bytes] = set()
+        prev_key = b""
+        for kind, name, _child in entries:
+            key = name + b"/" if kind == b"tree" else name
+            if name in seen or (prev_key and key <= prev_key):
+                raise GitError(_UNREADABLE_GIT)
+            seen.add(name)
+            prev_key = key
         return entries
 
 
