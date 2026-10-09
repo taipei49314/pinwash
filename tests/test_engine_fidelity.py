@@ -672,5 +672,45 @@ class QuotedOnKey(unittest.TestCase):
         payload = self._scan("on: push\n", '"on":\tpush\n')
         self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
 
+
+class ExcludedInstructionFiles(unittest.TestCase):
+    """SPEC §3 / §5.4: the SPEC/THREATMODEL/README basename exclusion is for
+    SKILL_BYPASS phrase matching only. The file stays an agent_markdown
+    surface, so the §3 parse-status check applies ("Do not skip the file")."""
+
+    EXCLUDED = (
+        ".cursor/rules/x/README.md",
+        ".cursor/rules/SPEC.md",
+        ".cursor/rules/a/b/THREATMODEL.md",
+    )
+
+    def test_excluded_file_made_non_utf8_is_surface_unparseable(self) -> None:
+        for path in self.EXCLUDED:
+            with self.subTest(path=path):
+                payload = _pair({path: "rules\n"}, {path: b"\xff\xfe"})
+                self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
+                self.assertEqual(payload["verdict"], "block")
+                payload = _pair({path: b"\xff"}, {path: b"\xfe"})
+                self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "warn")])
+
+    def test_head_that_decodes_again_is_silent(self) -> None:
+        # SPEC §3 states the (ok, unparseable) and (unparseable, unparseable)
+        # rows. A created or a deleted unreadable file is a pair §3 leaves
+        # open (a pending ruling), so it is not pinned here.
+        for path in self.EXCLUDED:
+            with self.subTest(path=path):
+                self.assertEqual(_pair({path: b"\xff"}, {path: "fixed\n"})["findings"], [])
+
+    def test_phrase_exclusion_unchanged(self) -> None:
+        for path in self.EXCLUDED:
+            with self.subTest(path=path):
+                payload = _pair({path: "rules\n"}, {path: "rules\nskip tripwire\n"})
+                self.assertEqual(payload["findings"], [])
+        payload = _pair(
+            {".cursor/rules/x/rules.md": "rules\n"},
+            {".cursor/rules/x/rules.md": "rules\nskip tripwire\n"},
+        )
+        self.assertEqual(_rules(payload), [("SKILL_BYPASS", "warn")])
+
 if __name__ == "__main__":
     unittest.main()
