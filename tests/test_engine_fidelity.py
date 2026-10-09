@@ -922,5 +922,77 @@ class ClaudePermissionWidened(unittest.TestCase):
                     [("PERMISSION_WIDENED", "high"), ("PERMISSION_WIDENED", "high")],
                 )
 
+
+class _GitCli(unittest.TestCase):
+    """Real git repositories and the public CLI (helpers only)."""
+
+    def _git(self, repo: Path, *args: str) -> bytes:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+        proc = subprocess.run(
+            ["git", "-c", "user.name=pinwash", "-c", "user.email=pinwash@test",
+             "-c", "commit.gpgsign=false", *args],
+            cwd=repo, env=env, capture_output=True, check=True, timeout=60,
+        )
+        return proc.stdout.strip()
+
+    def _repo(self) -> Path:
+        tmp = tempfile.TemporaryDirectory(prefix="pinwash-fidelity-")
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name)
+        self._git(repo, "init", "-q")
+        return repo
+
+    def _write(self, repo: Path, files: dict[str, str]) -> None:
+        for rel, text in files.items():
+            full = repo / rel
+            full.parent.mkdir(parents=True, exist_ok=True)
+            full.write_text(text, encoding="utf-8")
+
+    def _check(self, repo: Path, *args: str) -> tuple[int, dict[str, Any] | None, str]:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+                   PYTHONPATH=str(ROOT), PINWASH_TODAY=TODAY)
+        proc = subprocess.run(
+            [sys.executable, "-m", "pinwash", "check", *args],
+            cwd=repo, env=env, capture_output=True, timeout=120,
+        )
+        payload = json.loads(proc.stdout.decode("utf-8")) if proc.stdout else None
+        return proc.returncode, payload, proc.stderr.decode("utf-8", "replace")
+
+
+class GitlinkEntries(_GitCli):
+    """SPEC §8: exit 2 is for trees git cannot read. A gitlink (a submodule
+    entry, type commit) names a commit of another repository that is not in
+    this object store; asking cat-file for it made every repository with a
+    submodule exit 2. A gitlink is a directory in a checkout, never surface
+    bytes, so the trees are read without it."""
+
+    GITLINK = "160000,1111111111111111111111111111111111111111,vendor/judge"
+
+    def test_gitlink_beside_a_weakening_keeps_the_block(self) -> None:
+        repo = self._repo()
+        self._write(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE})
+        self._git(repo, "add", "-A")
+        self._git(repo, "commit", "-q", "-m", "base")
+        base = self._git(repo, "rev-parse", "HEAD").decode()
+        self._write(repo, {SETTINGS: '{"hooks": {}}'})
+        self._git(repo, "add", "-A")
+        self._git(repo, "update-index", "--add", "--cacheinfo", self.GITLINK)
+        self._git(repo, "commit", "-q", "-m", "head")
+        self.assertIn(b"160000 commit", self._git(repo, "ls-tree", "-r", "HEAD"))
+        code, payload, err = self._check(repo, f"{base}..HEAD")
+        self.assertEqual(code, 1, err)
+        self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
+        # Worktree mode reads HEAD's tree (with the gitlink) as its base.
+        self._write(repo, {SETTINGS: STOP})
+        code, payload, err = self._check(repo)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(payload["findings"], [])
+        self._write(repo, {SETTINGS: '{"hooks": {}, "permissions": {"allow": ["Bash(*)"]}}'})
+        code, payload, err = self._check(repo)
+        self.assertEqual(code, 1, err)
+        self.assertEqual(_rules(payload), [("PERMISSION_WIDENED", "high")])
+
 if __name__ == "__main__":
     unittest.main()

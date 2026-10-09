@@ -71,6 +71,11 @@ def ls_tree(repo: Path, spec: str) -> dict[str, bytes]:
         parts = metadata.split()
         if not separator or len(parts) != 3:
             raise GitError("unreadable git repository")
+        if parts[1] != b"blob":
+            # A gitlink (submodule, type commit) names a commit of another
+            # repository, absent from this object store. It is a directory
+            # in a checkout, never file bytes, so no surface can be one.
+            continue
         # -z preserves literal names, including Git-quoted Unicode and
         # whitespace. Batch requests use object IDs so a filename cannot
         # become part of cat-file's newline-delimited request protocol.
