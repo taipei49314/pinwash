@@ -712,5 +712,110 @@ class ExcludedInstructionFiles(unittest.TestCase):
         )
         self.assertEqual(_rules(payload), [("SKILL_BYPASS", "warn")])
 
+
+class EffectiveFailOn(unittest.TestCase):
+    """SPEC §5 CONFIG_RELAXED: an edit that raises fail_on above the base
+    value (or above default high if the base file is missing). A head
+    without a fail_on line runs on the default high. A head fail_on line
+    the §3.2 single-line subset does not read is a residual, never the
+    default. A deleted config file is not an edit; what it should emit is
+    open for a ruling, so it is not pinned here."""
+
+    C = ".checkwash/config.toml"
+    G = ".greenwash/config.toml"
+
+    def _relaxed(self, payload: dict[str, Any]) -> list[tuple[str, str, str, str]]:
+        return [
+            (f["severity"], f["message"], f["before"], f["after"])
+            for f in payload["findings"] if f["rule"] == "CONFIG_RELAXED"
+        ]
+
+    def test_removing_a_stricter_fail_on_fires(self) -> None:
+        for base, before in (('fail_on = "warn"\n', "warn"), ("fail_on = 'info'\n", "info")):
+            for path in (self.C, self.G):
+                for head in ("detect_x = true\n", "detect_x = true\n# fail_on = \"warn\"\n"):
+                    with self.subTest(base=base, path=path, head=head):
+                        payload = _pair({path: base + "detect_x = true\n"}, {path: head})
+                        self.assertEqual(
+                            self._relaxed(payload),
+                            [("high", f"fail_on raised {before} -> high", before, "high")],
+                        )
+                        self.assertEqual(payload["verdict"], "block")
+
+    def test_fail_on_line_outside_the_subset_is_not_the_default(self) -> None:
+        base = {self.C: 'fail_on = "warn"\n'}
+        for head in (
+            'fail_on = "warn"  # keep strict: warn findings fail CI\n',
+            '\ufefffail_on = "warn"\n',
+            'fail_on = """warn"""\n',
+            'fail_on = """\nwarn"""\n',
+            'fail_on = "bogus"\n',
+            '"fail_on" = "warn"\n',
+            "checkwash.fail_on = 'warn'\n",
+            'fail_on = "w\u0430rn"\n',
+            'fail_on = "h\u0130gh"\n',
+        ):
+            with self.subTest(head=head):
+                self.assertEqual(_pair(base, {self.C: head})["findings"], [])
+
+    def test_resolved_values_compare_as_before(self) -> None:
+        base = {self.C: 'fail_on = "warn"\n'}
+        # A value the subset reads is used, as at c71c468, even beside a
+        # line it does not read; other matchers still see every line.
+        self.assertEqual(_pair(base, {self.C: 'fail_on = "warn"\nfail_on = "x" # y\n'})["findings"], [])
+        self.assertEqual(
+            self._relaxed(_pair(base, {self.C: 'fail_on = "critical"\nfail_on = "x" # y\n'})),
+            [("high", "fail_on raised warn -> critical", "warn", "critical")],
+        )
+        payload = _pair({}, {self.C: "FAIL_ON = false\n"})
+        self.assertEqual(
+            [f["message"] for f in payload["findings"]], ["detector FAIL_ON disabled"]
+        )
+
+    def test_default_or_looser_base_stays_silent(self) -> None:
+        for base in ("", "# no fail_on\n", 'fail_on = "high"\n', 'fail_on = "critical"\n', 'disable = ["X"]\n'):
+            with self.subTest(base=base):
+                self.assertEqual(_pair({self.C: base}, {})["findings"], [])
+                self.assertEqual(_pair({self.C: base}, {self.C: "# none\n"})["findings"], [])
+
+    def test_unreadable_head_keeps_its_behaviour(self) -> None:
+        payload = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: b"\xff"})
+        self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
+
+    def test_existing_findings_keep_message_and_fingerprint(self) -> None:
+        # Expected values computed by the engine at c71c468.
+        for base, head, expected in (
+            ({}, {self.C: 'fail_on = "critical"\n'}, [(
+                "fail_on raised high -> critical",
+                "CONFIG_RELAXED/.checkwash/config.toml/v1:d357466d82e49fc3a0bd5a3b073427df6335f8828edfd9559765bd6b7b90512d",
+            )]),
+            ({self.C: 'fail_on = "warn"\n'}, {self.C: 'fail_on = "high"\n'}, [(
+                "fail_on raised warn -> high",
+                "CONFIG_RELAXED/.checkwash/config.toml/v1:63d02d450e1097b543cfdeb86a56a55762d370c4b62dd63845f125af66bae031",
+            )]),
+            ({self.G: "fail_on = 'info'\n"}, {self.G: 'fail_on = "critical"\n'}, [(
+                "fail_on raised info -> critical",
+                "CONFIG_RELAXED/.greenwash/config.toml/v1:e55df05af581407cb8386725085d71daaefafb57fcf123ba9525906633c6c92f",
+            )]),
+            ({}, {self.C: 'disable = ["HOOK_REMOVED"]\ndetect_hooks = false\n'}, [
+                ("detector HOOK_REMOVED disabled",
+                 "CONFIG_RELAXED/.checkwash/config.toml/v1:8fc182156ecf8b544b84d9a9bd79e3d246d45e41366660b424a6de25fc8fcb79"),
+                ("detector detect_hooks disabled",
+                 "CONFIG_RELAXED/.checkwash/config.toml/v1:e29b93d5fc1890e47dbeaf722216533741b968aadbf706f80fdda0fb93f99832"),
+            ]),
+        ):
+            with self.subTest(head=head):
+                payload = _pair(base, head)
+                self.assertEqual(
+                    sorted((f["message"], f["fingerprint"]) for f in payload["findings"]),
+                    sorted(expected),
+                )
+
+    def test_removal_and_explicit_raise_share_one_identity(self) -> None:
+        explicit = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: 'fail_on = "high"\n'})
+        removed = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: "\n"})
+        prints = {p["findings"][0]["fingerprint"] for p in (explicit, removed)}
+        self.assertEqual(len(prints), 1)
+
 if __name__ == "__main__":
     unittest.main()

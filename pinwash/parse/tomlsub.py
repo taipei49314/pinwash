@@ -13,6 +13,12 @@ _FAIL_ON = re.compile(
     re.IGNORECASE,
 )
 _FAIL_ON_VALUES = frozenset({"info", "warn", "high", "critical"})
+# A line whose key is fail_on (bare, quoted or dotted; a BOM may precede the
+# first line), whether or not _FAIL_ON reads its value.
+_FAIL_ON_KEY = re.compile(
+    r'^\ufeff?(?:[A-Za-z0-9_"\'-]+\s*\.\s*)*["\']?fail_on["\']?\s*=',
+    re.IGNORECASE,
+)
 _FALSE_ASSIGN = re.compile(
     r"^(detect_[A-Za-z0-9_]+|[A-Z][A-Z0-9_]+)\s*=\s*false\s*$"
 )
@@ -21,8 +27,11 @@ _STR = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"(.*)"\s*$')
 
 
 def parse_checkwash_config(text: str) -> dict[str, Any]:
+    """The §3.2 subset: disabled detectors, fail_on, and whether a fail_on
+    line exists that the subset does not read (fail_on_unread)."""
     disabled: list[str] = []
     fail_on: str | None = None
+    fail_on_unread = False
     for line in crlf_to_lf(text).split("\n"):
         raw = line.strip()
         if not raw or raw.startswith("#") or raw.startswith("["):
@@ -35,7 +44,11 @@ def parse_checkwash_config(text: str) -> dict[str, Any]:
             # value is outside the subset, not a severity: it is not read.
             if value in _FAIL_ON_VALUES:
                 fail_on = value
+            else:
+                fail_on_unread = True
             continue
+        if _FAIL_ON_KEY.match(raw):
+            fail_on_unread = True
         m = _FALSE_ASSIGN.match(raw)
         if m:
             disabled.append(m.group(1))
@@ -47,7 +60,7 @@ def parse_checkwash_config(text: str) -> dict[str, Any]:
                 token = part.strip().strip("\"'")
                 if token:
                     disabled.append(token)
-    return {"disabled": disabled, "fail_on": fail_on}
+    return {"disabled": disabled, "fail_on": fail_on, "fail_on_unread": fail_on_unread}
 
 
 def parse_allow_toml(text: str) -> list[dict[str, str]]:
