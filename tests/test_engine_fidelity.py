@@ -817,5 +817,110 @@ class EffectiveFailOn(unittest.TestCase):
         prints = {p["findings"][0]["fingerprint"] for p in (explicit, removed)}
         self.assertEqual(len(prints), 1)
 
+
+class ClaudePermissionWidened(unittest.TestCase):
+    """SPEC §5.3 claude_settings rows, on both settings paths (§3), at high
+    (§6). Pins only what §5.3 states: the four allow literals, the
+    permissionMode lattice default > acceptEdits > dontAsk, and that
+    shrinking or a move to a stricter mode is not a finding. Grant
+    spellings outside the literals and unknown mode values (#16) await a
+    ruling and are deliberately not pinned here."""
+
+    PATHS = (".claude/settings.json", ".claude/settings.local.json")
+    LITERALS = ("Bash(*)", "Bash(rm *)", "Bash(git push --force*)", "*")
+
+    @staticmethod
+    def _doc(allow: list[str] | None = None, mode: str | None = None) -> str:
+        doc: dict[str, Any] = {}
+        if allow is not None:
+            doc["permissions"] = {"allow": allow}
+        if mode is not None:
+            doc["permissionMode"] = mode
+        return json.dumps(doc)
+
+    def _widened(self, path: str, base: str | None, head: str | None) -> list[tuple[str, str]]:
+        payload = _pair({path: base} if base is not None else {}, {path: head} if head is not None else {})
+        return [r for r in _rules(payload) if r[0] == "PERMISSION_WIDENED"]
+
+    def test_each_literal_gained_fires_high(self) -> None:
+        for path in self.PATHS:
+            for literal in self.LITERALS:
+                with self.subTest(path=path, literal=literal):
+                    base = self._doc(["Bash(npm test)"])
+                    head = self._doc(["Bash(npm test)", literal])
+                    payload = _pair({path: base}, {path: head})
+                    self.assertEqual(_rules(payload), [("PERMISSION_WIDENED", "high")])
+                    self.assertEqual(payload["findings"][0]["after"], literal)
+                    self.assertEqual(payload["verdict"], "block")
+
+    def test_literal_in_a_created_settings_file_fires(self) -> None:
+        for path in self.PATHS:
+            for literal in self.LITERALS:
+                with self.subTest(path=path, literal=literal):
+                    self.assertEqual(
+                        self._widened(path, None, self._doc([literal])),
+                        [("PERMISSION_WIDENED", "high")],
+                    )
+
+    def test_literal_already_allowed_or_removed_is_silent(self) -> None:
+        for path in self.PATHS:
+            for literal in self.LITERALS:
+                with self.subTest(path=path, literal=literal):
+                    kept = self._doc(["Bash(npm test)", literal])
+                    self.assertEqual(self._widened(path, kept, kept), [])
+                    self.assertEqual(self._widened(path, kept, self._doc(["Bash(npm test)"])), [])
+                    self.assertEqual(self._widened(path, kept, self._doc([])), [])
+
+    def test_mode_widening_fires_high(self) -> None:
+        for path in self.PATHS:
+            for base, head in (
+                (None, "dontAsk"),
+                ("default", "dontAsk"),
+                ("acceptEdits", "dontAsk"),
+                (None, "acceptEdits"),
+                ("default", "acceptEdits"),
+            ):
+                with self.subTest(path=path, base=base, head=head):
+                    self.assertEqual(
+                        self._widened(path, self._doc(mode=base), self._doc(mode=head)),
+                        [("PERMISSION_WIDENED", "high")],
+                    )
+
+    def test_mode_widening_in_a_created_settings_file_fires(self) -> None:
+        for path in self.PATHS:
+            for head in ("dontAsk", "acceptEdits"):
+                with self.subTest(path=path, head=head):
+                    self.assertEqual(
+                        self._widened(path, None, self._doc(mode=head)),
+                        [("PERMISSION_WIDENED", "high")],
+                    )
+
+    def test_reverse_and_unchanged_modes_are_silent(self) -> None:
+        for path in self.PATHS:
+            for base, head in (
+                ("dontAsk", "acceptEdits"),
+                ("dontAsk", "default"),
+                ("acceptEdits", "default"),
+                ("dontAsk", None),
+                ("acceptEdits", None),
+                (None, "default"),
+                ("default", "default"),
+                ("acceptEdits", "acceptEdits"),
+                ("dontAsk", "dontAsk"),
+            ):
+                with self.subTest(path=path, base=base, head=head):
+                    self.assertEqual(
+                        self._widened(path, self._doc(mode=base), self._doc(mode=head)), []
+                    )
+
+    def test_literal_and_mode_in_one_change_are_two_findings(self) -> None:
+        for path in self.PATHS:
+            with self.subTest(path=path):
+                head = self._doc(["Bash(*)"], "dontAsk")
+                self.assertEqual(
+                    self._widened(path, self._doc([], "default"), head),
+                    [("PERMISSION_WIDENED", "high"), ("PERMISSION_WIDENED", "high")],
+                )
+
 if __name__ == "__main__":
     unittest.main()
