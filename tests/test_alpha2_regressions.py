@@ -146,7 +146,21 @@ class LastStopSkipFlags(unittest.TestCase):
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
         self.assertEqual(payload["verdict"], "pass")
 
-    def test_another_cursor_stop_event_prevents_last_stop_escalation(self) -> None:
+    def test_another_live_cursor_stop_command_prevents_last_stop_escalation(self) -> None:
+        path = ".cursor/hooks.json"
+        base = json.dumps({"hooks": {
+            "stop": [{"command": "judge-stop"}, {"command": "judge-finish"}],
+        }})
+        head = json.dumps({"hooks": {
+            "stop": [{"command": "judge-stop", "disabled": True}, {"command": "judge-finish"}],
+        }})
+        payload = _pair({path: base}, {path: head})
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+        self.assertEqual(payload["verdict"], "pass")
+
+    def test_a_hook_outside_the_cursor_stop_set_does_not_prevent_escalation(self) -> None:
+        # SPEC §6.1 (spec 13, #26 item 6): `finish` names no Cursor event,
+        # so it never keeps the last-Stop escalator off.
         path = ".cursor/hooks.json"
         base = json.dumps({"hooks": {
             "stop": [{"command": "judge-stop"}],
@@ -157,8 +171,8 @@ class LastStopSkipFlags(unittest.TestCase):
             "finish": [{"command": "judge-finish"}],
         }})
         payload = _pair({path: base}, {path: head})
-        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
-        self.assertEqual(payload["verdict"], "pass")
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
+        self.assertEqual(payload["verdict"], "block")
 
     def test_unchanged_or_removed_skip_is_not_a_new_bypass(self) -> None:
         skipped = _hooks("Stop", [{"command": "judge", "failOpen": True}])

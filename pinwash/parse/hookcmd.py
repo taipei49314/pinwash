@@ -93,9 +93,15 @@ def body_scan(path: str, data: bytes) -> tuple[bool, str]:
     allowed = _BODY_LINES.get(path.rsplit(".", 1)[-1])
     if allowed is None:
         return False, ""
+    ext = path.rsplit(".", 1)[-1]
+    # §2 folds CRLF to LF. A shell reads a lone CR as an ordinary character,
+    # not a line break: a judge rewritten with lone CRs is one line, and when
+    # it starts with `#!` the shell runs it as a comment. Python, JavaScript
+    # and PowerShell read a lone CR as a line break, so for them it folds.
+    unfolded = text.replace("\r\n", "\n") if ext in ("sh", "bash") else crlf_to_lf(text)
     lines = [
         ln.strip()
-        for ln in crlf_to_lf(text).split("\n")
+        for ln in unfolded.split("\n")
         if ln.strip() and not ln.strip().startswith("#")
     ]
     if not lines:

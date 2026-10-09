@@ -9,11 +9,23 @@ from pinwash.escalate import HOOK_RULES, stop_last_resort
 from pinwash.hooks import stub_command
 
 
+HOOK_LIVENESS_UNRESOLVED = "hook stop liveness rests on an unresolved command"
+
+
 def _non_stub_stop_count(
     events: dict[str, dict[str, Any]],
     names: frozenset[str],
     body_map: dict[str, tuple[bool, bool, str]],
+    resolved_only: bool = False,
 ) -> int:
+    """SPEC §5.2 / §6.1: the Stop-like events of one file that keep a live
+    command. A command is live unless it is a §5.2 stub string, carries a
+    §5.1 skip flag (its own or inherited), starts with `#`, resolves (§3.3)
+    only to stub bodies, or lost block capability; nothing else is read.
+
+    With resolved_only, a command §3.3 does not resolve does not count: the
+    count the escalator would see if no unread judge body were credited.
+    """
     n = 0
     for name in names:
         info = events.get(name)
@@ -26,6 +38,7 @@ def _non_stub_stop_count(
             and not stub_command(c)
             and not c.lstrip().startswith("#")
             and not (c in body_map and (body_map[c][0] or body_map[c][1]))
+            and (c in body_map or not resolved_only)
         ]
         if live:
             n += 1
@@ -145,14 +158,18 @@ def detect(
     add: Any,
     body_base: dict[str, tuple[bool, bool, str]],
     body_head: dict[str, tuple[bool, bool, str]],
+    note_unknown: Any = None,
 ) -> None:
     head_stop = _non_stub_stop_count(head_ev, stop_names, body_head)
+    kept_below_critical = False
 
     def escalate_stop(rule: str, event: str, severity: str) -> str:
-        if event in stop_names and stop_last_resort(head_stop) and rule in HOOK_RULES:
-            return "critical"
+        nonlocal kept_below_critical
+        if event in stop_names and rule in HOOK_RULES:
+            if stop_last_resort(head_stop):
+                return "critical"
+            kept_below_critical = True
         return severity
-
 
     for event, info in base_ev.items():
         head_info = head_ev.get(event)
@@ -265,16 +282,18 @@ def detect(
                     after="no block/deny",
                     locator=f"{event}:{cmd}",
                 )
-        if (
-            "*" in info["matchers"]
-            and "*" not in head_info["matchers"]
-            and not head_info["commands"]
-        ):
-            sev = escalate_stop("HOOK_BYPASSED", event, "warn")
-            add(
-                rule="HOOK_BYPASSED",
-                severity=sev,
-                message=f"hook event {event} matcher * removed and commands emptied",
-                path=path,
-                locator=event,
-            )
+    # SPEC §3.3 / §1.6 (spec 13, R12): the §6.1 count credits a command
+    # §3.3 does not resolve as live, although no body was read for it.
+    # Report when a Stop-like finding was kept below critical only because
+    # of such a command, or when the diff left the file's Stop liveness
+    # resting only on such commands. Visibility only (§7).
+    if note_unknown is not None:
+        head_resolved = _non_stub_stop_count(
+            head_ev, stop_names, body_head, resolved_only=True
+        )
+        moved = (
+            head_stop >= 1
+            and _non_stub_stop_count(base_ev, stop_names, body_base, resolved_only=True) >= 1
+        )
+        if head_resolved == 0 and (kept_below_critical or moved):
+            note_unknown(HOOK_LIVENESS_UNRESOLVED)
