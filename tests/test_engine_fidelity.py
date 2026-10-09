@@ -994,5 +994,71 @@ class GitlinkEntries(_GitCli):
         self.assertEqual(code, 1, err)
         self.assertEqual(_rules(payload), [("PERMISSION_WIDENED", "high")])
 
+
+class UnreadableWorktreeFiles(_GitCli):
+    """SPEC §8: a worktree file the engine cannot read is subject data, not
+    an unreadable git tree. It used to raise OSError to exit 2, hiding every
+    finding. It is now read as bytes that are not UTF-8: a surface becomes
+    unparseable (§3), and any other path is ignored as before."""
+
+    def _scan_worktree(self, fail: dict[str, int]) -> dict[str, bytes]:
+        from unittest import mock
+
+        from pinwash import gitrepo
+
+        repo = self._repo()
+        self._write(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE, "notes.txt": "n\n"})
+        self._git(repo, "add", "-A")
+        self._git(repo, "commit", "-q", "-m", "base")
+        real = Path.read_bytes
+
+        def read_bytes(path: Path) -> bytes:
+            if path.name in fail:
+                raise OSError(fail[path.name], os.strerror(fail[path.name]), str(path))
+            return real(path)
+
+        with mock.patch.object(Path, "read_bytes", autospec=True, side_effect=read_bytes):
+            return gitrepo.ls_tree(repo, "WORKTREE")
+
+    def test_read_errors_are_unreadable_bytes_or_absence(self) -> None:
+        import errno
+
+        from pinwash.gitrepo import UNREADABLE
+
+        files = self._scan_worktree({"notes.txt": errno.EIO, "settings.json": errno.EACCES})
+        self.assertEqual(files["notes.txt"], UNREADABLE)
+        self.assertEqual(files[SETTINGS], UNREADABLE)
+        with self.assertRaises(UnicodeDecodeError):
+            UNREADABLE.decode("utf-8")
+        files = self._scan_worktree({"notes.txt": errno.ENOENT})
+        self.assertNotIn("notes.txt", files)
+        self.assertEqual(files["hooks/judge.py"], JUDGE.encode())
+
+    def test_unreadable_surface_is_surface_unparseable(self) -> None:
+        from pinwash.gitrepo import UNREADABLE
+
+        payload = _pair({SETTINGS: STOP, "hooks/judge.py": JUDGE},
+                        {SETTINGS: UNREADABLE, "hooks/judge.py": JUDGE})
+        self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
+
+    @unittest.skipUnless(os.path.exists("/proc/self/mem"), "needs Linux /proc/self/mem (EIO on read)")
+    def test_cli_keeps_the_block_beside_an_unreadable_file(self) -> None:
+        repo = self._repo()
+        self._write(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE})
+        self._git(repo, "add", "-A")
+        self._git(repo, "commit", "-q", "-m", "base")
+        self._write(repo, {SETTINGS: '{"hooks": {}}'})
+        os.symlink("/proc/self/mem", repo / "notes.txt")  # untracked, no surface
+        code, payload, err = self._check(repo)
+        self.assertEqual(code, 1, err)
+        self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
+        os.unlink(repo / "notes.txt")
+        os.unlink(repo / SETTINGS)
+        os.symlink("/proc/self/mem", repo / SETTINGS)  # the surface itself
+        code, payload, err = self._check(repo)
+        self.assertEqual(code, 1, err)
+        self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
+
+
 if __name__ == "__main__":
     unittest.main()

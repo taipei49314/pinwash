@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import errno
 import subprocess
 from pathlib import Path
+
+# A worktree read that fails with one of these finds no file, exactly as
+# pathlib's is_file() decides (a path that vanished, a broken symlink).
+_ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+# What a worktree file the engine cannot read is recorded as: bytes that are
+# not UTF-8. Every surface parse starts from UTF-8 text (SPEC §3, §3.2), so
+# such a file is unparseable, a finding (§8), and a path that is no surface
+# is ignored as before. The worktree is subject data (§1.1), not git.
+UNREADABLE = b"\xff"
 
 
 class GitError(Exception):
@@ -136,6 +146,13 @@ def _ls_worktree(repo: Path) -> dict[str, bytes]:
             continue
         path = name.decode("utf-8", "surrogateescape")
         full = repo.joinpath(*path.split("/"))
-        if full.is_file():
-            out[path] = full.read_bytes()
+        try:
+            if not full.is_file():
+                continue
+            data = full.read_bytes()
+        except OSError as exc:
+            if exc.errno in _ABSENT_ERRNOS:
+                continue
+            data = UNREADABLE
+        out[path] = data
     return out
