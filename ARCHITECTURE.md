@@ -51,13 +51,46 @@ Of the neighbour products in this diagram and table (pinwash itself aside), only
 
 ## 2. Trust boundaries (invariants)
 
-1. The **head** tree — including the working tree — is attacker-controlled. Agents write it.
+1. The **head** tree — including the working tree — is attacker-controlled. Agents write it. In hook and worktree mode that includes the repository's own `.git`: its config, refs, hooks, `info/` files and object store.
 2. **Configuration and allowlists are read from the base side only.** A head-side disable does not govern the run that reviews that head. Creating a base-absent config that relaxes defaults is itself a finding (`CONFIG_RELAXED`).
-3. The core path **reads bytes**. It never executes subject code, hooks, judges, workflows, MCP servers, or skills. It never uses a network. It never calls a model.
+3. The core path **reads bytes**. It never executes subject code, hooks, judges, workflows, MCP servers, or skills, nor a program the subject repository's git configuration names. It never uses a network. It never calls a model.
 4. GitHub rulesets that exist only on an API and not as a file in the trees are residual R05: `UNKNOWN`, not pass and not block.
 5. The analysis unit is a **diff** (`base`/`head`). pinwash never judges a single snapshot as “the harness is fine”.
 6. Missing observation is never a pass: unobservable inputs surface as `SURFACE_UNPARSEABLE` findings, `config_errors` entries, or `unknown_coverage` rows. A crashed engine is exit **2**, never a block (exit 1). Subject-surface parse failure is `SURFACE_UNPARSEABLE`, not exit 2, unless git itself cannot be read.
 7. Artifacts the agent wrote in the same diff (logs, screenshots, “CI is green” prose) are never evidence that a harness still runs.
+
+**Git hardening (H0, 2026-10-09; engine only, no spec bump).** Items 1 and 3 hold for git itself: every git call runs as `git --no-replace-objects -c core.fsmonitor=false -c core.commitGraph=false -c core.untrackedCache=false -c core.hooksPath=<no file>` with `GIT_NO_LAZY_FETCH=1`, `GIT_ALLOW_PROTOCOL=` (empty), `GIT_GRAFT_FILE` and `GIT_SHALLOW_FILE` naming no file, and stdin from the null device. Command-line `-c` outranks every config file, `include.path` and `includeIf` targets and `config.worktree` included. Every commit, tag, tree and blob read from the object store is rehashed against its id (SHA-1 or SHA-256 by `rev-parse --show-object-format`); a commit's tree id comes from its verified body, never from a commit-graph or a `^{tree}` shortcut; tree listings are parsed from verified tree objects; a mismatch is an unreadable git tree, exit 2, never a pass. `BASE...HEAD` runs `git merge-base` and recomputes it from verified commit objects (git's `paint_down_to_common` and `remove_redundant` over the same queue order); a different answer is exit 2. The work tree must be the directory holding the `.git` that git found, unless the judge sets `GIT_WORK_TREE`. Vectors, each tried on git 2.43.0 (this host's Ubuntu build), with the spec 12 engine and now:
+
+| Subject writes | spec 12 engine | Now |
+|---|---|---|
+| `core.fsmonitor` (directly, through `include.path`, `includeIf` or `config.worktree`) | `ls-files` ran the program (plain check, `BASE..WORKTREE`) | `-c core.fsmonitor=false` |
+| promisor remote (`extensions.partialClone`) plus a deleted BASE object: `ext::` URL, a local URL with `remote.*.uploadpack`, `ssh://` with `core.sshCommand`, a `<helper>::` URL | lazy fetch ran the program; an `ext::` program that served the genuine blob while it flipped the worktree passed | no lazy fetch (where git knows `GIT_NO_LAZY_FETCH`) and no transport on any version (`GIT_ALLOW_PROTOCOL=`); the missing object is exit 2 |
+| `refs/replace/*` (`git replace`, `git replace --graft`) | BASE blob, commit or parents substituted: pass | `--no-replace-objects` |
+| a loose object, pack index or alternate store that maps an id to other bytes | a forged BASE blob or tree was read: pass (a forged commit named by the range failed git's own check: exit 2) | rehash: exit 2 |
+| a forged commit object below HEAD that steers `git merge-base` | older base: pass | recomputed merge base differs or rehash fails: exit 2 |
+| `info/grafts`, `.git/shallow`, `objects/info/commit-graph` parents | `BASE...HEAD` moved to an older base: pass (grafts and the graph also moved `HEAD~n`) | none is read (`GIT_GRAFT_FILE`, `GIT_SHALLOW_FILE`, `core.commitGraph=false`); parents come from verified commits |
+| `core.worktree = ../..` | both trees listed as a subtree that does not exist: every range and the plain check passed | exit 2 |
+| `core.worktree` elsewhere, `core.bare = true`, an unknown `extensions.*`, a repository owned by another user (git ignores `safe.directory` in repository config) | exit 2 | exit 2 |
+| a `.git` file (`gitdir:`), the submodule layout, a linked worktree | judged | judged; base bytes are rehashed wherever the store lives |
+| every hook name in `.git/hooks` and `core.hooksPath` (`reference-transaction`, `post-index-change` included); clean / smudge / process filters, textconv, diff and merge drivers, `core.pager` and `pager.*`, `core.askPass`, `credential.helper`, `gpg.program`, editors, `core.alternateRefsCommand`, `diff.external` | never ran: the plumbing pinwash calls (`rev-parse`, `merge-base`, `cat-file --batch`, `ls-files`, and `ls-tree` in spec 12) runs none of them, and stdout is a pipe (no pager) | unchanged; `core.hooksPath` also names no directory |
+| `core.untrackedCache`, `trace2.*` | not read (`ls-files` never reads the untracked cache; trace2 reads system and global config only) | unchanged; `core.untrackedCache=false` as defence in depth |
+
+Left open, documented here and not booked as SPEC §11 rows (that would be a spec change):
+
+- **Endpoint names.** `git rev-parse` resolves each range endpoint. A name that is not a full object id (a branch, `HEAD`, a reflog entry, `X~n`, `X:path`) resolves through refs and commit objects the subject can write, without rehash; rehashing protects what an id names, not which id it is. A judge protects BASE by naming the full object id it recorded; the plain check's base is the subject's own `HEAD` (R18).
+- **Subdirectories.** Run from a subdirectory, the analysis unit is that subtree, as `git ls-tree` and `git ls-files` scope it. A `.git` that the agent plants between the judge's cwd and the work tree root moves that scope. Run pinwash from the work tree root.
+- **Hangs.** A FIFO or terminal where git or pinwash reads (a `.gitignore`, `info/exclude`, an `include.path` target, the index, `HEAD`, a ref) blocks the run, as do very large objects; the consumer's timeout makes that run not judged, never a pass.
+- **SHA-1.** In a SHA-1 repository the rehash is as strong as SHA-1 second-preimage resistance (Python's `hashlib`, not git's collision-detecting SHA-1). A chosen-prefix collision needs both objects prepared in advance, so it reaches only a base the agent authored.
+- **Alternates.** `objects/info/alternates` can make objects of any store on the judge's disk readable as head content. Their bytes are rehashed, and pinwash prints only what its findings quote.
+
+Consumer-visible changes, none on the 91 live-fire cells (stdout and exit codes byte-identical on 3.11–3.13 for `BASE..HEAD`, `BASE...HEAD` and the plain check):
+
+- **Partial clones.** A base or head blob missing from the store is exit 2. git no longer fetches it, which was network use on the core path (SPEC §1.4). Fetch both trees' blobs first.
+- **Shallow clones and `BASE...HEAD`.** `.git/shallow` is subject-writable and ignored, so a merge-base walk that needs a parent the clone cut is exit 2 where git answered from the cut. With equal committer dates the walk can pass the merge base, so even a merge base inside the depth can need it. Fetch the history the walk needs, or compute the merge base in the runner and pass `MB..HEAD`.
+- **Several best merge bases with equal committer dates.** With a commit-graph file present, git ordered them by generation number; pinwash takes git's order without the graph, so `BASE...HEAD` no longer depends on whether maintenance wrote one. On 155 random DAGs (2725 pairs, 198 with several best bases) the recomputed list equals `git -c core.commitGraph=false merge-base --all`, order included; with a graph written, git put another best base first in 14 of 1600 pairs.
+- **A blob-mode tree entry that names a tree or commit** is exit 2; it was read as that object's bytes.
+
+Cost: on the largest live-fire cell `BASE..HEAD` takes 111 ms against 108 ms; on a synthetic 5000-file repository 740 ms against 676 ms (`BASE...HEAD` 757 against 684), of which rehashing 5002 blobs (3 MB) is about 8 ms per tree.
 
 The only clock that may affect a verdict is the exemption window on `.pinwash/allow.toml` (expiry, the spec 11 in-force start, and the spec 11 check for added records whose `created` is after today), overridable with `PINWASH_TODAY` for replay.
 
@@ -105,7 +138,7 @@ Public JSON fields and the fingerprint formula stay frozen in SPEC §7. A refact
 | Layer | Duty | Code today |
 |---|---|---|
 | CLI | Dispatch; unexpected exceptions → exit 2 | `pinwash/cli.py` |
-| Git adapter | Two-dot / three-dot; tree bytes (blobs only: a gitlink is no file, b5c7551); a worktree file the engine cannot read counts as non-UTF-8 bytes (f849b8a); unreadable git → `GitError` | `pinwash/gitrepo.py` |
+| Git adapter | Two-dot / three-dot; tree bytes (blobs only: a gitlink is no file, b5c7551); a worktree file the engine cannot read counts as non-UTF-8 bytes (f849b8a); unreadable git → `GitError`. Hardened against the subject's `.git` (§2): every call `--no-replace-objects`, fsmonitor and commit-graph off, no grafts, shallow, hooks, lazy fetch or transport; every object rehashed against its id, trees parsed from verified objects, the `BASE...HEAD` merge base recomputed from verified commits; the work tree must hold its `.git` | `pinwash/gitrepo.py` |
 | Surface registry | Path → membership in the v0 closed set | `pinwash/surfaces.py` |
 | Bounded parsers | Not YAML 1.2, not full TOML, JSON read the same at any depth and integer length (§5), closed hook-command resolution | `pinwash/parse/` (`gha`, `jsonsurf`, `tomlsub`, `hookcmd`) |
 | Typed IR | Detectors must not see raw YAML | **Missing** — 1.0-shape gap |
@@ -288,7 +321,8 @@ Default **Permanent** at 1.0 unless a human closes them with fixtures: R01 (host
   - *Analysis unit* (#17 S4). §2 and §13 define no `WORKTREE` token; `BASE..WORKTREE` already reads the allowlist from `BASE` and blocks the S4 repository. Making it a contract range rejects `WORKTREE` as a base and in `...` (exit 2, never a block): a later §2 / §13 bump, followed by a no-bump README recipe change. The session pass definition ("both invocations exit 0" passes a planting session; adding "no `EXEMPTION_ADDED`" fails one that passes today): its own AI-assisted ruling.
   - *Engine short of SPEC text* (#14, #15). §3.1 names multiline scalars and reusable workflows as UNKNOWN coverage, but a step-level `continue-on-error:` block scalar or empty value, and a producer job that calls a reusable workflow (`uses:` at job level), add no `unknown_coverage` row. Engine-only, no bump (the #4 precedent).
   - *SPEC text read under delegation* (#25). The spec 11 ledger tagged the tab rule "engine beyond SPEC text", reading §3.1's old "spaces only; tabs → `SURFACE_UNPARSEABLE`" as indentation only. #25 reads that line as ambiguous, and spec 12 stated the engine's rule on that reading, with no verdict change. Ruled (AI-assisted, spec 12): the old line is ambiguous, and the codification stands; narrowing the engine instead (#25 option (ii)) turns passes into blocks and would be its own AI-assisted ruling.
-- ~~`gitrepo.ls_tree` calls `git show` per blob (N+1).~~ Fixed: one `cat-file --batch` round trip per tree; the analysis unit is unchanged.
+- ~~`gitrepo.ls_tree` calls `git show` per blob (N+1).~~ Fixed: one `cat-file --batch` round trip for a tree's blobs, its tree objects read from one long-lived `cat-file --batch` (H0); the analysis unit is unchanged.
+- Git hardening (H0, 2026-10-09; engine only; SPEC untouched; no bump; ruling AI-assisted under the maintainer's delegation). The engine let the subject repository's own `.git` run programs and rewrite the base, against SPEC §1.3 and §8: `core.fsmonitor` ran from `ls-files` in worktree mode; `git replace` and a forged loose object changed what BASE read; a promisor remote with an `ext::` URL ran a program to fetch a deleted BASE blob; grafts, `.git/shallow` and a commit-graph moved `BASE...HEAD`; `core.worktree = ../..` emptied both trees. §2 lists each vector, what closes it, the residuals and the consumer-visible changes; `tests/test_git_hardening.py` builds each in a real repository.
 - `.pinwash/allow.toml` is mixed into the surface `EXACT` set.
 
 ## 11. Non-goals that stay non-goals

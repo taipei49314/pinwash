@@ -1,0 +1,557 @@
+"""SPEC §1.3 and §8: the subject repository's .git never runs a program and
+never rewrites what the base reads.
+
+The agent under judgement can write the repository's config, refs, info/
+files and object store (SPEC §1.1). Each test builds a real repository with
+one such vector and runs the public CLI (or, for merge-base agreement, the
+git adapter). A marker program only appends a line to a file inside the
+test's temporary directory, and every test that plants one asserts that the
+file does not exist afterwards. No test runs subject code itself.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import random
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+import zlib
+from pathlib import Path
+from typing import Any
+
+from pinwash import gitrepo
+
+ROOT = Path(__file__).resolve().parents[1]
+TODAY = "2026-10-09"
+SETTINGS = ".claude/settings.json"
+STOP = json.dumps(
+    {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "python hooks/judge.py"}]}]}}
+)
+EMPTY = json.dumps({"hooks": {}})
+JUDGE = "import json\nprint(json.dumps({'decision': 'block'}))\n"
+BLOCK = [("HOOK_REMOVED", "critical")]
+POSIX = os.name == "posix"
+HOOK_NAMES = (
+    "applypatch-msg", "pre-applypatch", "post-applypatch", "pre-commit",
+    "pre-merge-commit", "prepare-commit-msg", "commit-msg", "post-commit",
+    "pre-rebase", "post-checkout", "post-merge", "pre-push", "pre-receive",
+    "update", "proc-receive", "post-receive", "post-update",
+    "reference-transaction", "push-to-checkout", "pre-auto-gc", "post-rewrite",
+    "sendemail-validate", "fsmonitor-watchman", "p4-changelist",
+    "p4-prepare-changelist", "p4-post-changelist", "p4-pre-submit",
+    "post-index-change",
+)
+
+
+def _git_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_GLOBAL=os.devnull,
+        GIT_AUTHOR_DATE="1760000000 +0000",
+        GIT_COMMITTER_DATE="1760000000 +0000",
+    )
+    env.update(extra or {})
+    return env
+
+
+def _sha256_supported() -> bool:
+    with tempfile.TemporaryDirectory(prefix="pinwash-sha256-") as tmp:
+        proc = subprocess.run(
+            ["git", "init", "-q", "--object-format=sha256", tmp],
+            env=_git_env(), capture_output=True, check=False,
+        )
+        return proc.returncode == 0
+
+
+class _Lab(unittest.TestCase):
+    """Real repositories with isolated git config, and the public CLI."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(prefix="pinwash-harden-")
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+
+    def git(self, repo: Path, *args: str, env: dict[str, str] | None = None,
+            stdin: bytes | None = None) -> str:
+        proc = subprocess.run(
+            ["git", "-c", "user.name=pinwash", "-c", "user.email=pinwash@test",
+             "-c", "commit.gpgsign=false", "-c", "core.autocrlf=false", *args],
+            cwd=repo, env=_git_env(env), input=stdin, capture_output=True,
+            check=False, timeout=60,
+        )
+        if proc.returncode != 0:
+            self.fail(f"git {args}: {proc.stderr.decode('utf-8', 'replace')}")
+        return proc.stdout.decode("utf-8", "replace").strip()
+
+    def new_repo(self, name: str = "repo", fmt: str | None = None) -> Path:
+        repo = self.root / name
+        repo.mkdir(parents=True)
+        self.git(repo, "init", "-q", "-b", "main",
+                 *([f"--object-format={fmt}"] if fmt else []))
+        return repo
+
+    def write(self, repo: Path, files: dict[str, str]) -> None:
+        for rel, text in files.items():
+            full = repo / rel
+            full.parent.mkdir(parents=True, exist_ok=True)
+            full.write_text(text, encoding="utf-8")
+
+    def commit(self, repo: Path, files: dict[str, str], message: str = "c",
+               date: int = 1760000000) -> str:
+        self.write(repo, files)
+        stamp = {"GIT_AUTHOR_DATE": f"{date} +0000", "GIT_COMMITTER_DATE": f"{date} +0000"}
+        self.git(repo, "add", "-A")
+        self.git(repo, "commit", "-q", "--allow-empty", "-m", message, env=stamp)
+        return self.git(repo, "rev-parse", "HEAD")
+
+    def weakened(self, name: str = "repo", fmt: str | None = None) -> tuple[Path, str]:
+        """BASE holds a Stop judge; HEAD (committed) and the worktree drop it."""
+        repo = self.new_repo(name, fmt)
+        base = self.commit(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE}, "base")
+        self.commit(repo, {SETTINGS: EMPTY}, "weaken")
+        return repo, base
+
+    def check(self, repo: Path, *args: str,
+              cwd: Path | None = None) -> tuple[int, dict[str, Any] | None, str]:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+                   PYTHONPATH=str(ROOT), PINWASH_TODAY=TODAY)
+        proc = subprocess.run(
+            [sys.executable, "-m", "pinwash", "check", *args],
+            cwd=cwd or repo, env=env, capture_output=True, timeout=120,
+        )
+        payload = json.loads(proc.stdout.decode("utf-8")) if proc.stdout else None
+        return proc.returncode, payload, proc.stderr.decode("utf-8", "replace")
+
+    def rules(self, payload: dict[str, Any] | None) -> list[tuple[str, str]]:
+        assert payload is not None
+        return sorted((f["rule"], f["severity"]) for f in payload["findings"])
+
+    def assertBlocks(self, result: tuple[int, dict[str, Any] | None, str]) -> None:
+        code, payload, err = result
+        self.assertEqual(code, 1, err)
+        self.assertEqual(self.rules(payload), BLOCK)
+
+    def assertPasses(self, result: tuple[int, dict[str, Any] | None, str]) -> None:
+        code, payload, err = result
+        self.assertEqual(code, 0, err)
+        self.assertEqual(self.rules(payload), [])
+
+    def assertExit2(self, result: tuple[int, dict[str, Any] | None, str],
+                    message: str = "") -> None:
+        code, payload, err = result
+        self.assertEqual(code, 2, err)
+        self.assertIsNone(payload)
+        self.assertIn(message, err)
+
+    def marker(self, name: str) -> tuple[Path, Path]:
+        """A program that only appends to a marker file in the temp dir."""
+        mark = self.root / f"{name}.ran"
+        prog = self.root / f"{name}.sh"
+        prog.write_text(f"#!/bin/sh\necho ran >> '{mark}'\nexit 0\n", encoding="utf-8")
+        prog.chmod(0o755)
+        return prog, mark
+
+    def every_mode(self, repo: Path, base: str) -> list[tuple[int, dict[str, Any] | None, str]]:
+        """BASE..HEAD, BASE...HEAD, BASE..WORKTREE and the plain check."""
+        return [
+            self.check(repo, f"{base}..HEAD"),
+            self.check(repo, f"{base}...HEAD"),
+            self.check(repo, f"{base}..WORKTREE"),
+            self.check(repo),
+        ]
+
+    def assertJudged(self, results: list[tuple[int, dict[str, Any] | None, str]]) -> None:
+        """every_mode() on weakened(): three blocks, and HEAD vs worktree passes."""
+        for result in results[:3]:
+            self.assertBlocks(result)
+        self.assertPasses(results[3])
+
+    def object_path(self, repo: Path, oid: str) -> Path:
+        return repo / ".git" / "objects" / oid[:2] / oid[2:]
+
+    def forge(self, repo: Path, oid: str, kind: str, body: bytes) -> None:
+        """Overwrite the loose object at oid with other bytes (no git call)."""
+        path = self.object_path(repo, oid)
+        self.assertTrue(path.exists(), path)
+        path.chmod(0o644)
+        path.write_bytes(zlib.compress(kind.encode() + b" %d\0" % len(body) + body))
+
+
+@unittest.skipUnless(POSIX, "marker programs are POSIX shell scripts")
+class FsmonitorNeverRuns(_Lab):
+    """core.fsmonitor names a program that `git ls-files` runs in worktree
+    mode. The spec 12 engine ran it; every git call now sets it false."""
+
+    def test_marker_never_runs_in_any_mode(self) -> None:
+        repo, base = self.weakened()
+        prog, mark = self.marker("fsmonitor")
+        self.git(repo, "config", "core.fsmonitor", str(prog))
+        self.git(repo, "config", "core.fsmonitorHookVersion", "2")
+        self.write(repo, {"untracked.txt": "x\n"})
+        self.assertJudged(self.every_mode(repo, base))
+        self.assertFalse(mark.exists())
+
+    def test_marker_never_runs_through_config_indirection(self) -> None:
+        repo, base = self.weakened()
+        prog, mark = self.marker("fsmonitor-include")
+        included = self.root / "included.cfg"
+        included.write_text(f"[core]\n\tfsmonitor = {prog}\n", encoding="utf-8")
+        self.git(repo, "config", "include.path", str(included))
+        self.assertJudged(self.every_mode(repo, base))
+        self.git(repo, "config", "--unset", "include.path")
+        self.git(repo, "config", f"includeIf.gitdir:{repo}/.git.path", str(included))
+        self.assertJudged(self.every_mode(repo, base))
+        self.git(repo, "config", "--unset", f"includeIf.gitdir:{repo}/.git.path")
+        self.git(repo, "config", "core.repositoryformatversion", "1")
+        self.git(repo, "config", "extensions.worktreeConfig", "true")
+        self.git(repo, "config", "--worktree", "core.fsmonitor", str(prog))
+        self.assertJudged(self.every_mode(repo, base))
+        self.assertFalse(mark.exists())
+
+
+@unittest.skipUnless(POSIX, "marker programs are POSIX shell scripts")
+class HooksAndDriversNeverRun(_Lab):
+    """No hook, filter, textconv, diff or merge driver, pager, credential or
+    signing program named by the repository runs: pinwash's plumbing calls
+    none of them (core.hooksPath is also pointed at no directory)."""
+
+    def test_every_hook_name_in_both_hook_locations(self) -> None:
+        repo, base = self.weakened()
+        prog, mark = self.marker("hooks")
+        hooks_dir = self.root / "hooksdir"
+        hooks_dir.mkdir()
+        for name in HOOK_NAMES:
+            for where in (hooks_dir, repo / ".git" / "hooks"):
+                (where / name).write_text(f"#!/bin/sh\n'{prog}' {name}\n", encoding="utf-8")
+                (where / name).chmod(0o755)
+        self.assertJudged(self.every_mode(repo, base))
+        self.git(repo, "config", "core.hooksPath", str(hooks_dir))
+        self.git(repo, "config", "core.splitIndex", "true")
+        self.git(repo, "config", "core.untrackedCache", "true")
+        self.assertJudged(self.every_mode(repo, base))
+        self.assertFalse(mark.exists())
+
+    def test_filters_drivers_pager_credentials_signing(self) -> None:
+        repo, base = self.weakened()
+        prog, mark = self.marker("drivers")
+        self.write(repo, {".gitattributes": "* filter=pw diff=pw merge=pw\n"})
+        for key in ("filter.pw.clean", "filter.pw.smudge", "filter.pw.process",
+                    "diff.pw.textconv", "diff.pw.command", "merge.pw.driver",
+                    "core.pager", "core.askPass", "credential.helper", "gpg.program",
+                    "core.editor", "sequence.editor", "core.alternateRefsCommand",
+                    "core.sshCommand", "diff.external"):
+            self.git(repo, "config", key, f"{prog} {key}")
+        self.git(repo, "config", "filter.pw.required", "true")
+        for cmd in ("ls-files", "ls-tree", "cat-file", "rev-parse", "merge-base"):
+            self.git(repo, "config", f"pager.{cmd}", "true")
+        self.write(repo, {SETTINGS: EMPTY + "\n"})  # a dirty tracked surface
+        self.assertJudged(self.every_mode(repo, base))
+        self.assertFalse(mark.exists())
+
+
+class ReplaceRefsIgnored(_Lab):
+    """refs/replace (`git replace`) rewrote what BASE read: the spec 12
+    engine passed a removed Stop hook. Every git call now runs with
+    --no-replace-objects."""
+
+    def test_replaced_base_blob(self) -> None:
+        repo, base = self.weakened()
+        base_blob = self.git(repo, "rev-parse", f"{base}:{SETTINGS}")
+        weak_blob = self.git(repo, "rev-parse", f"HEAD:{SETTINGS}")
+        self.git(repo, "replace", base_blob, weak_blob)
+        self.assertEqual(self.git(repo, "cat-file", "-p", f"{base}:{SETTINGS}"), EMPTY)
+        self.assertJudged(self.every_mode(repo, base))
+
+    def test_replaced_base_commit(self) -> None:
+        repo, base = self.weakened()
+        fake = self.git(repo, "commit-tree", self.git(repo, "rev-parse", "HEAD^{tree}"),
+                        "-m", "fake base")
+        self.git(repo, "replace", base, fake)
+        self.assertJudged(self.every_mode(repo, base))
+
+    def test_replace_graft_does_not_move_the_merge_base(self) -> None:
+        repo, c0, c1, f1 = _stitch(self)
+        self.git(repo, "replace", "--graft", f1, c0)
+        self.assertEqual(self.git(repo, "merge-base", c1, "HEAD"), c0)
+        self.assertEqual(self.git(repo, "rev-parse", "HEAD~2"), c0)
+        self.assertBlocks(self.check(repo, f"{c1}...HEAD"))
+        self.assertBlocks(self.check(repo, "HEAD~2..HEAD"))
+
+
+class ForgedObjectsExit2(_Lab):
+    """Objects are rehashed against their ids. A loose object rewritten in
+    place (no ref, no config: git itself reads the forged bytes) made the
+    spec 12 engine pass; it is now an unreadable git tree, exit 2."""
+
+    MISMATCH = "git object does not match its id"
+
+    def test_forged_base_blob(self) -> None:
+        repo, base = self.weakened()
+        self.forge(repo, self.git(repo, "rev-parse", f"{base}:{SETTINGS}"), "blob",
+                   EMPTY.encode())
+        self.assertEqual(self.git(repo, "cat-file", "-p", f"{base}:{SETTINGS}"), EMPTY)
+        self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
+        self.assertExit2(self.check(repo, f"{base}..WORKTREE"), self.MISMATCH)
+
+    def test_forged_base_subtree_and_root_tree(self) -> None:
+        repo, base = self.weakened()
+        for spec in (f"{base}:.claude", f"{base}^{{tree}}"):
+            sub = self.git(repo, "rev-parse", spec)
+            weak = spec.replace(base, "HEAD")
+            body = subprocess.run(
+                ["git", "cat-file", "tree", self.git(repo, "rev-parse", weak)],
+                cwd=repo, env=_git_env(), capture_output=True, check=True,
+            ).stdout
+            saved = self.object_path(repo, sub).read_bytes()
+            self.forge(repo, sub, "tree", body)
+            self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
+            self.object_path(repo, sub).write_bytes(saved)
+            self.assertBlocks(self.check(repo, f"{base}..HEAD"))
+
+    def test_forged_base_commit(self) -> None:
+        repo, base = self.weakened()
+        body = subprocess.run(
+            ["git", "cat-file", "commit", "HEAD"], cwd=repo, env=_git_env(),
+            capture_output=True, check=True,
+        ).stdout
+        self.forge(repo, base, "commit", body)
+        self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
+
+    def test_forged_commit_steers_the_merge_base(self) -> None:
+        repo, c0, c1, f1 = _stitch(self)
+        tree = self.git(repo, "rev-parse", f"{f1}^{{tree}}")
+        body = (f"tree {tree}\nparent {c0}\nauthor a <a@a> 1760000000 +0000\n"
+                f"committer a <a@a> 1760000000 +0000\n\nweaken\n").encode()
+        self.forge(repo, f1, "commit", body)
+        self.assertEqual(self.git(repo, "merge-base", c1, "HEAD"), c0)
+        self.assertExit2(self.check(repo, f"{c1}...HEAD"), self.MISMATCH)
+
+    def test_forged_object_in_an_alternate_store(self) -> None:
+        repo, base = self.weakened()
+        blob = self.git(repo, "rev-parse", f"{base}:{SETTINGS}")
+        other = self.new_repo("alternate")
+        (other / ".git" / "objects" / blob[:2]).mkdir()
+        self.object_path(repo, blob).rename(self.object_path(other, blob))
+        self.forge(other, blob, "blob", EMPTY.encode())
+        alternates = repo / ".git" / "objects" / "info" / "alternates"
+        alternates.write_text(str(other / ".git" / "objects") + "\n", encoding="utf-8")
+        self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
+
+
+@unittest.skipUnless(POSIX, "marker programs are POSIX shell scripts")
+class PromisorRemoteNeverFetches(_Lab):
+    """A partial-clone promisor remote made git lazily fetch a missing BASE
+    object by running a program (ext::, a local upload-pack, ssh). The
+    spec 12 engine ran it; now no lazy fetch and no transport happen, and a
+    missing object is an unreadable git tree."""
+
+    def test_no_transport_program_runs(self) -> None:
+        for kind in ("ext", "uploadpack", "ssh"):
+            repo, base = self.weakened(kind)
+            blob = self.git(repo, "rev-parse", f"{base}:{SETTINGS}")
+            self.object_path(repo, blob).unlink()
+            self.git(repo, "config", "core.repositoryformatversion", "1")
+            self.git(repo, "config", "extensions.partialClone", "origin")
+            self.git(repo, "config", "remote.origin.promisor", "true")
+            self.git(repo, "config", "protocol.allow", "always")
+            prog, mark = self.marker(kind)
+            if kind == "ext":
+                self.git(repo, "config", "remote.origin.url", f"ext::{prog} %s")
+            elif kind == "uploadpack":
+                self.git(repo, "config", "remote.origin.url", str(self.new_repo(f"{kind}-up")))
+                self.git(repo, "config", "remote.origin.uploadpack", str(prog))
+            else:
+                self.git(repo, "config", "remote.origin.url", "ssh://pinwash.invalid/x.git")
+                self.git(repo, "config", "core.sshCommand", str(prog))
+            self.assertExit2(self.check(repo, f"{base}..HEAD"))
+            self.assertExit2(self.check(repo, f"{base}..WORKTREE"))
+            self.assertPasses(self.check(repo))  # HEAD vs worktree reads no base blob
+            self.assertFalse(mark.exists(), kind)
+
+
+class ParentRewritesIgnored(_Lab):
+    """info/grafts, .git/shallow and a commit-graph file rewrite parents
+    without touching a commit object; they moved `BASE...HEAD` (and
+    `HEAD~n`) to a base without the judge, a silent pass. git now reads none
+    of them, and the merge base is recomputed from rehashed commits."""
+
+    def test_grafts(self) -> None:
+        repo, c0, c1, f1 = _stitch(self)
+        (repo / ".git" / "info").mkdir(exist_ok=True)
+        (repo / ".git" / "info" / "grafts").write_text(f"{f1} {c0}\n", encoding="utf-8")
+        self.assertEqual(self.git(repo, "merge-base", c1, "HEAD"), c0)
+        self.assertEqual(self.git(repo, "rev-parse", "HEAD~2"), c0)
+        self.assertBlocks(self.check(repo, f"{c1}...HEAD"))
+        self.assertBlocks(self.check(repo, "HEAD~2..HEAD"))
+
+    def test_shallow(self) -> None:
+        repo = self.new_repo()
+        c0 = self.commit(repo, {"README": "r\n"}, "c0", 1760000000)
+        c1 = self.commit(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE}, "c1", 1760000100)
+        self.git(repo, "checkout", "-q", "-b", "side", c0)
+        side = self.commit(repo, {"side.txt": "s\n"}, "side", 1760000200)
+        self.git(repo, "checkout", "-q", "-b", "work", c1)
+        s = self.commit(repo, {SETTINGS: EMPTY}, "weaken", 1760000300)
+        self.git(repo, "merge", "-q", "--no-edit", side, env={
+            "GIT_AUTHOR_DATE": "1760000400 +0000", "GIT_COMMITTER_DATE": "1760000400 +0000"})
+        (repo / ".git" / "shallow").write_text(f"{s}\n", encoding="utf-8")
+        self.assertEqual(self.git(repo, "merge-base", c1, "HEAD"), c0)
+        self.assertBlocks(self.check(repo, f"{c1}...HEAD"))
+
+    def test_commit_graph(self) -> None:
+        repo, c0, c1, f1 = _stitch(self)
+        self.git(repo, "commit-graph", "write", "--reachable")
+        graph = repo / ".git" / "objects" / "info" / "commit-graph"
+        _patch_commit_graph(graph, f1, parent=c0)
+        # The graph's tree id for the base commit names the weakened tree;
+        # the base tree is read from the verified commit body instead.
+        _patch_commit_graph(graph, c1, tree=self.git(repo, "rev-parse", f"{f1}^{{tree}}"))
+        self.assertEqual(self.git(repo, "merge-base", c1, "HEAD"), c0)
+        self.assertEqual(self.git(repo, "rev-parse", "HEAD~2"), c0)
+        self.assertBlocks(self.check(repo, f"{c1}...HEAD"))
+        self.assertBlocks(self.check(repo, "HEAD~2..HEAD"))
+        self.assertBlocks(self.check(repo, f"{c1}..HEAD"))
+
+
+class WorkTreeLocation(_Lab):
+    """`core.worktree = ../..` in .git/config moved the work tree above the
+    checkout: both trees were listed for a subtree that does not exist, so
+    every range and the worktree check passed. The work tree must be the
+    directory that holds the .git git found."""
+
+    MOVED = "git work tree is not the directory that holds .git"
+
+    def test_work_tree_moved_above_the_checkout(self) -> None:
+        repo, base = self.weakened("outer/repo")
+        self.git(repo, "config", "core.worktree", "../..")
+        for result in self.every_mode(repo, base):
+            self.assertExit2(result, self.MOVED)
+
+    def test_work_tree_moved_elsewhere_or_bare(self) -> None:
+        repo, base = self.weakened()
+        self.git(repo, "config", "core.worktree", str(self.new_repo("elsewhere")))
+        self.assertExit2(self.check(repo, f"{base}..HEAD"))
+        self.git(repo, "config", "--unset", "core.worktree")
+        self.git(repo, "config", "core.bare", "true")
+        self.assertExit2(self.check(repo, f"{base}..HEAD"))
+
+    def test_gitdir_file_linked_worktree_and_subdirectory_are_judged(self) -> None:
+        # A .git file naming a separate git dir whose core.worktree names
+        # the checkout back (the submodule layout).
+        repo, base = self.weakened()
+        gitdir = self.root / "separate.git"
+        (repo / ".git").rename(gitdir)
+        (repo / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+        self.git(repo, "config", "core.worktree", str(repo))
+        self.assertJudged(self.every_mode(repo, base))
+        # A linked worktree.
+        linked = self.root / "linked"
+        self.git(repo, "worktree", "add", "-q", str(linked), "HEAD")
+        self.assertJudged(self.every_mode(linked, base))
+        # From a subdirectory both trees are that subtree, as `git ls-tree`
+        # and `git ls-files` list them there.
+        mono = self.new_repo("mono")
+        base = self.commit(mono, {f"pkg/{SETTINGS}": STOP, "pkg/hooks/judge.py": JUDGE,
+                                  SETTINGS: STOP, "hooks/judge.py": JUDGE}, "base")
+        self.commit(mono, {f"pkg/{SETTINGS}": EMPTY}, "weaken")
+        self.assertPasses(self.check(mono, f"{base}..HEAD"))
+        self.assertBlocks(self.check(mono, f"{base}..HEAD", cwd=mono / "pkg"))
+        self.assertBlocks(self.check(mono, f"{base}...HEAD", cwd=mono / "pkg"))
+        self.assertBlocks(self.check(mono, f"{base}..WORKTREE", cwd=mono / "pkg"))
+
+
+@unittest.skipUnless(_sha256_supported(), "git without --object-format=sha256")
+class Sha256Repository(_Lab):
+    """Objects of a sha256 repository rehash with sha256."""
+
+    def test_judged_and_forgery_exits_2(self) -> None:
+        repo, base = self.weakened(fmt="sha256")
+        self.assertEqual(len(base), 64)
+        self.assertJudged(self.every_mode(repo, base))
+        self.forge(repo, self.git(repo, "rev-parse", f"{base}:{SETTINGS}"), "blob",
+                   EMPTY.encode())
+        self.assertExit2(self.check(repo, f"{base}..HEAD"), ForgedObjectsExit2.MISMATCH)
+
+
+class MergeBaseAgreesWithGit(_Lab):
+    """The verified merge base is git's merge-base (commit-graph off) on
+    honest histories, including several best bases with equal dates, so
+    BASE...HEAD exits 2 only when the objects disagree with git."""
+
+    def test_criss_cross_and_random_histories(self) -> None:
+        repo = self.new_repo()
+        tree = self.git(repo, "mktree", stdin=b"")
+        fmt = gitrepo._Format(b"sha1")
+        rnd = random.Random(20261009)
+        commits: list[str] = []
+        for i in range(48):
+            window = commits[-6:]
+            parents = rnd.sample(window, min(rnd.choice((1, 2, 2, 3)), len(window)))
+            date = 1760000000 + rnd.choice((0, 0, 10))
+            args = ["commit-tree", tree, "-m", f"c{i}"]
+            for parent in parents:
+                args += ["-p", parent]
+            commits.append(self.git(repo, *args, env={
+                "GIT_COMMITTER_DATE": f"{date} +0000"}))
+        several = 0
+        with gitrepo._Store(repo, fmt) as store:
+            for _ in range(60):
+                one, two = rnd.choice(commits), rnd.choice(commits)
+                proc = subprocess.run(
+                    ["git", "-c", "core.commitGraph=false", "merge-base", "--all", one, two],
+                    cwd=repo, env=_git_env(), capture_output=True, check=False,
+                )
+                mine = gitrepo._merge_bases(store, one, two)
+                self.assertEqual(mine, proc.stdout.decode().split(), (one, two))
+                several += len(mine) > 1
+        self.assertGreater(several, 0)
+        self.git(repo, "update-ref", "HEAD", commits[-1])
+        self.git(repo, "read-tree", "HEAD")
+        self.assertEqual(gitrepo.resolve_range(repo, f"{commits[20]}...HEAD")[0],
+                         self.git(repo, "merge-base", commits[20], "HEAD"))
+
+
+def _stitch(lab: _Lab) -> tuple[Path, str, str, str]:
+    """main: c0 (no judge) -> c1 (Stop judge); work: c1 -> f1 (weakened) ->
+    HEAD. merge-base(c1, HEAD) and HEAD~2 are c1; a parent rewrite of f1 to
+    c0 makes both c0, against which the weakened settings file is new: a
+    pass."""
+    repo = lab.new_repo()
+    c0 = lab.commit(repo, {"README": "r\n"}, "c0", 1760000000)
+    c1 = lab.commit(repo, {SETTINGS: STOP, "hooks/judge.py": JUDGE}, "c1", 1760000100)
+    lab.git(repo, "checkout", "-q", "-b", "work")
+    f1 = lab.commit(repo, {SETTINGS: EMPTY}, "weaken", 1760000200)
+    lab.commit(repo, {"notes.txt": "n\n"}, "more", 1760000300)
+    return repo, c0, c1, f1
+
+
+def _patch_commit_graph(path: Path, commit: str, *, parent: str | None = None,
+                        tree: str | None = None) -> None:
+    """Rewrite one commit's first parent or tree id in a commit-graph file."""
+    data = bytearray(path.read_bytes())
+    rawsz = 20 if data[5] == 1 else 32
+    chunks = {}
+    for i in range(data[6] + 1):
+        entry = 8 + 12 * i
+        chunks[bytes(data[entry:entry + 4])] = struct.unpack(">Q", data[entry + 4:entry + 12])[0]
+    oidl, cdat = chunks[b"OIDL"], chunks[b"CDAT"]
+    oids = [bytes(data[oidl + i * rawsz:oidl + (i + 1) * rawsz]).hex()
+            for i in range((cdat - oidl) // rawsz)]
+    entry = cdat + oids.index(commit) * (rawsz + 16)
+    if tree is not None:
+        data[entry:entry + rawsz] = bytes.fromhex(tree)
+    if parent is not None:
+        data[entry + rawsz:entry + rawsz + 4] = struct.pack(">I", oids.index(parent))
+    path.chmod(0o644)
+    path.write_bytes(bytes(data))
+
+
+if __name__ == "__main__":
+    unittest.main()
