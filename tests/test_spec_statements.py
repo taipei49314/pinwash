@@ -248,6 +248,17 @@ class StopLikeSet(unittest.TestCase):
         self.assertEqual(rules, [("HOOK_REMOVED", "warn")])
 
 
+class SpecVersionLine(unittest.TestCase):
+    """The SPEC header names the engine's spec version (review of
+    2026-10-10: spec 15 left it at 14)."""
+
+    def test_header_matches_spec_version(self) -> None:
+        from pinwash import SPEC_VERSION
+
+        text = (Path(__file__).resolve().parent.parent / "SPEC.md").read_text(encoding="utf-8")
+        self.assertIn(f"\nSpec version: **{SPEC_VERSION}** (", text)
+
+
 class UnknownCoverageReasons(unittest.TestCase):
     """SPEC §7 (spec 13, spec 14): `reason` is fixed text from a closed list.
     The list in SPEC and the reasons the engine can emit are the same set."""

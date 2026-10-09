@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from pinwash.escalate import pin_float_severity, pin_removed_severity
-from pinwash.pins import classify_action_ref, kind_rank, record_rank
+from pinwash.pins import classify_action_ref, kind_rank, record_rank, record_value_floating
 
 
 def detect_workflow_pins(path: str, base_g: Any, head_g: Any, add: Any) -> None:
@@ -35,7 +35,7 @@ def detect_workflow_pins(path: str, base_g: Any, head_g: Any, add: Any) -> None:
             if consumer_exists:
                 add(
                     rule="JUDGE_UNPINNED",
-                    severity=pin_removed_severity(head_non_floating),
+                    severity=pin_removed_severity(base_kind, head_non_floating),
                     message="action pin removed while workflow remains",
                     path=path,
                     before=ref,
@@ -55,7 +55,7 @@ def detect_workflow_pins(path: str, base_g: Any, head_g: Any, add: Any) -> None:
             continue
         add(
             rule="JUDGE_UNPINNED",
-            severity=pin_float_severity(head_kind, head_non_floating),
+            severity=pin_float_severity(base_kind, head_kind, head_non_floating),
             message="action pin weakened",
             path=path,
             before=ref,
@@ -109,7 +109,7 @@ def detect_declared_pins(path: str, base_doc: Any, head_doc: Any, add: Any) -> N
                 locator=f"declared_pins:{loc}",
             )
             continue
-        if rec["value"] != head["value"] and classify_action_ref(head["value"]) == "floating":
+        if rec["value"] != head["value"] and record_value_floating(head_kind, head["value"]):
             add(
                 rule="JUDGE_UNPINNED",
                 severity="high",
@@ -129,4 +129,23 @@ def detect_declared_pins(path: str, base_doc: Any, head_doc: Any, add: Any) -> N
                 locator=f"declared_pins:{loc}",
                 before=base_kind,
                 after=head_kind,
+            )
+            continue
+        if record_rank(head_kind, head["value"]) > record_rank(base_kind, rec["value"]):
+            # §4: pin tightening is not a finding (residual R04 when the new
+            # value names other content).
+            continue
+        if head_kind != base_kind or head["value"] != rec["value"]:
+            # §4 (spec 15): every base record keeps kind/value or a
+            # documented allow fingerprint. A change off the unpin list is
+            # reported at warn: an upgrade, a downgrade and a repoint read
+            # the same byte by byte.
+            add(
+                rule="JUDGE_UNPINNED",
+                severity="warn",
+                message=f"declared pin {loc} value changed",
+                path=path,
+                locator=f"declared_pins:{loc}",
+                before=rec["value"],
+                after=head["value"],
             )
