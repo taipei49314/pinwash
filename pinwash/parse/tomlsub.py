@@ -12,6 +12,7 @@ _FAIL_ON = re.compile(
     r'^fail_on\s*=\s*["\']?(info|warn|high|critical)["\']?\s*$',
     re.IGNORECASE,
 )
+_FAIL_ON_VALUES = frozenset({"info", "warn", "high", "critical"})
 _FALSE_ASSIGN = re.compile(
     r"^(detect_[A-Za-z0-9_]+|[A-Z][A-Z0-9_]+)\s*=\s*false\s*$"
 )
@@ -28,7 +29,12 @@ def parse_checkwash_config(text: str) -> dict[str, Any]:
             continue
         m = _FAIL_ON.match(raw)
         if m:
-            fail_on = m.group(1).lower()
+            value = m.group(1).lower()
+            # re.IGNORECASE also matches U+0130 and U+0131 for "i", and
+            # lower() keeps them non-ASCII ("hİgh" -> "hi\u0307gh"). Such a
+            # value is outside the subset, not a severity: it is not read.
+            if value in _FAIL_ON_VALUES:
+                fail_on = value
             continue
         m = _FALSE_ASSIGN.match(raw)
         if m:

@@ -14,9 +14,16 @@ ENFORCEMENT_EVENTS = {"push", "pull_request"}
 
 
 def ruleset_contexts(doc: Any) -> list[str]:
-    found: list[str] = []
+    """Every required_status_checks context, depth-first in document order.
 
-    def walk(node: Any) -> None:
+    The walk keeps its own stack instead of recursing, so a subject
+    document nested at any depth reads the same on every interpreter
+    (SPEC §8 / §9). Order matches the recursive form this replaces.
+    """
+    found: list[str] = []
+    stack: list[Any] = [doc]
+    while stack:
+        node = stack.pop()
         if isinstance(node, dict):
             if "required_status_checks" in node:
                 checks = node["required_status_checks"]
@@ -28,13 +35,9 @@ def ruleset_contexts(doc: Any) -> list[str]:
                             item.get("context"), str
                         ):
                             found.append(item["context"])
-            for value in node.values():
-                walk(value)
+            stack.extend(reversed(list(node.values())))
         elif isinstance(node, list):
-            for item in node:
-                walk(item)
-
-    walk(doc)
+            stack.extend(reversed(node))
     return found
 
 
