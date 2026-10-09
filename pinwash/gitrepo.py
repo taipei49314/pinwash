@@ -17,8 +17,11 @@ import errno
 import hashlib
 import heapq
 import os
+import re
 import subprocess
+import threading
 from pathlib import Path
+from typing import Callable
 
 # A worktree read that fails with one of these finds no file, exactly as
 # pathlib's is_file() decides (a path that vanished, a broken symlink).
@@ -71,8 +74,29 @@ class GitError(Exception):
         self.message = message
 
 
+class _Missing(GitError):
+    """An object the store does not have: a partial clone without lazy
+    fetch, a shallow clone's cut, or a deleted object."""
+
+    def __init__(self, oid: str) -> None:
+        super().__init__(
+            f"git object {oid} is not in the object store"
+            " (a partial or shallow clone? fetch it before judging)"
+        )
+        self.oid = oid
+
+
+# Commits read one at a time before the walk prefetches ahead (_Store.miss),
+# and how many the first prefetch asks for.
+_READAHEAD_AFTER = 64
+_READAHEAD_FIRST = 1024
+
 _UNREADABLE_GIT = "unreadable git repository"
 _MISMATCH = "git object does not match its id"
+_MOVED = (
+    "git work tree is not the directory that holds .git"
+    " (a judge that means another work tree sets GIT_WORK_TREE)"
+)
 
 
 def _run(repo: Path, args: list[str]) -> subprocess.CompletedProcess[bytes]:
@@ -80,19 +104,6 @@ def _run(repo: Path, args: list[str]) -> subprocess.CompletedProcess[bytes]:
         [*_GIT, *args],
         cwd=repo,
         stdin=subprocess.DEVNULL,
-        capture_output=True,
-        check=False,
-        env=_env(),
-    )
-
-
-def _run_input(
-    repo: Path, args: list[str], input_bytes: bytes
-) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
-        [*_GIT, *args],
-        cwd=repo,
-        input=input_bytes,
         capture_output=True,
         check=False,
         env=_env(),
@@ -111,6 +122,9 @@ class _Format:
             raise GitError(_UNREADABLE_GIT)
         self.name = name.decode("ascii")
         self.hexsz = 2 * self.rawsz
+        self._hash = getattr(hashlib, self.name)
+        # get_oid_hex() reads exactly hexsz hex digits, either case.
+        self._hexid = re.compile(rb"[0-9a-fA-F]{%d}" % self.hexsz)
 
     def oid(self, raw: bytes) -> str:
         """A hex object id as git prints it, or GitError."""
@@ -119,13 +133,19 @@ class _Format:
             raise GitError(_UNREADABLE_GIT)
         return text
 
-    def check(self, oid: str, kind: bytes, data: bytes) -> None:
-        """The object's bytes rehash to its id, or GitError (SPEC §8)."""
-        h = hashlib.new(self.name, usedforsecurity=False)
+    def parse_hex(self, raw: bytes) -> str:
+        """An object id field of a commit or tag, as git's get_oid_hex()
+        reads it (either case), in the lower case git prints."""
+        if self._hexid.fullmatch(raw) is None:
+            raise GitError(_UNREADABLE_GIT)
+        return raw.decode("ascii").lower()
+
+    def matches(self, oid: str, kind: bytes, data: bytes) -> bool:
+        """The object's bytes rehash to its id."""
+        h = self._hash(usedforsecurity=False)
         h.update(kind + b" %d\0" % len(data))
         h.update(data)
-        if h.hexdigest() != oid:
-            raise GitError(_MISMATCH)
+        return h.hexdigest() == oid
 
 
 def _layout(repo: Path) -> tuple[_Format, bytes]:
@@ -135,9 +155,11 @@ def _layout(repo: Path) -> tuple[_Format, bytes]:
     from a subdirectory. Git takes the work tree from core.worktree, which
     the repository's config sets, so a `core.worktree = ../..` would move
     the work tree above the checkout and scope both trees to a subtree that
-    does not exist: every range would read empty and pass. The work tree
-    must be the directory that holds the .git git found, unless the judge
-    named it in GIT_WORK_TREE.
+    does not exist: every range would read empty and pass (_check_work_tree).
+
+    --show-cdup prints only "../" segments and the object format names no
+    path, so the one path git prints (the prefix) comes last and keeps any
+    newline in a directory name.
     """
     proc = _run(
         repo,
@@ -145,14 +167,14 @@ def _layout(repo: Path) -> tuple[_Format, bytes]:
             "rev-parse",
             "--is-inside-work-tree",
             "--show-object-format",
-            "--show-toplevel",
+            "--show-cdup",
             "--show-prefix",
         ],
     )
     parts = proc.stdout.split(b"\n", 3)
     if proc.returncode != 0 or len(parts) != 4 or parts[0] != b"true":
         raise GitError(_UNREADABLE_GIT)
-    if not parts[3].endswith(b"\n"):
+    if not parts[3].endswith(b"\n") or parts[2].replace(b"../", b""):
         raise GitError(_UNREADABLE_GIT)
     fmt = _Format(parts[1])
     if not os.environ.get("GIT_WORK_TREE"):
@@ -160,16 +182,30 @@ def _layout(repo: Path) -> tuple[_Format, bytes]:
     return fmt, parts[3][:-1]
 
 
-def _check_work_tree(repo: Path, toplevel: bytes) -> None:
-    here = os.path.realpath(repo)
-    while not os.path.lexists(os.path.join(here, ".git")):
+def _check_work_tree(repo: Path, cdup: bytes) -> None:
+    """The work tree git uses is one the judge chose, not core.worktree.
+
+    Without GIT_DIR, git finds the .git nearest above the cwd, and the work
+    tree must be the directory that holds it. With GIT_DIR (a hook, yadm,
+    vcsh), git's own default is the cwd as the top, which is accepted too.
+    A judge that means any other work tree names it in GIT_WORK_TREE.
+    """
+    cwd = os.path.realpath(repo)
+    top = os.path.normcase(os.path.realpath(os.path.join(cwd, os.fsdecode(cdup))))
+    allowed = []
+    here = cwd
+    while True:
+        if os.path.lexists(os.path.join(here, ".git")):
+            allowed.append(os.path.normcase(here))
+            break
         parent = os.path.dirname(here)
         if parent == here:
-            raise GitError("git work tree is not the directory that holds .git")
+            break
         here = parent
-    top = os.path.realpath(os.fsdecode(toplevel))
-    if os.path.normcase(top) != os.path.normcase(here):
-        raise GitError("git work tree is not the directory that holds .git")
+    if os.environ.get("GIT_DIR"):
+        allowed.append(os.path.normcase(cwd))
+    if top not in allowed:
+        raise GitError(_MOVED)
 
 
 def require_repo(repo: Path) -> None:
@@ -184,24 +220,24 @@ def _rev(repo: Path, fmt: _Format, spec: str) -> str:
 
 
 class _Store:
-    """Objects read one at a time from a single `git cat-file --batch`.
+    """Objects read from a single long-lived `git cat-file --batch`.
 
     Every object is rehashed against the id it was asked for: a forged loose
     object, a pack or index that maps an id to other bytes, or an alternate
-    store cannot change what pinwash reads, only make it exit 2.
+    store cannot change what pinwash reads, only make it exit 2. Requests
+    are object ids, never names, and many ids go out in one write (from a
+    thread, so neither pipe can fill up and block both processes).
     """
 
     def __init__(self, repo: Path, fmt: _Format) -> None:
         self.fmt = fmt
-        self._proc: subprocess.Popen[bytes] | None = subprocess.Popen(
-            [*_GIT, "cat-file", "--batch"],
-            cwd=repo,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=_env(),
-        )
+        self._repo = repo
+        self._proc: subprocess.Popen[bytes] | None = None
+        self._open()
         self._commits: dict[str, tuple[list[str], int]] = {}
+        self._trees: dict[str, list[tuple[bytes, bytes, str]]] = {}
+        self._misses = 0
+        self._readahead = _READAHEAD_FIRST
 
     def __enter__(self) -> _Store:
         return self
@@ -209,10 +245,22 @@ class _Store:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
-    def close(self) -> None:
+    def _open(self) -> None:
+        self._proc = subprocess.Popen(
+            [*_GIT, "cat-file", "--batch"],
+            cwd=self._repo,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=_env(),
+        )
+
+    def close(self, kill: bool = False) -> None:
         proc, self._proc = self._proc, None
         if proc is None:
             return
+        if kill:
+            proc.kill()
         for stream in (proc.stdin, proc.stdout):
             try:
                 if stream is not None:
@@ -225,30 +273,93 @@ class _Store:
             proc.kill()
             proc.wait()
 
-    def read(self, oid: str) -> tuple[bytes, bytes]:
+    # -- raw reads -------------------------------------------------------
+
+    def _fetch(self, oids: list[str]) -> list[tuple[bytes, bytes] | None]:
+        """(kind, bytes) per id as the store has it, None where missing.
+        Not yet rehashed: get() checks each one."""
         proc = self._proc
         if proc is None or proc.stdin is None or proc.stdout is None:
             raise GitError(_UNREADABLE_GIT)
+        if not oids:
+            return []
+        stdin, stdout = proc.stdin, proc.stdout
+        request = b"".join(oid.encode("ascii") + b"\n" for oid in oids)
+
+        def send() -> None:
+            try:
+                stdin.write(request)
+                stdin.flush()
+            except (OSError, ValueError):
+                pass  # git is gone; the reads below fail
+
+        writer = None
+        if len(oids) == 1:
+            send()
+        else:
+            writer = threading.Thread(target=send, daemon=True)
+            writer.start()
         try:
-            proc.stdin.write(oid.encode("ascii") + b"\n")
-            proc.stdin.flush()
-            header = proc.stdout.readline()
-            parts = header.split()
-            if (
-                len(parts) != 3
-                or parts[0] != oid.encode("ascii")
-                or not parts[2].isdigit()
-            ):
+            found: list[tuple[bytes, bytes] | None] = []
+            for oid in oids:
+                key = oid.encode("ascii")
+                header = stdout.readline()
+                if header == key + b" missing\n":
+                    found.append(None)
+                    continue
+                if not header and self._absent(oid):
+                    # In a partial clone cat-file dies on an object that
+                    # only the promisor remote has, where it would fetch:
+                    # start another for the reads that follow.
+                    self.close(kill=True)
+                    self._open()
+                    raise _Missing(oid)
+                parts = header.split()
+                if len(parts) != 3 or parts[0] != key or not parts[2].isdigit():
+                    raise GitError(_UNREADABLE_GIT)
+                size = int(parts[2])
+                data = stdout.read(size)
+                if len(data) != size or stdout.read(1) != b"\n":
+                    raise GitError(_UNREADABLE_GIT)
+                found.append((parts[1], data))
+        except _Missing:
+            raise
+        except BaseException:
+            self.close(kill=True)
+            raise
+        finally:
+            if writer is not None:
+                writer.join()
+        return found
+
+    def _absent(self, oid: str) -> bool:
+        """After cat-file died: the store has no such object."""
+        return _run(self._repo, ["cat-file", "-e", oid]).returncode != 0
+
+    def get(self, oids: list[str]) -> list[tuple[bytes, bytes]]:
+        """(kind, bytes) per id, each rehashed; missing or forged is
+        GitError (SPEC §8)."""
+        out: list[tuple[bytes, bytes]] = []
+        for oid, got in zip(oids, self._fetch(oids)):
+            if got is None:
+                raise _Missing(oid)
+            if not self.fmt.matches(oid, got[0], got[1]):
+                raise GitError(_MISMATCH)
+            out.append(got)
+        return out
+
+    def read(self, oid: str) -> tuple[bytes, bytes]:
+        return self.get([oid])[0]
+
+    def blobs(self, oids: list[str]) -> list[bytes]:
+        out: list[bytes] = []
+        for kind, data in self.get(oids):
+            if kind != b"blob":
                 raise GitError(_UNREADABLE_GIT)
-            size = int(parts[2])
-            body = proc.stdout.read(size + 1)
-        except OSError:
-            raise GitError(_UNREADABLE_GIT) from None
-        if len(body) != size + 1 or body[-1:] != b"\n":
-            raise GitError(_UNREADABLE_GIT)
-        data = body[:-1]
-        self.fmt.check(oid, parts[1], data)
-        return parts[1], data
+            out.append(data)
+        return out
+
+    # -- commits and tags ----------------------------------------------
 
     def peel(self, oid: str, want: bytes) -> str:
         """Follow tags (and a commit to its tree when want is b"tree")."""
@@ -269,21 +380,158 @@ class _Store:
         end = len(key) + self.fmt.hexsz
         if data[: len(key)] != key or data[end : end + 1] != b"\n":
             raise GitError(_UNREADABLE_GIT)
-        return self._hex(data[len(key) : end])
+        return self.fmt.parse_hex(data[len(key) : end])
 
-    def _hex(self, raw: bytes) -> str:
+    def _parse_commit(self, data: bytes) -> tuple[list[str], int]:
+        """Parents and committer date as git's parse_commit_buffer() reads
+        them (grafts, shallow, replace refs and commit-graph are off, so git
+        reads the same)."""
+        hexsz = self.fmt.hexsz
+        if len(data) <= hexsz + 6 or data[:5] != b"tree " or data[hexsz + 5] != 0x0A:
+            raise GitError(_UNREADABLE_GIT)
+        self.fmt.parse_hex(data[5 : hexsz + 5])
+        pos = hexsz + 6
+        entry = hexsz + 7
+        end = len(data)
+        parents: list[str] = []
+        while pos + entry < end and data.startswith(b"parent ", pos):
+            if pos + entry + 1 >= end or data[pos + entry] != 0x0A:
+                raise GitError(_UNREADABLE_GIT)
+            parents.append(self.fmt.parse_hex(data[pos + 7 : pos + entry]))
+            pos += entry + 1
+        return parents, _commit_date(data, pos)
+
+    def commit(self, oid: str) -> tuple[list[str], int]:
+        """Parents and committer date from the verified commit object."""
+        cached = self._commits.get(oid)
+        if cached is not None:
+            return cached
+        kind, data = self.read(oid)
+        if kind != b"commit":
+            raise GitError(_UNREADABLE_GIT)
+        result = self._commits[oid] = self._parse_commit(data)
+        return result
+
+    def has_commit(self, oid: str) -> bool:
+        """False only when the store has no such object (cat-file says
+        missing); a forged or malformed one is GitError when it is read."""
+        if oid in self._commits:
+            return True
         try:
-            return bytes.fromhex(raw.decode("ascii")).hex()
-        except (UnicodeDecodeError, ValueError):
-            raise GitError(_UNREADABLE_GIT) from None
+            self.commit(oid)
+        except _Missing:
+            return False
+        return True
+
+    def miss(self, frontier: Callable[[], list[str]]) -> None:
+        """Count a commit the walk reads on demand. After _READAHEAD_AFTER
+        of them, prefetch the next commits a date-ordered walk from the
+        frontier reaches, twice as many each time."""
+        self._misses += 1
+        if self._misses < _READAHEAD_AFTER:
+            return
+        self._misses = 0
+        count, self._readahead = self._readahead, min(2 * self._readahead, 1 << 16)
+        self._prefetch(count, frontier())
+
+    def _prefetch(self, count: int, frontier: list[str]) -> None:
+        """Batch-read the first count commits `git rev-list` walks from the
+        frontier, newest committer date first, as the merge-base walk does.
+
+        rev-list's output goes straight into one `cat-file --batch
+        --buffer`. It is a hint only: git reads unverified objects for it,
+        so _cache_commits() keeps only commits that rehash, and a failure (a
+        shallow clone's cut) leaves the walk to read on demand.
+        """
+        env = _env()
+        revs = subprocess.Popen(
+            [*_GIT, "rev-list", f"--max-count={count}", "--stdin"],
+            cwd=self._repo,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+        try:
+            cat = subprocess.Popen(
+                [*_GIT, "cat-file", "--batch", "--buffer"],
+                cwd=self._repo,
+                stdin=revs.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                env=env,
+            )
+        except OSError:
+            revs.kill()
+            revs.wait()
+            raise
+        finally:
+            if revs.stdout is not None:
+                revs.stdout.close()
+        if revs.stdin is not None:
+            # rev-list --stdin reads every line before it writes any.
+            try:
+                revs.stdin.write(b"".join(oid.encode("ascii") + b"\n" for oid in frontier))
+                revs.stdin.close()
+            except OSError:
+                pass
+        out, _err = cat.communicate()
+        revs.wait()
+        self._cache_commits(out)
+
+    def cached(self, oid: str) -> bool:
+        return oid in self._commits
+
+    def _cache_commits(self, out: bytes) -> None:
+        """Keep the commits of a `cat-file --batch` answer.
+
+        Only a cache: an object that is missing, forged, malformed or no
+        commit is left out, and commit() reads it again if the walk needs
+        it, so the answer cannot change what the walk sees.
+        """
+        pos, end = 0, len(out)
+        while pos < end:
+            nl = out.find(b"\n", pos)
+            if nl < 0:
+                return
+            parts = out[pos:nl].split()
+            pos = nl + 1
+            if len(parts) == 2 and parts[1] == b"missing":
+                continue
+            if len(parts) != 3 or not parts[2].isdigit():
+                return
+            size = int(parts[2])
+            data = out[pos : pos + size]
+            pos += size + 1
+            if len(data) != size or parts[1] != b"commit":
+                continue
+            oid = parts[0].decode("ascii", "replace")
+            if oid in self._commits or not self.fmt.matches(oid, b"commit", data):
+                continue
+            try:
+                self._commits[oid] = self._parse_commit(data)
+            except GitError:
+                continue
+
+    # -- trees -----------------------------------------------------------
+
+    def load_trees(self, oids: list[str]) -> None:
+        """Read every tree not yet read, in one batch."""
+        todo = [oid for oid in dict.fromkeys(oids) if oid not in self._trees]
+        for oid, (kind, data) in zip(todo, self.get(todo)):
+            if kind != b"tree":
+                raise GitError(_UNREADABLE_GIT)
+            self._trees[oid] = self._parse_tree(data)
 
     def tree(self, oid: str) -> list[tuple[bytes, bytes, str]]:
         """(kind, name, id) per entry, in stored order, as `git ls-tree`
         reads them: a canonical directory mode is a tree, a regular file or
         symlink mode a blob, every other mode a gitlink (commit)."""
-        kind, data = self.read(oid)
-        if kind != b"tree":
-            raise GitError(_UNREADABLE_GIT)
+        if oid not in self._trees:
+            self.load_trees([oid])
+        return self._trees[oid]
+
+    def _parse_tree(self, data: bytes) -> list[tuple[bytes, bytes, str]]:
         rawsz = self.fmt.rawsz
         entries: list[tuple[bytes, bytes, str]] = []
         pos, end = 0, len(data)
@@ -311,61 +559,38 @@ class _Store:
                 entries.append((b"commit", name, child))
         return entries
 
-    def commit(self, oid: str) -> tuple[list[str], int]:
-        """Parents and committer date from the verified commit body, read as
-        git's parse_commit_buffer() reads them (grafts, shallow, replace
-        refs and commit-graph are off, so git reads the same)."""
-        cached = self._commits.get(oid)
-        if cached is not None:
-            return cached
-        kind, data = self.read(oid)
-        if kind != b"commit":
-            raise GitError(_UNREADABLE_GIT)
-        hexsz = self.fmt.hexsz
-        if len(data) <= hexsz + 6 or data[:5] != b"tree " or data[hexsz + 5] != 0x0A:
-            raise GitError(_UNREADABLE_GIT)
-        self._hex(data[5 : hexsz + 5])
-        pos = hexsz + 6
-        parents: list[str] = []
-        while pos + hexsz + 7 < len(data) and data[pos : pos + 7] == b"parent ":
-            if pos + hexsz + 8 >= len(data) or data[pos + hexsz + 7] != 0x0A:
-                raise GitError(_UNREADABLE_GIT)
-            parents.append(self._hex(data[pos + 7 : pos + hexsz + 7]))
-            pos += hexsz + 8
-        result = (parents, _commit_date(data[pos:]))
-        self._commits[oid] = result
-        return result
+
+_SPACE = b" \t\n\r"  # git's isspace() (ctype.c), not C's: no \v or \f
 
 
-def _commit_date(buf: bytes) -> int:
-    """git's parse_commit_date(): the committer timestamp, 0 if malformed."""
-    if len(buf) <= 6 or buf[:6] != b"author":
+def _commit_date(buf: bytes, start: int) -> int:
+    """git's parse_commit_date() on buf[start:]: the committer timestamp,
+    0 if malformed, read as strtoumax() reads it."""
+    end = len(buf)
+    if start + 6 >= end or not buf.startswith(b"author", start):
         return 0
-    nl = buf.find(b"\n")
+    nl = buf.find(b"\n", start)
     if nl < 0:
         return 0
-    buf = buf[nl + 1 :]
-    if len(buf) <= 9 or buf[:9] != b"committer":
+    line = nl + 1
+    if line + 9 >= end or not buf.startswith(b"committer", line):
         return 0
-    eol = buf.find(b"\n")
+    eol = buf.find(b"\n", line)
     if eol < 0:
         return 0
-    line = buf[:eol]
-    pos = line.rfind(b">") + 1
+    pos = buf.rfind(b">", line, eol) + 1
     if pos == 0:
         return 0
-    while pos < eol and line[pos] in b" \t\n\v\f\r":
+    while pos < eol and buf[pos] in _SPACE:
         pos += 1
-    negative = line[pos : pos + 1] == b"-"
-    if not negative and not line[pos : pos + 1].isdigit():
-        return 0
-    pos += negative
-    digits = pos
-    while digits < eol and line[digits : digits + 1].isdigit():
+    negative = buf[pos] == 0x2D  # "-"
+    first = pos + negative
+    digits = first
+    while 0x30 <= buf[digits] <= 0x39:  # stops at eol at the latest
         digits += 1
-    if digits == pos:
+    if digits == first:
         return 0
-    value = int(line[pos:digits])
+    value = int(buf[first:digits])
     top = (1 << 64) - 1
     if value > top:
         return top
@@ -390,25 +615,46 @@ def _paint(
 ) -> list[str]:
     """git's paint_down_to_common() without generation numbers, over
     verified commit objects: same queue order (newest committer date first,
-    first in first out on ties), same flags, same results."""
-    flags[one] = flags.get(one, 0) | _P1
-    if not twos:
-        return [one]
+    first in first out on ties), same flags, same results.
+
+    One departure: a parent the store does not have (a shallow clone's cut)
+    is skipped when the walk would only mark it STALE. Such a commit and its
+    ancestors are ancestors of a common ancestor, so none is a merge base;
+    the skip can only leave some of them unmarked. One of those that both
+    sides then reach is an extra candidate below a true merge base, which
+    remove_redundant discards, or reaches only through the missing commit,
+    which is GitError. Any other missing commit is GitError. The answer is
+    git's on the full history, or exit 2, never another base.
+    """
     queue: list[tuple[int, int, str]] = []
+    queued: dict[str, int] = {}  # queue entries per commit
+    live = 0  # queue entries whose commit is not STALE
     counter = 0
 
-    def put(oid: str) -> None:
-        nonlocal counter
+    def put(oid: str, mark: int) -> None:
+        nonlocal counter, live
+        old = flags.get(oid, 0)
+        new = flags[oid] = old | mark
+        if new & _STALE and not old & _STALE:
+            live -= queued.get(oid, 0)
+        if not new & _STALE:
+            live += 1
+        queued[oid] = queued.get(oid, 0) + 1
         heapq.heappush(queue, (-store.commit(oid)[1], counter, oid))
         counter += 1
 
-    put(one)
+    flags[one] = flags.get(one, 0) | _P1
+    if not twos:
+        return [one]
+    put(one, _P1)
     for two in twos:
-        flags[two] = flags.get(two, 0) | _P2
-        put(two)
+        put(two, _P2)
     result: list[str] = []
-    while any(not flags[oid] & _STALE for _d, _c, oid in queue):
+    while live:  # git's queue_has_nonstale()
         _date, _ctr, oid = heapq.heappop(queue)
+        queued[oid] -= 1
+        if not flags[oid] & _STALE:
+            live -= 1
         mark = flags[oid] & (_P1 | _P2 | _STALE)
         if mark == _P1 | _P2:
             if not flags[oid] & _RESULT:
@@ -418,8 +664,11 @@ def _paint(
         for parent in store.commit(oid)[0]:
             if flags.get(parent, 0) & mark == mark:
                 continue
-            flags[parent] = flags.get(parent, 0) | mark
-            put(parent)
+            if not store.cached(parent):
+                store.miss(lambda first=parent: [first, *(entry[2] for entry in queue)])
+            if mark & _STALE and not store.has_commit(parent):
+                continue
+            put(parent, mark)
     return result
 
 
@@ -470,20 +719,16 @@ def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str
             raise GitError("invalid range")
         left_oid = _rev(repo, fmt, left)
         right_oid = _rev(repo, fmt, right)
-        mb = _run(repo, ["merge-base", "--end-of-options", left_oid, right_oid])
-        if mb.returncode != 0 or not mb.stdout.endswith(b"\n"):
-            raise GitError(_UNREADABLE_GIT)
-        base = fmt.oid(mb.stdout[:-1])
-        # SPEC §2: the base is merge-base(BASE, HEAD), recomputed from
-        # rehashed commit objects; a git answer that differs (a forged
-        # commit object steered it) is exit 2, never a pass.
+        # SPEC §2: the base is merge-base(BASE, HEAD), computed from
+        # rehashed commit objects with git's algorithm. `git merge-base` is
+        # not asked: it reads unverified objects, and the walk is the answer.
         with _Store(repo, fmt) as store:
             one = store.peel(left_oid, b"commit")
             two = store.peel(right_oid, b"commit")
             verified = _merge_bases(store, one, two)
-        if not verified or verified[0] != base:
-            raise GitError("merge base does not verify against commit objects")
-        return base, right_oid, left, right
+        if not verified:
+            raise GitError("the range's two commits have no merge base")
+        return verified[0], right_oid, left, right
     if ".." in raw:
         left, right = raw.split("..", 1)
         if not left or not right:
@@ -509,21 +754,30 @@ def ls_tree(repo: Path, spec: str) -> dict[str, bytes]:
                 if kind == b"tree" and name == part
             ]
         entries = _blobs(store, roots)
-    return _cat_file_batch(repo, fmt, entries)
+        oids = list(dict.fromkeys(blob for _path, blob in entries))
+        data = dict(zip(oids, store.blobs(oids)))
+    return {path: data[blob] for path, blob in entries}
 
 
 def _blobs(store: _Store, roots: list[str]) -> list[tuple[str, str]]:
-    """Blob entries in `git ls-tree -r` order, from verified tree objects."""
-    cache: dict[str, list[tuple[bytes, bytes, str]]] = {}
+    """Blob entries in `git ls-tree -r` order, from verified tree objects.
 
-    def entries(oid: str) -> list[tuple[bytes, bytes, str]]:
-        if oid not in cache:
-            cache[oid] = store.tree(oid)
-        return cache[oid]
-
+    The trees are read one depth at a time, each depth in one batch.
+    """
+    level = list(dict.fromkeys(roots))
+    seen = set(level)
+    while level:
+        store.load_trees(level)
+        children: list[str] = []
+        for oid in level:
+            for kind, _name, child in store.tree(oid):
+                if kind == b"tree" and child not in seen:
+                    seen.add(child)
+                    children.append(child)
+        level = children
     found: list[tuple[str, str]] = []
     for root in roots:
-        stack = [(b"", iter(entries(root)))]
+        stack = [(b"", iter(store.tree(root)))]
         while stack:
             base, it = stack[-1]
             entry = next(it, None)
@@ -532,7 +786,7 @@ def _blobs(store: _Store, roots: list[str]) -> list[tuple[str, str]]:
                 continue
             kind, name, child = entry
             if kind == b"tree":
-                stack.append((base + name + b"/", iter(entries(child))))
+                stack.append((base + name + b"/", iter(store.tree(child))))
             elif kind == b"blob":
                 # Names keep their literal bytes, Git-quoted Unicode and
                 # whitespace included. A gitlink (submodule, kind commit)
@@ -541,48 +795,6 @@ def _blobs(store: _Store, roots: list[str]) -> list[tuple[str, str]]:
                 # file bytes, so no surface can be one.
                 found.append(((base + name).decode("utf-8", "surrogateescape"), child))
     return found
-
-
-def _cat_file_batch(
-    repo: Path, fmt: _Format, entries: list[tuple[str, str]]
-) -> dict[str, bytes]:
-    """One cat-file --batch round trip for every blob, each rehashed.
-
-    Requests are object ids, so a filename cannot become part of cat-file's
-    newline-delimited request protocol.
-    """
-    if not entries:
-        return {}
-    oids = list(dict.fromkeys(oid for _path, oid in entries))
-    request = b"".join(oid.encode("ascii") + b"\n" for oid in oids)
-    proc = _run_input(repo, ["cat-file", "--batch"], request)
-    if proc.returncode != 0:
-        raise GitError(_UNREADABLE_GIT)
-    out = proc.stdout
-    out_len = len(out)
-    blobs: dict[str, bytes] = {}
-    pos = 0
-    for oid in oids:
-        nl = out.find(b"\n", pos)
-        if nl < 0:
-            raise GitError(_UNREADABLE_GIT)
-        parts = out[pos:nl].split()
-        pos = nl + 1
-        if (
-            len(parts) != 3
-            or parts[0] != oid.encode("ascii")
-            or parts[1] != b"blob"
-            or not parts[2].isdigit()
-        ):
-            raise GitError(_UNREADABLE_GIT)
-        size = int(parts[2])
-        if pos + size + 1 > out_len or out[pos + size : pos + size + 1] != b"\n":
-            raise GitError(_UNREADABLE_GIT)
-        data = out[pos : pos + size]
-        fmt.check(oid, b"blob", data)
-        blobs[oid] = data
-        pos += size + 1
-    return {path: blobs[oid] for path, oid in entries}
 
 
 def _ls_worktree(repo: Path) -> dict[str, bytes]:
