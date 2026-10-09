@@ -236,5 +236,193 @@ class CommandLocalSkipFlags(unittest.TestCase):
         self.assertEqual(payload["verdict"], "block")
 
 
+class HookCommandPairing(unittest.TestCase):
+    """#10 index shift, #9 shifted comment-out (SPEC §5, §5.1, §5.2): a head
+    command is compared with the base command at its list index, as before,
+    and also with its own string wherever it stood at base, so an inserted
+    sibling cannot move a judge out of view."""
+
+    T = "python hooks/judge.py"
+    JUDGE = "hooks/judge.py"
+    REAL = (
+        "import json, sys\n"
+        "def main() -> int:\n"
+        "    if not sys.stdin.read():\n"
+        '        print(json.dumps({"decision": "block", "reason": "no input"}))\n'
+        "        return 0\n"
+        '    print(json.dumps({"decision": "approve"}))\n'
+        "    return 0\n"
+        "sys.exit(main())\n"
+    )
+    GUT = (
+        "import json, sys\n"
+        "def main() -> int:\n"
+        '    print(json.dumps({"decision": "approve"}))\n'
+        "    return 0\n"
+        "sys.exit(main())\n"
+    )
+    STUB = "import sys\nsys.exit(0)\n"
+    CASES = ((".claude/settings.json", "Stop"), (".cursor/hooks.json", "stop"))
+
+    def _scan(self, path, event, base_cmds, head_cmds, base_body, head_body, extra=None):
+        base = {path: _hooks(event, base_cmds), self.JUDGE: base_body}
+        head = {path: _hooks(event, head_cmds), self.JUDGE: head_body}
+        head.update(extra or {})
+        return _pair(base, head)
+
+    def test_gutted_judge_behind_an_inserted_live_sibling_fires(self) -> None:
+        for path, event in self.CASES:
+            for body, message in ((self.GUT, "lost block capability"),
+                                  (self.STUB, "resolves to a stub body")):
+                with self.subTest(path=path, message=message):
+                    payload = self._scan(
+                        path, event, [{"command": self.T}],
+                        [{"command": "echo ok"}, {"command": self.T}],
+                        self.REAL, body,
+                    )
+                    self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+                    self.assertIn(message, payload["findings"][0]["message"])
+                    self.assertEqual(payload["verdict"], "pass")
+
+    def test_gutted_judge_behind_an_inserted_non_live_sibling_blocks(self) -> None:
+        for flag, value in (("disabled", True), ("failOpen", True)):
+            with self.subTest(flag=flag):
+                payload = self._scan(
+                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    [{"command": "echo ok", flag: value}, {"command": self.T}],
+                    self.REAL, self.GUT,
+                )
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
+                self.assertEqual(payload["verdict"], "block")
+
+    def test_judge_moved_into_a_later_matcher_group_fires(self) -> None:
+        base = json.dumps({"hooks": {"Stop": [{"hooks": [{"command": self.T}]}]}})
+        head = json.dumps({"hooks": {"Stop": [
+            {"hooks": [{"command": "echo ok"}]}, {"hooks": [{"command": self.T}]},
+        ]}})
+        payload = _pair(
+            {".claude/settings.json": base, self.JUDGE: self.REAL},
+            {".claude/settings.json": head, self.JUDGE: self.GUT},
+        )
+        self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+
+    def test_comment_out_behind_an_inserted_sibling_fires(self) -> None:
+        for path, event in self.CASES:
+            with self.subTest(path=path):
+                payload = self._scan(
+                    path, event, [{"command": self.T}],
+                    [{"command": "echo ok"}, {"command": "# " + self.T}],
+                    self.REAL, self.REAL,
+                )
+                self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+                finding = payload["findings"][0]
+                self.assertEqual((finding["before"], finding["after"]), (self.T, "# " + self.T))
+
+    def test_target_free_judge_commented_out_behind_a_stub_body_sibling_blocks(self) -> None:
+        payload = _pair(
+            {".claude/settings.json": _hooks("Stop", [{"command": "npx tripwire-judge"}])},
+            {".claude/settings.json": _hooks("Stop", [
+                {"command": "python hooks/new.py"}, {"command": "# npx tripwire-judge"},
+            ]), "hooks/new.py": self.STUB},
+        )
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
+        self.assertEqual(payload["verdict"], "block")
+
+    def test_reordering_unchanged_judges_is_silent(self) -> None:
+        other = "python hooks/other.py"
+        payload = _pair(
+            {".claude/settings.json": _hooks("Stop", [{"command": self.T}, {"command": other}]),
+             self.JUDGE: self.REAL, "hooks/other.py": self.REAL},
+            {".claude/settings.json": _hooks("Stop", [{"command": other}, {"command": self.T}]),
+             self.JUDGE: self.REAL, "hooks/other.py": self.REAL},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_inserting_a_formatter_before_an_unchanged_judge_is_silent(self) -> None:
+        payload = self._scan(
+            ".claude/settings.json", "Stop", [{"command": self.T}],
+            [{"command": "bash hooks/fmt.sh"}, {"command": self.T}],
+            self.REAL, self.REAL, {"hooks/fmt.sh": "#!/bin/sh\nnpx prettier --check .\n"},
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_a_comment_added_beside_the_unchanged_judge_is_silent(self) -> None:
+        payload = self._scan(
+            ".claude/settings.json", "Stop", [{"command": self.T}],
+            [{"command": self.T}, {"command": "# " + self.T}],
+            self.REAL, self.REAL,
+        )
+        self.assertEqual(payload["findings"], [])
+
+    def test_list_index_pairing_still_fires_with_its_old_fields(self) -> None:
+        # The base command at the same index pairs first, so a finding that
+        # fired before keeps its before/after and fingerprint: here the real
+        # judge is removed and a pre-existing stub-body sibling moves into
+        # its index.
+        stubby = "python hooks/stubby.py"
+        payload = _pair(
+            {".claude/settings.json": _hooks("Stop", [{"command": self.T}, {"command": stubby}]),
+             self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
+            {".claude/settings.json": _hooks("Stop", [{"command": stubby}]),
+             self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
+        )
+        self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
+        self.assertEqual(payload["findings"][0]["message"],
+                         "hook command for Stop resolves to a stub body")
+
+    def test_lost_block_at_an_index_keeps_its_spec12_fingerprint(self) -> None:
+        # Spec 12 emitted "lost block capability" when the stubbed judge sat
+        # at an index whose base command had no real body; string pairing
+        # must not relabel it, or a base exemption naming it stops matching.
+        for first in ("echo start", "npx lint-staged"):
+            with self.subTest(first=first):
+                payload = self._scan(
+                    ".claude/settings.json", "Stop",
+                    [{"command": first}, {"command": self.T}],
+                    [{"command": self.T}], self.REAL, self.STUB,
+                )
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
+                finding = payload["findings"][0]
+                self.assertEqual(finding["message"], "hook command for Stop lost block capability")
+                self.assertEqual((finding["before"], finding["after"]),
+                                 ("block-capable", "no block/deny"))
+
+    def test_shifted_twin_of_the_helper_refactor_blocks_where_nothing_live_remains(self) -> None:
+        # Disclosed trade (#10): moving `block` into a helper module is the
+        # spec 7 shape's known honest false positive, and the unshifted edit
+        # blocks under spec 12. Behind an inserted sibling that is not live
+        # it now blocks too; behind a live one it is warn.
+        helper = "from hooks.policy import decide\nimport sys\nsys.exit(decide(sys.stdin.read()))\n"
+        policy = {"hooks/policy.py": "def decide(text):\n    return 2 if not text else 0  # block\n"}
+        for sibling, severity in (({"command": "bash hooks/fmt.sh", "disabled": True}, "critical"),
+                                  ({"command": "bash hooks/fmt.sh"}, "warn")):
+            with self.subTest(sibling=sibling):
+                payload = self._scan(
+                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    [sibling, {"command": self.T}], self.REAL, helper,
+                    dict(policy, **{"hooks/fmt.sh": "#!/bin/sh\nnpx prettier --check .\n"}),
+                )
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", severity)])
+                self.assertEqual(payload["findings"][0]["message"],
+                                 "hook command for Stop lost block capability")
+
+    def test_shifted_comment_out_pairs_only_on_the_exact_command_text(self) -> None:
+        # The string pairing needs the text after `#` to equal the base
+        # command; any other text behind an inserted sibling stays R12 (#9).
+        # At the same index the list-index pairing still catches it.
+        for comment in ("# " + self.T + " (paused)", "#'" + self.T + "'"):
+            with self.subTest(comment=comment):
+                shifted = self._scan(
+                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    [{"command": "echo ok"}, {"command": comment}], self.REAL, self.REAL,
+                )
+                self.assertEqual(shifted["findings"], [])
+                in_place = self._scan(
+                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    [{"command": comment}], self.REAL, self.REAL,
+                )
+                self.assertEqual(_rules(in_place), [("HOOK_BYPASSED", "critical")])
+
+
 if __name__ == "__main__":
     unittest.main()

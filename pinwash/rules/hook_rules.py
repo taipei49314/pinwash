@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from pinwash.escalate import HOOK_RULES, stop_last_resort
@@ -31,6 +32,70 @@ def _non_stub_stop_count(
         elif info["array_len"] > 0 and not info["commands"]:
             n += 0
     return n
+
+
+def _is_comment(command: str) -> bool:
+    return command.lstrip().startswith("#")
+
+
+def _lost_by_text(
+    base_cmds: list[str], base_count: Counter[str], head_count: Counter[str]
+) -> dict[str, str]:
+    """Stripped text -> the first base command with that text that is not a
+    comment and lost an occurrence at head. Built once per event, so pairing
+    every head comment costs one lookup, not a scan of the base list."""
+    out: dict[str, str] = {}
+    for b in base_cmds:
+        text = b.strip()
+        if text and text not in out and not _is_comment(b) and head_count[b] < base_count[b]:
+            out[text] = b
+    return out
+
+
+def _commented_base(cmd: str, prev: str | None, lost_by_text: dict[str, str]) -> str | None:
+    """SPEC §5 HOOK_BYPASSED, "command prefixed with a no-op" (§5.1: its v0
+    closed form is a shell comment): the base command a `#` head command
+    comments out, or None.
+
+    The base command at the same list index pairs first, as since the
+    first engine, so every finding that fired before keeps its fields. Then
+    the base command whose string the comment prefixes, wherever it stood,
+    when that command lost an occurrence: §5.1 compares commands as
+    multisets of their strings, so an inserted sibling cannot move a
+    comment-out out of view (#9, #10).
+    """
+    if not _is_comment(cmd):
+        return None
+    if prev is not None and prev.strip() and not _is_comment(prev):
+        return prev
+    return lost_by_text.get(cmd.lstrip().lstrip("#").strip())
+
+
+def _stub_body_base(
+    cmd: str,
+    prev: str | None,
+    base_count: Counter[str],
+    body_base: dict[str, tuple[bool, bool, str]],
+    body_head: dict[str, tuple[bool, bool, str]],
+) -> str | None:
+    """SPEC §5 GATE_STUBBED body form: the base command whose non-stub body
+    the head command's stub body replaced, or None.
+
+    The base command at the same list index pairs first (spec 4), then the
+    same command string wherever it stood at base: §5.2 compares bodies per
+    resolved target, and an unchanged command is its own base command (#10).
+    """
+    if cmd not in body_head or not body_head[cmd][0]:
+        return None
+
+    def real(command: str) -> bool:
+        return command in body_base and not body_base[command][0]
+
+    if prev is not None and real(prev):
+        return prev
+    if base_count[cmd] and real(cmd):
+        return cmd
+    return None
 
 
 def _tally(states: list[tuple[str, dict[str, bool]]]) -> tuple[dict[str, int], dict[str, int]]:
@@ -134,8 +199,12 @@ def detect(
             )
         base_cmds = info["commands"]
         head_cmds = head_info["commands"]
+        base_count = Counter(base_cmds)
+        head_count = Counter(head_cmds)
+        lost_by_text = _lost_by_text(base_cmds, base_count, head_count)
         for i, cmd in enumerate(head_cmds):
-            prev = base_cmds[i] if i < len(base_cmds) else ""
+            at_index = base_cmds[i] if i < len(base_cmds) else None
+            prev = at_index if at_index is not None else ""
             if stub_command(cmd) and not stub_command(prev):
                 sev = escalate_stop("GATE_STUBBED", event, "warn")
                 add(
@@ -147,12 +216,8 @@ def detect(
                     after=cmd,
                     locator=event,
                 )
-            if (
-                i < len(base_cmds)
-                and prev.strip()
-                and not prev.lstrip().startswith("#")
-                and cmd.lstrip().startswith("#")
-            ):
+            commented = _commented_base(cmd, at_index, lost_by_text)
+            if commented is not None:
                 # SPEC §5 HOOK_BYPASSED: command prefixed with a no-op. The
                 # v0 closed shape for that prefix is a shell comment.
                 sev = escalate_stop("HOOK_BYPASSED", event, "warn")
@@ -161,17 +226,18 @@ def detect(
                     severity=sev,
                     message=f"hook command for {event} commented out",
                     path=path,
-                    before=prev,
+                    before=commented,
                     after=cmd,
                     locator=event,
                 )
-            if (
-                i < len(base_cmds)
-                and cmd in body_head
-                and body_head[cmd][0]
-                and prev in body_base
-                and not body_base[prev][0]
-            ):
+            stubbed = _stub_body_base(cmd, at_index, base_count, body_base, body_head)
+            lost = cmd in body_head and body_head[cmd][1]
+            if stubbed is not None and stubbed != at_index and lost and at_index is not None:
+                # Spec 12 emitted "lost block capability" here (no list-index
+                # stub-body pairing, base command at this index): keep that
+                # finding and its fingerprint, so base exemptions keep matching.
+                stubbed = None
+            if stubbed is not None:
                 # SPEC §5 GATE_STUBBED, body form: the command resolves
                 # (§3.3) to a stub body while the base resolved to a real one.
                 sev = escalate_stop("GATE_STUBBED", event, "warn")
@@ -180,13 +246,15 @@ def detect(
                     severity=sev,
                     message=f"hook command for {event} resolves to a stub body",
                     path=path,
-                    before=body_base[prev][2],
+                    before=body_base[stubbed][2],
                     after=body_head[cmd][2],
                     locator=f"{event}:{cmd}",
                 )
-            elif i < len(base_cmds) and cmd in body_head and body_head[cmd][1]:
+            elif lost:
                 # SPEC §5.2 (spec 7): shape-preserving gut job — the judge
-                # body can no longer refuse anything.
+                # body can no longer refuse anything. The comparison is per
+                # target path (§3.3), so it needs no command pairing and no
+                # list position (#10).
                 sev = escalate_stop("GATE_STUBBED", event, "warn")
                 add(
                     rule="GATE_STUBBED",
