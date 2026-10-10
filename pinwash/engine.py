@@ -226,6 +226,20 @@ def scan_pair(
         b_obj, b_st = json_load(base_files.get(path))
         if b_st == "ok":
             base_contexts.update(ruleset_contexts(b_obj))
+    # SPEC §5 (spec 23, R16): the head side of a rename, the contexts a head
+    # ruleset names and those a head job reports on the enforcement path.
+    head_contexts: set[str] = set()
+    for path in paths:
+        if is_gha_ruleset(path):
+            h_obj, h_st = json_load(head_files.get(path))
+            if h_st == "ok":
+                head_contexts.update(ruleset_contexts(h_obj))
+    head_reporting = required_check.head_reporters(
+        [text_load(head_files.get(path)) for path in paths if is_gha_workflow(path)]
+        if base_contexts else []
+    )
+    base_folded = required_check.fold_contexts(base_contexts)
+    head_folded = required_check.fold_contexts(head_contexts)
 
     # SPEC §5.3 (spec 18): the host merges the allow lists of both settings
     # files, so a base entry in either one grants its class.
@@ -367,7 +381,8 @@ def scan_pair(
             required_check.detect_jobs(
                 path, base_g, head_g, base_contexts, add,
                 note=note_gha, changed=lambda p: p in changed_set(),
-                calls_of=calls_of,
+                calls_of=calls_of, head_contexts=head_folded,
+                head_reporting=head_reporting, base_folded=base_folded,
             )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))

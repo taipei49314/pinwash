@@ -332,7 +332,8 @@ class UnknownCoverageReasons(unittest.TestCase):
         # (§5.5; #13, #14, #15, R03).
         self.assertEqual(len(gha), 11, gha)
         producer = self._required_check_reasons()
-        self.assertEqual(len(producer), 8, producer)
+        # Spec 23 adds `producer name case changed` (R-15).
+        self.assertEqual(len(producer), 9, producer)
         # Spec 16: the parse-status and working-tree rows (engine) and the
         # permission rows (§5.3).
         from pinwash import engine

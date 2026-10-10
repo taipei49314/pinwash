@@ -28,6 +28,7 @@ NEEDS_ROW = "producer job needs changed"
 TRIGGER_ROW = "producer trigger configuration changed"
 STEPS_ROW = "producer step run keys changed"
 NAME_ROW = "producer name unresolved"
+CASE_ROW = "producer name case changed"
 STRATEGY_ROW = "producer job strategy changed"
 CLAIM_ROW = "head job claims a required context"
 REUSABLE_ROW = "reusable workflow producer unresolved"
@@ -286,7 +287,8 @@ class ProducerStepRunKeys(_RowCase):
 
 class ProducerLinkage(_RowCase):
     """R-15 (#15, R16): an expression `name:`, `strategy:` added or changed,
-    and head claimants. A literal rename stays booked (R16's detection bump)."""
+    and head claimants. A literal rename is detected since spec 23
+    (tests/test_producer_rename.py); a rename in letter case only is a row."""
 
     def test_expression_name_is_a_row(self) -> None:
         for name in ("    name: ${{ 'verify' }}\n", "    name: ci (${{ matrix.py }})\n",
@@ -294,10 +296,11 @@ class ProducerLinkage(_RowCase):
             with self.subTest(name=name):
                 self.assertRowOnly(_scan(wf(), wf(name=name)), [NAME_ROW])
 
-    def test_literal_rename_stays_silent(self) -> None:
-        for name in ("    name: verify\n", "    name: Ci\n", ""):
-            with self.subTest(name=name):
-                self.assertSilent(_scan(wf(), wf(name=name)))
+    def test_literal_rename_is_detected_since_spec_23(self) -> None:
+        payload = _scan(wf(), wf(name="    name: verify\n"))
+        self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high", "name: verify")])
+        self.assertRowOnly(_scan(wf(), wf(name="    name: Ci\n")), [CASE_ROW])
+        self.assertSilent(_scan(wf(), wf(name="")))
 
     def test_strategy_added_or_changed_is_a_row(self) -> None:
         matrix = "    strategy:\n      matrix:\n        py: ['3.11']\n"

@@ -20,6 +20,7 @@ from pinwash.parse.gha import (
     job_event_filtered_off,
     job_unresolved,
     needs_names,
+    parse_workflow,
     step_run_keys,
 )
 from pinwash.surfaces import norm
@@ -37,6 +38,7 @@ PRODUCER_NEEDS = "producer job needs changed"
 PRODUCER_TRIGGER_CONFIG = "producer trigger configuration changed"
 PRODUCER_STEPS = "producer step run keys changed"
 PRODUCER_NAME = "producer name unresolved"
+PRODUCER_NAME_CASE = "producer name case changed"
 PRODUCER_STRATEGY = "producer job strategy changed"
 CONTEXT_CLAIMED = "head job claims a required context"
 REUSABLE_PRODUCER = "reusable workflow producer unresolved"
@@ -44,6 +46,92 @@ REUSABLE_PRODUCER = "reusable workflow producer unresolved"
 # SPEC §5.5 (spec 14): the single-line job `if:` values read as always
 # running (with the §5.6 readings, spec 22, the closed forms); exact text.
 IF_TRUE_FORMS = frozenset({"true", "'true'", '"true"', "${{ true }}"})
+
+
+# SPEC §5 (spec 23, AI-assisted ruling R-15 on #15, as the challenger
+# amended it): producers are linked to ruleset contexts with ASCII letters
+# compared without case, and a head `name:` is compared after one leading
+# YAML anchor token and one layer of quotes are stripped. A name that is
+# then still not literal text (an expression, a tag, an alias, a flow or
+# block indicator) is not compared.
+_ASCII_FOLD = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+_NOT_LITERAL = ("&", "*", "!", "{", "[", "|", ">", "%", "@", "`")
+
+
+def _fold(text: str) -> str:
+    return text.translate(_ASCII_FOLD)
+
+
+def _name_literal(text: str) -> str | None:
+    """The literal text a `name:` value as written reads as (§5, spec 23),
+    or None when it is not literal: one leading anchor token of a plain
+    value stripped; one layer of quotes removed, YAML's `''` decoded in a
+    single-quoted value; not literal when it holds `${{`, is a double-quoted
+    escape, or is a plain value starting with a YAML indicator or ending
+    in whitespace YAML keeps and the grammar does not compare (review of
+    2026-10-10). An empty result reports the job key."""
+    v = text
+    if v.startswith("&"):
+        cut = v.find(" ")
+        if cut == -1:
+            return None
+        v = v[cut:].strip(" \t")
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        inner = v[1:-1]
+        if v[0] == '"' and "\\" in inner:
+            return None
+        if v[0] == "'":
+            inner = inner.replace("''", "'")
+        return None if "${{" in inner else inner
+    if "${{" in v or v[:1] in _NOT_LITERAL or v != v.strip():
+        return None
+    return v
+
+
+def _head_display(job: GhaJob) -> str | None:
+    """The literal context a job reports as GitHub reads its `name:` (§5,
+    spec 23): the name's literal text, or the job key when it has none or
+    an empty one; None when the grammar does not read it as literal."""
+    if not job.name_resolved:
+        return None
+    if job.name is None:
+        return job.key
+    literal = _name_literal(job.name_text if job.name_text is not None else job.name)
+    if literal is None:
+        return None
+    return literal or job.key
+
+
+def fold_contexts(contexts: set[str]) -> frozenset[str]:
+    """The contexts with ASCII letters folded (§5, spec 23), computed once
+    per run."""
+    return frozenset(_fold(c) for c in contexts)
+
+
+def head_reporters(texts: list[tuple[str | None, str]]) -> set[str]:
+    """SPEC §5 (spec 23): the contexts, ASCII case folded, that a head job
+    reports on the enforcement path: in a workflow whose `on:` includes
+    `push` or `pull_request` (or the grammar does not resolve), other than
+    a job §5.6 reads as skipped. `texts` are the head workflow texts with
+    their load status."""
+    found: set[str] = set()
+    for text, status in texts:
+        if status != "ok" or text is None:
+            continue
+        g = parse_workflow(text)
+        if g.unparseable or not (g.triggers & ENFORCEMENT_EVENTS or ON_UNRESOLVED in g.unknown):
+            continue
+        for job in g.jobs.values():
+            if job.body_unresolved or job_disabled(job) or job_event_filtered_off(job):
+                continue
+            if job.calls is not None or (job.strategy is not None and any("matrix" in p for p in job.strategy)):
+                # A calling job reports `<name> / …` and a matrix job
+                # `<name> (…)`, never its bare name (spec 23 review).
+                continue
+            display = _head_display(job)
+            if display is not None:
+                found.add(_fold(display))
+    return found
 
 
 def ruleset_contexts(doc: Any) -> list[str]:
@@ -186,6 +274,9 @@ def detect_jobs(
     note: Callable[[str], None] | None = None,
     changed: Callable[[str], bool] | None = None,
     calls_of: Callable[[str], list[str]] | None = None,
+    head_contexts: frozenset[str] | None = None,
+    head_reporting: set[str] | None = None,
+    base_folded: frozenset[str] | None = None,
 ) -> None:
     note = note if note is not None else (lambda reason: None)
     changed = changed if changed is not None else (lambda p: True)
@@ -204,13 +295,17 @@ def detect_jobs(
         return
     head_jobs = head_g.jobs if head_ok and head_g is not None else {}
     linked = False
+    # `head_contexts` and `base_folded` arrive folded, once per run.
+    folded_base = base_folded if base_folded is not None else fold_contexts(base_contexts)
+    folded_head = head_contexts if head_contexts is not None else frozenset()
     for key, job in base_g.jobs.items():
         if not job.name_resolved:
             # SPEC §3.1 residual (#4): the job's context name is unknown
             # coverage; a linkage guessed from the job key would be invented.
             continue
         display = job.name or key
-        if display not in base_contexts:
+        if _fold(display) not in folded_base:
+            # Spec 23: ASCII letters compared without case (R-15).
             continue
         linked = True
         head_job = head_jobs.get(key)
@@ -267,11 +362,30 @@ def detect_jobs(
             # trigger loss, which keeps its finding.
             dropped = True
             after = head_job.if_value or ""
+        elif (
+            head_job is not None
+            and not job.body_unresolved
+            and not head_job.body_unresolved
+            and _fold(display) in folded_head
+            and (renamed := _head_display(head_job)) is not None
+            and _fold(renamed) != _fold(display)
+            and head_reporting is not None
+            and _fold(display) not in head_reporting
+        ):
+            # spec 23 (§5, R-15): the producer, same workflow file and job
+            # key, reports another literal context while a head ruleset
+            # still names the base one and no head job reports it on the
+            # enforcement path (the orphan gate keeps an honest aggregator
+            # that takes the old name). Placed last: existing findings keep
+            # their fingerprints.
+            dropped = True
+            after = "name: " + renamed
         if dropped:
             add(
                 rule="REQUIRED_CHECK_DROPPED",
                 # spec 9: producer-side disjuncts (deleted / if-disabled /
-                # continue-on-error / trigger-loss; spec 22 event filter) base at high — a required
+                # continue-on-error / trigger-loss; spec 22 event filter;
+                # spec 23 renamed) base at high — a required
                 # check that cannot run on any enforcement path is a dropped
                 # check, and the default fail_on=high consumer must block on
                 # it (round 3 live warn-gap specimen: `# on: push`).
@@ -327,15 +441,20 @@ def _note_producer(
         note(PRODUCER_NEEDS)
     if head_job.strategy is not None and head_job.strategy != job.strategy:
         note(PRODUCER_STRATEGY)
-    head_name = head_job.name
-    if (
-        head_name is not None
-        and head_job.name_resolved
-        and ("${{" in head_name or head_job.name_escaped)
-        and head_name != (job.name or job.key)
-    ):
-        # An expression, or (spec 14 review) a double-quoted escape.
-        note(PRODUCER_NAME)
+    base_display = job.name or job.key
+    head_display = _head_display(head_job)
+    if head_job.name_resolved and head_display is None:
+        # Compared as written, so an unchanged non-literal name is no row.
+        head_written = head_job.name_text if head_job.name_text is not None else head_job.name
+        base_written = job.name_text if job.name_text is not None else base_display
+        if head_job.name is not None and head_written != base_written:
+            # An expression, (spec 14 review) a double-quoted escape, or
+            # (spec 23) a tag, an alias, a flow or block indicator.
+            note(PRODUCER_NAME)
+    elif head_display is not None and head_display != base_display and _fold(head_display) == _fold(base_display):
+        # Spec 23 (R-15): a rename in letter case only, a `name:` removed or
+        # added included, is not a block.
+        note(PRODUCER_NAME_CASE)
     if _step_keys_changed(job.steps, head_job.steps) or _step_keys_changed(
         [base_g.defaults], [head_g.defaults]
     ):
@@ -395,6 +514,11 @@ def _claims(job: GhaJob, base_contexts: set[str]) -> bool:
     resolve to literal text (an expression, a double-quoted escape, a
     multiline value), any context it may evaluate to (spec 14 review)."""
     display = _display(job)
+    literal = _head_display(job)
+    if literal is not None and job.calls is None and _fold(literal) in fold_contexts(base_contexts):
+        # Spec 23 review: read as the renamed disjunct's gate reads a name
+        # (one anchor and one quote layer stripped, ASCII case folded).
+        return True
     if display is not None and "${{" not in display:
         if display in base_contexts:
             return True
