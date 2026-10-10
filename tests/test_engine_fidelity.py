@@ -164,7 +164,7 @@ class JsonNesting(unittest.TestCase):
         rs = {"required_status_checks": ["tripwire", "ci"]}
         weakenings = {
             SETTINGS: (STOP, json.dumps({"hooks": {}, "permissions": {"allow": ["Bash(*)"]}})),
-            ".claude/settings.local.json": ("{}", '{"permissionMode": "dontAsk"}'),
+            ".claude/settings.local.json": ("{}", '{"permissionMode": "acceptEdits"}'),
             ".cursor/hooks.json": (
                 json.dumps({"hooks": {"stop": [{"command": "python hooks/judge.py"}]}}),
                 '{"hooks": {}}',
@@ -425,10 +425,12 @@ class FingerprintsUnchanged(unittest.TestCase):
         ),
         "claude_perm": (
             {SETTINGS: "{}"},
-            {SETTINGS: json.dumps({"permissions": {"allow": ["Bash(*)"]}, "permissionMode": "dontAsk"})},
+            # Spec 17: a move to dontAsk tightens, so the mode finding of
+            # this case is acceptEdits (its fingerprint replaces b4be3929...).
+            {SETTINGS: json.dumps({"permissions": {"allow": ["Bash(*)"]}, "permissionMode": "acceptEdits"})},
             [
                 "PERMISSION_WIDENED/.claude/settings.json/v1:6e0433b8468ed22d43927229abe45009b6f284553409aa8a432787bb5702422d",
-                "PERMISSION_WIDENED/.claude/settings.json/v1:b4be3929154e80cada9c2a29e2c097205c90427f64b1347c07958c8d8f03365f",
+                "PERMISSION_WIDENED/.claude/settings.json/v1:6e101881bfe7bc3d692de05a46c5b6c8e8e45746360ce93af8087eb8c591dd2d",
             ],
         ),
     }
@@ -829,11 +831,11 @@ class EffectiveFailOn(unittest.TestCase):
 
 class ClaudePermissionWidened(unittest.TestCase):
     """SPEC §5.3 claude_settings rows, on both settings paths (§3), at high
-    (§6). Pins only what §5.3 states: the four allow literals, the
-    permissionMode lattice default > acceptEdits > dontAsk, and that
-    shrinking or a move to a stricter mode is not a finding. Grant
-    spellings outside the literals and unknown mode values (#16) await a
-    ruling and are deliberately not pinned here."""
+    (§6). Pins only what §5.3 states: the four allow literals, top-level
+    permissionMode firing only when written as acceptEdits or
+    bypassPermissions (spec 17), and that shrinking or a move to a
+    stricter mode is not a finding. permissions.defaultMode is pinned in
+    tests/test_permission_mode.py."""
 
     PATHS = (".claude/settings.json", ".claude/settings.local.json")
     LITERALS = ("Bash(*)", "Bash(rm *)", "Bash(git push --force*)", "*")
@@ -883,11 +885,13 @@ class ClaudePermissionWidened(unittest.TestCase):
     def test_mode_widening_fires_high(self) -> None:
         for path in self.PATHS:
             for base, head in (
-                (None, "dontAsk"),
-                ("default", "dontAsk"),
-                ("acceptEdits", "dontAsk"),
                 (None, "acceptEdits"),
                 ("default", "acceptEdits"),
+                ("manual", "acceptEdits"),
+                ("dontAsk", "acceptEdits"),
+                (None, "bypassPermissions"),
+                ("acceptEdits", "bypassPermissions"),
+                ("plan", "bypassPermissions"),
             ):
                 with self.subTest(path=path, base=base, head=head):
                     self.assertEqual(
@@ -897,7 +901,7 @@ class ClaudePermissionWidened(unittest.TestCase):
 
     def test_mode_widening_in_a_created_settings_file_fires(self) -> None:
         for path in self.PATHS:
-            for head in ("dontAsk", "acceptEdits"):
+            for head in ("acceptEdits", "bypassPermissions"):
                 with self.subTest(path=path, head=head):
                     self.assertEqual(
                         self._widened(path, None, self._doc(mode=head)),
@@ -907,11 +911,15 @@ class ClaudePermissionWidened(unittest.TestCase):
     def test_reverse_and_unchanged_modes_are_silent(self) -> None:
         for path in self.PATHS:
             for base, head in (
-                ("dontAsk", "acceptEdits"),
+                (None, "dontAsk"),
+                ("default", "dontAsk"),
+                ("acceptEdits", "dontAsk"),
                 ("dontAsk", "default"),
                 ("acceptEdits", "default"),
                 ("dontAsk", None),
                 ("acceptEdits", None),
+                ("bypassPermissions", "acceptEdits"),
+                ("plan", "acceptEdits"),
                 (None, "default"),
                 ("default", "default"),
                 ("acceptEdits", "acceptEdits"),
@@ -925,7 +933,7 @@ class ClaudePermissionWidened(unittest.TestCase):
     def test_literal_and_mode_in_one_change_are_two_findings(self) -> None:
         for path in self.PATHS:
             with self.subTest(path=path):
-                head = self._doc(["Bash(*)"], "dontAsk")
+                head = self._doc(["Bash(*)"], "acceptEdits")
                 self.assertEqual(
                     self._widened(path, self._doc([], "default"), head),
                     [("PERMISSION_WIDENED", "high"), ("PERMISSION_WIDENED", "high")],

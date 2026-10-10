@@ -127,13 +127,14 @@ class StatusPairRows(unittest.TestCase):
 
 
 class PermissionModeRows(unittest.TestCase):
-    """R-16a (#16): mode keys the §5.3 rows do not read."""
+    """R-16a (#16): mode changes the §5.3 rows do not evaluate. Since spec
+    17 `permissions.defaultMode` is compared (tests/test_permission_mode.py);
+    removing `default` or `acceptEdits` and the two mode switches stay
+    rows."""
 
-    def test_default_mode_added_changed_or_removed(self) -> None:
-        for base, head in (({}, {"permissions": {"defaultMode": "acceptEdits"}}),
-                           ({"permissions": {"defaultMode": "dontAsk"}}, {"permissions": {"defaultMode": "default"}}),
-                           ({"permissions": {"defaultMode": "dontAsk"}}, {"permissions": {}}),
-                           ({"permissions": {"defaultMode": "plan"}}, {"permissions": {"defaultMode": "bypassPermissions"}}),
+    def test_default_mode_removed_and_mode_switches(self) -> None:
+        for base, head in (({"permissions": {"defaultMode": "default"}}, {"permissions": {}}),
+                           ({"permissions": {"defaultMode": "acceptEdits"}}, {}),
                            ({"permissions": {"disableBypassPermissionsMode": "disable"}}, {"permissions": {}}),
                            ({"permissions": {"disableAutoMode": "disable"}}, {})):
             with self.subTest(base=base, head=head):
@@ -141,21 +142,20 @@ class PermissionModeRows(unittest.TestCase):
                 self.assertEqual(payload["findings"], [])
                 self.assertEqual(_rows(payload), [(CS, MODE)])
 
-    def test_a_deleted_file_or_the_local_file(self) -> None:
-        payload = _scan({LOCAL: {"permissions": {"defaultMode": "dontAsk"}}}, {})
+    def test_a_deleted_local_file(self) -> None:
+        payload = _scan({LOCAL: {"permissions": {"defaultMode": "acceptEdits"}}}, {})
         self.assertEqual(_rows(payload), [(LOCAL, MODE)])
-        payload = _scan({}, {LOCAL: {"permissions": {"defaultMode": "default"}}})
-        self.assertEqual(_rows(payload), [(LOCAL, MODE)])
+        self.assertEqual(_scan({}, {LOCAL: {"permissions": {"defaultMode": "default"}}})["unknown_coverage"], [])
 
     def test_unchanged_and_respelled_values_are_silent(self) -> None:
         doc = {"permissions": {"defaultMode": "dontAsk", "allow": [NPM]}}
         self.assertEqual(_scan({CS: doc}, {CS: dict(doc, model="x")})["unknown_coverage"], [])
+        # Spec 17: a value that is not a string sets nothing.
         self.assertEqual(_scan({CS: {"permissions": {"defaultMode": 1}}},
-                               {CS: {"permissions": {"defaultMode": True}}})["unknown_coverage"],
-                         [{"path": CS, "reason": MODE}])
+                               {CS: {"permissions": {"defaultMode": True}}})["unknown_coverage"], [])
 
     def test_top_level_mode_off_the_lattice_or_removed(self) -> None:
-        for base, head in (({}, {"permissionMode": "bypassPermissions"}), ({}, {"permissionMode": "plan"}),
+        for base, head in (({}, {"permissionMode": "plan"}),
                            ({"permissionMode": "default"}, {"permissionMode": "auto"}),
                            ({"permissionMode": "dontAsk"}, {"permissionMode": ["dontAsk"]}),
                            ({"permissionMode": "default"}, {}), ({"permissionMode": "plan"}, {"permissionMode": "default"})):
