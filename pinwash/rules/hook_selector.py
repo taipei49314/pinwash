@@ -149,18 +149,18 @@ def _live(rec: dict[str, Any]) -> bool:
     return not rec["flagged"] and not stub_command(cmd) and not cmd.lstrip().startswith("#")
 
 
-def _key(command: str, files: dict[str, bytes]) -> tuple[str, ...]:
-    targets = hook_command_targets(command, files)
+def _key(command: str, files: dict[str, bytes], resolve: Any = None) -> tuple[str, ...]:
+    targets = resolve(command) if resolve is not None else hook_command_targets(command, files)
     return ("targets",) + tuple(sorted(set(targets))) if targets else ("command", command)
 
 
 def _by_key(
-    recs: list[dict[str, Any]], files: dict[str, bytes]
+    recs: list[dict[str, Any]], files: dict[str, bytes], resolve: Any = None
 ) -> dict[tuple[str, ...], list[dict[str, Any]]]:
     out: dict[tuple[str, ...], list[dict[str, Any]]] = {}
     for rec in recs:
         if _live(rec):
-            out.setdefault(_key(rec["command"], files), []).append(rec)
+            out.setdefault(_key(rec["command"], files, resolve), []).append(rec)
     return out
 
 
@@ -196,6 +196,7 @@ def selector_changed(
     head_doc: Any,
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
+    targets: Any = (None, None),
 ) -> bool:
     """Pair live commands by string first, so each string's selector is
     judged on its own (a narrowing of one command cannot hide behind a
@@ -218,8 +219,8 @@ def selector_changed(
                 return True
         b_rest = [r for c in sorted(set(b_s) - common) for r in b_s[c]]
         h_rest = [r for c in sorted(set(h_s) - common) for r in h_s[c]]
-        b_key = _by_key(b_rest, base_files)
-        h_key = _by_key(h_rest, head_files)
+        b_key = _by_key(b_rest, base_files, targets[0])
+        h_key = _by_key(h_rest, head_files, targets[1])
         for k in sorted(set(b_key) & set(h_key)):
             if _fields_changed(b_key[k], h_key[k]):
                 return True
@@ -233,6 +234,7 @@ def detect(
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
     note_unknown: Any,
+    targets: Any = (None, None),
 ) -> None:
-    if selector_changed(base_doc, head_doc, base_files, head_files):
+    if selector_changed(base_doc, head_doc, base_files, head_files, targets):
         note_unknown(REASON)

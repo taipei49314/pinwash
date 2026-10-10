@@ -161,6 +161,62 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
     return out
 
 
+def _command_objects(obj: dict[str, Any]) -> list[dict[str, Any]]:
+    """The objects whose `command` _commands_from_hook_object reads, in the
+    same walk: each item that holds a string command, the items of an item
+    that holds none, then the object itself."""
+    found: list[dict[str, Any]] = []
+    stack: list[list[Any]] = [[obj, 0]]
+    while stack:
+        frame = stack[-1]
+        node, items = frame[0], _hook_items(frame[0])
+        if frame[1] < len(items):
+            item = items[frame[1]]
+            frame[1] += 1
+            if isinstance(item, dict) and isinstance(item.get("command"), str):
+                found.append(item)
+            elif isinstance(item, dict):
+                stack.append([item, 0])
+            continue
+        stack.pop()
+        if isinstance(node.get("command"), str):
+            found.append(node)
+    return found
+
+
+def command_holders(doc: Any) -> tuple[set[str], set[str]]:
+    """(command strings some hook object holds with an `args` key (Claude
+    Code 2.1.296's exec form) or a `shell` key whose value is not the string
+    "bash"; command strings some hook object holds with neither). §3.3
+    (spec 26): the project-root forms are not read for a string that only
+    the first kind of object holds, so an added object cannot turn them off
+    for a string another object runs through the shell. The objects are
+    exactly those §5.1 reads a `command` from (extract_event_hooks), which
+    are the ones the host runs (review of 2026-10-10)."""
+    guarded: set[str] = set()
+    plain: set[str] = set()
+    root = _as_dict(doc)
+    if root is None:
+        return guarded, plain
+    hooks = root.get("hooks")
+    entries: list[dict[str, Any]] = []
+    if isinstance(hooks, dict):
+        for event, lst in hooks.items():
+            if isinstance(event, str) and isinstance(lst, list):
+                entries.extend(e for e in lst if isinstance(e, dict))
+    elif isinstance(hooks, list):
+        for e in hooks:
+            if isinstance(e, dict) and isinstance(e.get("event") or e.get("type") or "unknown", str):
+                entries.append(e)
+    for entry in entries:
+        for node in _command_objects(entry):
+            if "args" in node or ("shell" in node and node["shell"] != "bash"):
+                guarded.add(node["command"])
+            else:
+                plain.add(node["command"])
+    return guarded, plain
+
+
 STUB_COMMANDS = frozenset(
     {
         "true",

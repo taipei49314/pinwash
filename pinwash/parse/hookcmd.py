@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from typing import Callable
 
-from pinwash.hooks import extract_event_hooks
+from pinwash.hooks import command_holders, extract_event_hooks
 from pinwash.parse.jsonsurf import json_load
 from pinwash.surfaces import is_claude_settings, is_cursor_hooks, norm
 from pinwash.textutil import crlf_to_lf, decode_utf8
@@ -98,8 +99,109 @@ def body_lost_block_capability(base_data: bytes, head_data: bytes) -> bool:
     return exit2_count(head_f) <= exit2_count(base_f)
 
 
-def hook_command_targets(command: str, files: dict[str, bytes]) -> list[str]:
-    """§3.3 closed resolution: command string -> repo-relative target paths."""
+# SPEC §3.3 (spec 26, AI-assisted ruling R-18a(c), #18): the closed
+# project-root forms of a claude_settings command. Claude Code runs a hook
+# with CLAUDE_PROJECT_DIR set to the project root whose settings it reads
+# (the launch directory, or 2.1.296's --project-config-root), after the
+# settings `env` and the launching environment (executed on 2.1.42 and
+# 2.1.296: neither redirects it).
+_ROOT_FORMS = (
+    '"$CLAUDE_PROJECT_DIR"/',
+    '"${CLAUDE_PROJECT_DIR}"/',
+    "$CLAUDE_PROJECT_DIR/",
+    "${CLAUDE_PROJECT_DIR}/",
+)
+# Quoted to the end of the path: the closing `"` ends the path.
+_ROOT_FORMS_QUOTED = ('"$CLAUDE_PROJECT_DIR/', '"${CLAUDE_PROJECT_DIR}/')
+_PATH_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-"
+)
+# What may follow a path inside its word: the start of an operator or a
+# redirection. The run of read words ends there.
+_WORD_END = frozenset(";&|<>")
+# A plain word (an interpreter, a flag, an assignment) is printable ASCII
+# (`!` to `~`) without any of these: nothing in it parameter-expands,
+# quotes, runs, groups, redirects or comments (review of 2026-10-10: a
+# character the shell does not split at, such as CR or NBSP, ends the run).
+_PLAIN_FORBIDDEN = frozenset("$`\"'\\;&|()<>{}#")
+
+
+def _root_word(word: str) -> tuple[str, bool] | None:
+    """(the repo-relative path a root-form word names, with any operator or
+    redirection after it; whether the run of read words goes on), or None."""
+    for form in _ROOT_FORMS_QUOTED:
+        if word.startswith(form):
+            rest = word[len(form):]
+            end = rest.find('"')
+            if end <= 0:
+                return None
+            path, tail = rest[:end], rest[end + 1:]
+            if tail and tail[0] not in _WORD_END:
+                return None
+            if path.startswith("/") or any(ch not in _PATH_CHARS for ch in path):
+                return None
+            return path + tail, not tail
+    for form in _ROOT_FORMS:
+        if word.startswith(form):
+            rest = word[len(form):]
+            n = 0
+            while n < len(rest) and rest[n] in _PATH_CHARS:
+                n += 1
+            path, tail = rest[:n], rest[n:]
+            if not path or path.startswith("/"):
+                return None
+            if tail and tail[0] not in _WORD_END:
+                return None
+            return path + tail, not tail
+    return None
+
+
+def strip_project_root(command: str) -> str:
+    """SPEC §3.3 (spec 26): rewrite the closed project-root forms that stand
+    in the command's leading run of words, before anything that could
+    expand, quote, group, run or redirect; the rest is kept as written.
+
+    Words split at spaces and tabs. The run goes on over plain words and
+    root-form words, and stops at the first other word, or after a root-form
+    word whose path an operator or a redirection follows."""
+    # Only the blanks the shell splits at (review of 2026-10-10: Python's
+    # strip() also took CR, VT, FF and NBSP, which the shell keeps in a word).
+    text = command.strip(" \t\n")
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        j = i
+        while j < n and text[j] not in " \t":
+            j += 1
+        word = text[i:j]
+        root = _root_word(word)
+        if root is not None:
+            out.append(root[0])
+            if not root[1]:
+                out.append(text[j:])
+                return "".join(out)
+        elif all("!" <= ch <= "~" and ch not in _PLAIN_FORBIDDEN for ch in word):
+            out.append(word)
+        else:
+            out.append(text[i:])
+            return "".join(out)
+        k = j
+        while k < n and text[k] in " \t":
+            k += 1
+        out.append(text[j:k])
+        i = k
+    return "".join(out)
+
+
+def hook_command_targets(
+    command: str, files: dict[str, bytes], *, project_root: bool = False
+) -> list[str]:
+    """§3.3 closed resolution: command string -> repo-relative target paths.
+
+    `project_root` reads the closed project-root forms (a claude_settings
+    command some hook object holds without `args` or a non-bash `shell`)."""
+    if project_root:
+        command = strip_project_root(command)
     text = command.strip().strip("\"'")
     for ch in ";&|":
         text = text.replace(ch, " ")
@@ -142,11 +244,54 @@ def body_scan(path: str, data: bytes) -> tuple[bool, str]:
     return False, next((ln for ln in lines if ln not in allowed), "")
 
 
+def root_form_guard(files: dict[str, bytes]) -> frozenset[str]:
+    """SPEC §3.3 (spec 26): the commands of this side's claude_settings files
+    that only hook objects holding `args` (the exec form) or a `shell` other
+    than "bash" hold. Claude Code 2.1.296 does not run those through a POSIX
+    shell, so the project-root forms need not name a repo path there
+    (EXECUTED: the exec form with `$CLAUDE_PROJECT_DIR/` runs a directory so
+    named, and `shell: "powershell"` does not run the file). A string that
+    any other hook object holds is read: that object runs it through the
+    shell (EXECUTED: an added same-string object with `args` or `shell`
+    changes nothing the host runs for the other)."""
+    guarded: set[str] = set()
+    plain: set[str] = set()
+    for path in sorted(files):
+        if not is_claude_settings(path):
+            continue
+        obj, st = json_load(files.get(path))
+        if st == "ok":
+            g, p = command_holders(obj)
+            guarded |= g
+            plain |= p
+    return frozenset(guarded - plain)
+
+
+def resolver(
+    files: dict[str, bytes], *, claude: bool, guard: frozenset[str] = frozenset()
+) -> Callable[[str], list[str]]:
+    """command -> §3.3 targets on one side, for one hook surface kind."""
+    cache: dict[str, list[str]] = {}
+
+    def targets(cmd: str) -> list[str]:
+        got = cache.get(cmd)
+        if got is None:
+            got = hook_command_targets(cmd, files, project_root=claude and cmd not in guard)
+            cache[cmd] = got
+        return got
+
+    return targets
+
+
 def command_body_map(
     files: dict[str, bytes],
     base_files: dict[str, bytes] | None = None,
+    *,
+    claude: bool,
+    guard: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, tuple[bool, bool, str]], set[str]]:
-    """Per side: command -> (all targets stub, lost block capability,
+    """Per side and hook surface kind (claude_settings when `claude`, else
+    cursor_hooks): command -> (all targets stub, lost block capability,
     evidence), plus target paths. The block-capability shape compares each
     target's head body against the same path at base (§5.2, spec 7)."""
     bodies: dict[str, tuple[bool, bool, str]] = {}
@@ -154,8 +299,9 @@ def command_body_map(
     # Each body is read once per side, however many commands name it.
     scan_cache: dict[str, tuple[bool, str]] = {}
     lost_cache: dict[str, bool] = {}
+    resolve = resolver(files, claude=claude, guard=guard)
     for path in sorted(files):
-        if not (is_claude_settings(path) or is_cursor_hooks(path)):
+        if not (is_claude_settings(path) if claude else is_cursor_hooks(path)):
             continue
         obj, st = json_load(files.get(path))
         if st != "ok":
@@ -164,7 +310,7 @@ def command_body_map(
             for cmd in info["commands"]:
                 if cmd in bodies:
                     continue
-                targets = hook_command_targets(cmd, files)
+                targets = resolve(cmd)
                 if not targets:
                     continue
                 targets_all.update(targets)
