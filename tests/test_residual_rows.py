@@ -125,6 +125,17 @@ class ResidualRows(unittest.TestCase):
             self.assertEqual(ids, [f"R{n:02d}" for n in range(1, len(ids) + 1)])
             self.assertGreaterEqual(len(ids), BOOKED)
 
+    def test_rows_routed_since_spec_12_have_one_wording(self) -> None:
+        # THREATMODEL says the rows booked in spec 12 use SPEC §11's wording;
+        # the routing bumps (spec 13: R06, R07, R12, R13; spec 14: R03, R14,
+        # R15, R16, R20) rewrite rows in both tables at once. R07 keeps
+        # THREATMODEL's own prefix ("the SPEC §5.2 closed body lists").
+        spec = {cells[0]: cells[1] for cells in spec_rows()}
+        tm = {cells[0]: cells[3] for cells in threatmodel_rows()}
+        same = ["R03", "R06"] + [f"R{n}" for n in range(11, BOOKED + 1)]
+        for row_id in same:
+            self.assertEqual(spec[row_id], tm[row_id], row_id)
+
     def test_rows_have_their_table_width(self) -> None:
         # An unescaped `|` inside a residual (a shell `||`, a matcher list)
         # would split the row; the tables must keep their column count.

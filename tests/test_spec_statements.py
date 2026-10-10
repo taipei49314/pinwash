@@ -1,5 +1,5 @@
-"""Engine behaviour that SPEC text states since spec 12 (#25, #26 items 3, 5)
-and spec 13 (#26 item 6).
+"""Engine behaviour that SPEC text states since spec 12 (#25, #26 items 3, 5),
+spec 13 (#26 item 6) and spec 14 (the closed `unknown_coverage` list).
 
 Spec 12 wrote these sentences to what the engine already did, with no
 verdict change. Each class pins one of them, so the text and the engine
@@ -249,8 +249,8 @@ class StopLikeSet(unittest.TestCase):
 
 
 class UnknownCoverageReasons(unittest.TestCase):
-    """SPEC §7 (spec 13): `reason` is fixed text from a closed list. The list
-    in SPEC and the reasons the engine can emit are the same set."""
+    """SPEC §7 (spec 13, spec 14): `reason` is fixed text from a closed list.
+    The list in SPEC and the reasons the engine can emit are the same set."""
 
     ROOT = Path(__file__).resolve().parent.parent
 
@@ -280,9 +280,26 @@ class UnknownCoverageReasons(unittest.TestCase):
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "append" and isinstance(node.func.value, ast.Attribute)
-                    and node.func.value.attr == "unknown"):
+                    and node.func.value.attr in ("unknown", "job_unknown")):
                 arg = node.args[0]
                 found.add(arg.value if isinstance(arg, ast.Constant) else constants[arg.id])
+        return found
+
+    def _required_check_reasons(self) -> set[str]:
+        """Every reason `rules/required_check.py` passes to `note(...)`."""
+        path = self.ROOT / "pinwash" / "rules" / "required_check.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        constants = {
+            node.targets[0].id: node.value.value
+            for node in tree.body
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+            and isinstance(node.targets[0], ast.Name) and isinstance(node.value.value, str)
+        }
+        found: set[str] = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "note"):
+                found.add(constants[node.args[0].id])
         return found
 
     def test_the_closed_list_is_what_the_engine_emits(self) -> None:
@@ -298,8 +315,13 @@ class UnknownCoverageReasons(unittest.TestCase):
             hook_coverage.ENV_CHANGED,
         }
         gha = self._gha_reasons()
-        self.assertEqual(len(gha), 5, gha)
-        self.assertEqual(self._spec_reasons(), gha | hook)
+        # Spec 14: six grammar reasons (#23, #24, and the layout reason of
+        # its review) join the five of spec 13, and eight producer reasons
+        # (§5.5; #13, #14, #15, R03).
+        self.assertEqual(len(gha), 11, gha)
+        producer = self._required_check_reasons()
+        self.assertEqual(len(producer), 8, producer)
+        self.assertEqual(self._spec_reasons(), gha | hook | producer)
 
 
 if __name__ == "__main__":

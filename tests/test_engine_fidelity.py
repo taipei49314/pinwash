@@ -658,10 +658,19 @@ class QuotedOnKey(unittest.TestCase):
 
     def test_only_the_exact_quoted_key_is_recognised(self) -> None:
         # Not an on: key at all: the block is gone, as before.
-        for head in ('"one": push\n', '"on_": push\n', ' "on": push\n'):
+        for head in ('"one": push\n', '"on_": push\n'):
             with self.subTest(head=head):
                 payload = self._scan("on: push\n", head)
                 self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high")])
+        # Spec 14 review: a document indented as a whole is a layout the
+        # grammar does not read (YAML reads its `"on"` key), so its `on:` is
+        # unresolved, not gone (a block that becomes a pass with rows).
+        payload = self._scan("on: push\n", ' "on": push\n')
+        self.assertEqual(payload["findings"], [])
+        self.assertEqual(
+            sorted(u["reason"] for u in payload["unknown_coverage"]),
+            [self.ON["reason"], "workflow layout unresolved"],
+        )
 
     def test_resolved_trigger_loss_still_fires(self) -> None:
         payload = self._scan("on: [push, pull_request]\n", "on: workflow_dispatch\n")
