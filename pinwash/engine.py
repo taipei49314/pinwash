@@ -49,7 +49,6 @@ from pinwash.surfaces import (
     is_gha_workflow,
     is_opencode_config,
     is_surface,
-    skill_bypass_excluded,
     glob_skill,
     norm,
 )
@@ -308,10 +307,17 @@ def scan_pair(
             if path.endswith(".json"):
                 _bobj, b_st = json_load(base_files.get(path))
                 _hobj, h_st = json_load(head_files.get(path))
-            else:
-                _btxt, b_st = text_load(base_files.get(path))
-                _htxt, h_st = text_load(head_files.get(path))
-            status_gate(path, b_st, h_st)
+                status_gate(path, b_st, h_st)
+                continue
+            b_txt, b_st = text_load(base_files.get(path))
+            h_txt, h_st = text_load(head_files.get(path))
+            if status_gate(path, b_st, h_st):
+                continue
+            if glob_skill(path) and h_st == "ok" and h_txt is not None:
+                # SPEC §5.4 (spec 21): a SKILL.md under .claude/hooks/ is a
+                # skill_md path too, so the phrase table reads it.
+                base_s = b_txt if b_st == "ok" and b_txt is not None else ""
+                skill_bypass.detect(path, base_s, h_txt, add)
         elif is_gha_workflow(path):
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
@@ -426,10 +432,6 @@ def scan_pair(
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
             if status_gate(path, b_st, h_st):
-                continue
-            if skill_bypass_excluded(path):
-                # §5.4 excludes these paths from the phrase table only; the
-                # §3 parse-status check above still applies to the surface.
                 continue
             if h_st != "ok" or h_txt is None:
                 continue
