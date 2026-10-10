@@ -29,6 +29,7 @@ from pinwash.rules import (
     config_rule,
     hook_coverage,
     hook_rules,
+    hook_switch,
     hook_selector,
     permission,
     pin_rules,
@@ -262,6 +263,28 @@ def scan_pair(
     if mode_files:
         permission.detect_claude_mode(mode_files, add, note_unknown)
 
+    # SPEC §5.1 (spec 24): the settings-root `disableAllHooks`, read on the
+    # value in effect across the two settings files (local over project) and
+    # on the shared file alone, as Claude Code may load them: a side it
+    # cannot parse defines nothing.
+    switch_files = {
+        key: (path, b_obj if b_st == "ok" else None, h_obj if h_st == "ok" else None)
+        for key, (path, b_obj, b_st, h_obj, h_st) in mode_files.items()
+    }
+    switch_path = hook_switch.detect(switch_files, body_base, hook_rules.live_stop_events, add)
+    if switch_path is None:
+        # No command was active at base, yet the value in effect became
+        # `true` (a local `false` removed under a shared `true`): the row.
+        flipped = hook_switch.flipped_in_effect(switch_files)
+        if flipped is not None:
+            note_unknown(flipped, hook_coverage.DISABLE_ALL_HOOKS)
+
+    switch_anywhere = any(
+        hook_coverage.switch_set(doc)
+        for (_p, b_obj, b_st, h_obj, h_st) in mode_files.values()
+        for doc, st in ((b_obj, b_st), (h_obj, h_st))
+        if st == "ok"
+    )
     for path in paths:
         if is_claude_settings(path) or is_cursor_hooks(path):
             b_obj, b_st = json_load(base_files.get(path))
@@ -298,6 +321,8 @@ def scan_pair(
                 changed=changed,
                 hook_finding=len(findings) > n_before,
                 note_unknown=note,
+                switch_finding=path == switch_path,
+                switch_anywhere=is_claude_settings(path) and switch_anywhere,
             )
             # SPEC §3 (spec 20): Claude Code rejects a settings file it
             # cannot parse, so a head that parses is compared against an
@@ -465,6 +490,14 @@ def scan_pair(
     detect_allow(base_files, head_files, today, add, config_errors)
 
     findings = apply_allow(findings, base_files, today)
+    if switch_path is not None and not any(
+        f["rule"] == "HOOK_BYPASSED" and f["path"] == switch_path
+        and f.get("locator") == hook_switch.SWITCH and f["message"] == hook_switch.MESSAGE
+        for f in findings
+    ):
+        # SPEC §5.1 (spec 24): an exempted switch finding leaves its row, so a
+        # record pre-seeded at base (R18) never makes the switch silent.
+        note_unknown(switch_path, hook_coverage.DISABLE_ALL_HOOKS)
     return envelope(
         base_label=base_label,
         head_label=head_label,

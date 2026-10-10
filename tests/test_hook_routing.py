@@ -567,19 +567,33 @@ class DisableAllHooksRow(unittest.TestCase):
     anything but `false`, or held while a §5 hook finding fires."""
 
     def test_set_or_changed_to_anything_but_false(self) -> None:
+        # Spec 24: the JSON `true` in effect over an active hook is the §5.1
+        # HOOK_BYPASSED finding instead of this row (tests/test_hook_switch.py);
+        # a value that is not a JSON boolean keeps the row (the host rejects
+        # the whole file, R24).
         base = {CS: _settings(T), "hooks/judge.py": REAL}
-        for value in (True, "true", 1, None, {"x": [1]}):
+        for value in ("true", 1, None, {"x": [1]}):
             with self.subTest(value=value):
                 payload = _scan(base, dict(base, **{CS: _settings(T, root={"disableAllHooks": value})}))
                 self.assertEqual(_reasons(payload), [DAH])
                 self.assertEqual((payload["findings"], payload["verdict"]), ([], "pass"))
+        payload = _scan(base, dict(base, **{CS: _settings(T, root={"disableAllHooks": True})}))
+        self.assertEqual(_reasons(payload), [])
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
         payload = _scan(base, dict(base, **{CS: _settings(T, root={"disableAllHooks": False})}))
         self.assertEqual(_reasons(payload), [])
 
     def test_local_file_and_new_file(self) -> None:
         base = {CS: _settings(T), "hooks/judge.py": REAL}
-        head = dict(base, **{CL: json.dumps({"disableAllHooks": True})})
+        head = dict(base, **{CL: json.dumps({"disableAllHooks": "true"})})
         self.assertEqual(_scan(base, head)["unknown_coverage"], [{"path": CL, "reason": DAH}])
+        # Spec 24: the JSON `true` is the finding, on the file that supplies it.
+        payload = _scan(base, dict(base, **{CL: json.dumps({"disableAllHooks": True})}))
+        self.assertEqual(payload["unknown_coverage"], [])
+        self.assertEqual([(f["rule"], f["path"]) for f in payload["findings"]], [("HOOK_BYPASSED", CL)])
+        # No active hook at base in either file: the row, no finding.
+        payload = _scan({"README.md": b"x\n"}, {CS: json.dumps({"disableAllHooks": True})})
+        self.assertEqual((_reasons(payload), payload["findings"]), ([DAH], []))
 
     def test_unchanged_or_switched_off_is_silent(self) -> None:
         base = {CS: _settings(T), "hooks/judge.py": REAL}
