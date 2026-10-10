@@ -43,6 +43,31 @@ _PY_PURE_INERT = frozenset(
 )
 
 _BLOCK_MARKERS = ("block", "deny")
+# SPEC §5.2 (spec 25, AI-assisted ruling, #11): the closed exit-2 forms.
+# Claude Code reads a hook's exit status 2 as a blocking error, as it reads
+# {"decision": "block"} (executed on 2.1.42 and 2.1.296 for Stop). `exit 2`,
+# `exitcode = 2` and `exitcode=2` count where the character after them is
+# not an ASCII digit, `>` or `<`, or the text ends there, so `exit 2` is not
+# `exit 20` and not the redirection `exit 2>/dev/null`; `exit(2)` counts
+# wherever it occurs (its `)` closes the argument: `process.exit(2)>0`
+# refuses, executed), inside `sys.exit(2)`, `os._exit(2)`,
+# `process.exit(2)`, `[Environment]::Exit(2)` and `SetShouldExit(2)` too
+# (texts are casefolded first).
+_EXIT2_FORMS = ("exit 2", "exit(2)", "exitcode = 2", "exitcode=2")
+_NOT_AFTER = frozenset("0123456789<>")
+
+
+def exit2_count(folded: str) -> int:
+    """Occurrences of the closed exit-2 forms in casefolded text."""
+    n = 0
+    for form in _EXIT2_FORMS:
+        start = folded.find(form)
+        while start != -1:
+            end = start + len(form)
+            if form.endswith(")") or end == len(folded) or folded[end] not in _NOT_AFTER:
+                n += 1
+            start = folded.find(form, start + 1)
+    return n
 
 
 def body_lost_block_capability(base_data: bytes, head_data: bytes) -> bool:
@@ -50,22 +75,27 @@ def body_lost_block_capability(base_data: bytes, head_data: bytes) -> bool:
 
     Shape-preserving gut jobs keep the function frame and drop every
     block/deny path; the closed-line stub list cannot see them, this
-    shape can.
+    shape can. Since spec 25 a head body that mentions the closed exit-2
+    forms more often than the base body keeps block capability: a refactor
+    that moved refusal from `block` to exit status 2. Exit-2 forms the base
+    already held do not count, so boilerplate such as `|| exit 2` left
+    behind by a gut does not hide it.
     """
-    def marker(data: bytes) -> str | None:
+    def folded_of(data: bytes) -> str | None:
         text = decode_utf8(data)
         if text is None:
             return None
-        folded = crlf_to_lf(text).casefold()
-        for m in _BLOCK_MARKERS:
-            if m in folded:
-                return m
-        return None
+        return crlf_to_lf(text).casefold()
 
-    base_marker = marker(base_data)
-    if base_marker is None:
+    base_f = folded_of(base_data)
+    if base_f is None or not any(m in base_f for m in _BLOCK_MARKERS):
         return False
-    return marker(head_data) is None
+    head_f = folded_of(head_data)
+    if head_f is None:
+        return True
+    if any(m in head_f for m in _BLOCK_MARKERS):
+        return False
+    return exit2_count(head_f) <= exit2_count(base_f)
 
 
 def hook_command_targets(command: str, files: dict[str, bytes]) -> list[str]:
@@ -121,6 +151,9 @@ def command_body_map(
     target's head body against the same path at base (§5.2, spec 7)."""
     bodies: dict[str, tuple[bool, bool, str]] = {}
     targets_all: set[str] = set()
+    # Each body is read once per side, however many commands name it.
+    scan_cache: dict[str, tuple[bool, str]] = {}
+    lost_cache: dict[str, bool] = {}
     for path in sorted(files):
         if not (is_claude_settings(path) or is_cursor_hooks(path)):
             continue
@@ -135,15 +168,18 @@ def command_body_map(
                 if not targets:
                     continue
                 targets_all.update(targets)
-                scans = [body_scan(t, files[t]) for t in targets]
+                for t in targets:
+                    if t not in scan_cache:
+                        scan_cache[t] = body_scan(t, files[t])
+                scans = [scan_cache[t] for t in targets]
                 all_stub = all(s[0] for s in scans)
                 lost_block = False
                 if base_files is not None:
                     for t in targets:
-                        b = base_files.get(t)
-                        if b is not None and body_lost_block_capability(
-                            b, files[t]
-                        ):
+                        if t not in lost_cache:
+                            b = base_files.get(t)
+                            lost_cache[t] = b is not None and body_lost_block_capability(b, files[t])
+                        if lost_cache[t]:
                             lost_block = True
                             break
                 evidence = next((s[1] for s in scans if s[1]), "")
