@@ -102,14 +102,11 @@ class _RowCase(unittest.TestCase):
 class ProducerJobIf(_RowCase):
     """R-13a (#13, R14): a linked producer's job `if:` changed to a value
     outside the closed forms is a row; §6's dropped-check sentence is the
-    reason for the spec 9 severity, not a trigger."""
+    reason for the spec 9 severity, not a trigger. Since spec 22 the closed
+    forms include §5.6's readings (tests/test_job_conditions.py)."""
 
     def test_values_outside_the_closed_forms_are_a_row(self) -> None:
-        for value in (
-            "${{ always() && false }}", "${{false}}", "${{ !true }}", "always() && false",
-            "github.repository == 'o/r'", "github.event_name == 'workflow_dispatch'",
-            "'|'", "${{ 3 > 2 }}", "success()",
-        ):
+        for value in ("github.repository == 'o/r'", "'|'", "${{ 3 > 2 }}", "success()"):
             with self.subTest(value=value):
                 self.assertRowOnly(_scan(wf(), wf(job=f"    if: {value}\n")), [IF_ROW])
 
@@ -122,7 +119,12 @@ class ProducerJobIf(_RowCase):
         self.assertSilent(_scan(guarded, guarded))
 
     def test_closed_false_forms_keep_the_finding_without_a_row(self) -> None:
-        for value in ("false", "'false'", "${{ false }}", "FALSE"):
+        for value in (
+            "false", "'false'", "${{ false }}", "FALSE",
+            # Spec 22 (§5.6): constant-false conditions and event filters.
+            "${{ always() && false }}", "${{false}}", "${{ !true }}", "always() && false",
+            "github.event_name == 'workflow_dispatch'",
+        ):
             with self.subTest(value=value):
                 payload = _scan(wf(), wf(job=f"    if: {value}\n"))
                 self.assertEqual(_rules(payload), [("REQUIRED_CHECK_DROPPED", "high", value)])

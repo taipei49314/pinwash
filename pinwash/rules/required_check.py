@@ -15,7 +15,9 @@ from pinwash.parse.gha import (
     GhaJob,
     GhaStep,
     if_text,
+    if_event_filtered_off,
     job_disabled,
+    job_event_filtered_off,
     job_unresolved,
     needs_names,
     step_run_keys,
@@ -40,7 +42,7 @@ CONTEXT_CLAIMED = "head job claims a required context"
 REUSABLE_PRODUCER = "reusable workflow producer unresolved"
 
 # SPEC §5.5 (spec 14): the single-line job `if:` values read as always
-# running (with the §5 false reading, the closed forms); exact text.
+# running (with the §5.6 readings, spec 22, the closed forms); exact text.
 IF_TRUE_FORMS = frozenset({"true", "'true'", '"true"', "${{ true }}"})
 
 
@@ -164,12 +166,15 @@ def _step_keys_changed(base_steps: list[GhaStep], head_steps: list[GhaStep]) -> 
     return bool(base_shells - head_shells)
 
 
-def _if_closed(value: str | None) -> bool:
-    """Absent, or a job `if:` in the closed forms: read as false by §5, or
-    one of the always-running forms."""
+def _if_closed(value: str | None, on_path: bool) -> bool:
+    """Absent, or a job `if:` in the closed forms: read by §5.6 as false,
+    or as an event filter in a workflow that ran on push or pull_request at
+    base (spec 22), or one of the always-running forms."""
     if value is None or value in IF_TRUE_FORMS:
         return True
-    return job_disabled(GhaJob(key="", if_value=value))
+    if job_disabled(GhaJob(key="", if_value=value)):
+        return True
+    return on_path and if_event_filtered_off(value)
 
 
 def detect_jobs(
@@ -220,6 +225,7 @@ def detect_jobs(
             head_job is not None
             and job_disabled(head_job)
             and not job_disabled(job)
+            and not job_event_filtered_off(job)
         ):
             dropped = True
             after = head_job.if_value or "if: false"
@@ -249,11 +255,23 @@ def detect_jobs(
             # deleted, and its workflow's triggers are still compared.
             dropped = True
             after = "on: " + (", ".join(sorted(head_g.triggers)) or "none")
+        elif (
+            head_job is not None
+            and job_event_filtered_off(head_job)
+            and not (job_event_filtered_off(job) or job_disabled(job))
+            and (base_g.triggers & ENFORCEMENT_EVENTS)
+        ):
+            # spec 22 (§5.6, #13): the job-scope counterpart of trigger
+            # loss. A job its condition skips reports Success, so the
+            # required check passes on every pull request. Placed after
+            # trigger loss, which keeps its finding.
+            dropped = True
+            after = head_job.if_value or ""
         if dropped:
             add(
                 rule="REQUIRED_CHECK_DROPPED",
                 # spec 9: producer-side disjuncts (deleted / if-disabled /
-                # continue-on-error / trigger-loss) base at high — a required
+                # continue-on-error / trigger-loss; spec 22 event filter) base at high — a required
                 # check that cannot run on any enforcement path is a dropped
                 # check, and the default fail_on=high consumer must block on
                 # it (round 3 live warn-gap specimen: `# on: push`).
@@ -299,7 +317,10 @@ def _note_producer(
         head_if is not None
         and head_if != if_text(job)
         # A multiline value is not §5's reading, whatever its text.
-        and (head_job.if_lines is not None or not _if_closed(head_if))
+        and (
+            head_job.if_lines is not None
+            or not _if_closed(head_if, bool(base_g.triggers & ENFORCEMENT_EVENTS))
+        )
     ):
         note(PRODUCER_IF)
     if needs_names(head_job) != needs_names(job) or _gate_changed(head_job, base_g, head_g):
