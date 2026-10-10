@@ -1,4 +1,12 @@
-"""HOOK_REMOVED / HOOK_BYPASSED / GATE_STUBBED (SPEC §5, §5.1, §5.2)."""
+"""HOOK_REMOVED / HOOK_BYPASSED / GATE_STUBBED (SPEC §5, §5.1, §5.2).
+
+Spec 27 (R12 detection bump, AI-assisted hook-liveness ruling, #10):
+commands pair as multisets of their strings in every branch (no list-index
+pairing); a Stop-like judge retargeted to a body that cannot refuse is
+`GATE_STUBBED`; an event that keeps commands but no live one after a live
+command left it is `HOOK_REMOVED`; and a command new to a Stop-like event
+keeps the §6.1 escalator off only when it resolves to a body that can refuse.
+"""
 
 from __future__ import annotations
 
@@ -11,113 +19,152 @@ from pinwash.hooks import stub_command
 
 HOOK_LIVENESS_UNRESOLVED = "hook stop liveness rests on an unresolved command"
 
-
-def _non_stub_stop_count(
-    events: dict[str, dict[str, Any]],
-    names: frozenset[str],
-    body_map: dict[str, tuple[bool, bool, str]],
-    resolved_only: bool = False,
-) -> int:
-    """SPEC §5.2 / §6.1: the Stop-like events of one file that keep a live
-    command. A command is live unless it is a §5.2 stub string, carries a
-    §5.1 skip flag (its own or inherited), starts with `#`, resolves (§3.3)
-    only to stub bodies, or lost block capability; nothing else is read.
-
-    With resolved_only, a command §3.3 does not resolve does not count: the
-    count the escalator would see if no unread judge body were credited.
-    """
-    n = 0
-    for name in names:
-        info = events.get(name)
-        if not info:
-            continue
-        live = [
-            c
-            for c, flags in info["command_states"]
-            if not any(flags.values())
-            and not stub_command(c)
-            and not c.lstrip().startswith("#")
-            and not (c in body_map and (body_map[c][0] or body_map[c][1]))
-            and (c in body_map or not resolved_only)
-        ]
-        if live:
-            n += 1
-        elif info["array_len"] > 0 and not info["commands"]:
-            n += 0
-    return n
-
-
-def live_stop_events(
-    events: dict[str, dict[str, Any]],
-    names: frozenset[str],
-    body_map: dict[str, tuple[bool, bool, str]],
-) -> int:
-    """SPEC §6.1: the Stop-like events of one file that keep a live command."""
-    return _non_stub_stop_count(events, names, body_map)
+# command -> (all targets stub bodies, lost block capability, evidence,
+# some target can refuse, target paths, some target holds a decision
+# literal); see pinwash.parse.hookcmd.command_body_map.
+Bodies = dict[str, tuple[Any, ...]]
 
 
 def _is_comment(command: str) -> bool:
     return command.lstrip().startswith("#")
 
 
-def _lost_by_text(
-    base_cmds: list[str], base_count: Counter[str], head_count: Counter[str]
-) -> dict[str, str]:
-    """Stripped text -> the first base command with that text that is not a
-    comment and lost an occurrence at head. Built once per event, so pairing
-    every head comment costs one lookup, not a scan of the base list."""
-    out: dict[str, str] = {}
-    for b in base_cmds:
-        text = b.strip()
-        if text and text not in out and not _is_comment(b) and head_count[b] < base_count[b]:
-            out[text] = b
-    return out
+def _active(command: str, flags: dict[str, bool]) -> bool:
+    """No §5.1 skip flag (own or inherited), not a §5.2 stub string, not
+    commented out."""
+    return not any(flags.values()) and not stub_command(command) and not _is_comment(command)
 
 
-def _commented_base(cmd: str, prev: str | None, lost_by_text: dict[str, str]) -> str | None:
-    """SPEC §5 HOOK_BYPASSED, "command prefixed with a no-op" (§5.1: its v0
-    closed form is a shell comment): the base command a `#` head command
-    comments out, or None.
+def _live(command: str, flags: dict[str, bool], bodies: Bodies, retargeted: set[str]) -> bool:
+    """SPEC §5.2: live unless a stub string, skip-flagged, commented out,
+    resolving only to stub bodies, lost block capability, or retargeted
+    (§5) to a body that cannot refuse. Nothing else is read: a command §3.3
+    does not resolve is live."""
+    if not _active(command, flags):
+        return False
+    if command in bodies and (bodies[command][0] or bodies[command][1]):
+        return False
+    return command not in retargeted
 
-    The base command at the same list index pairs first, as since the
-    first engine, so every finding that fired before keeps its fields. Then
-    the base command whose string the comment prefixes, wherever it stood,
-    when that command lost an occurrence: §5.1 compares commands as
-    multisets of their strings, so an inserted sibling cannot move a
-    comment-out out of view (#9, #10).
+
+def _base_identity(
+    base_info: dict[str, Any] | None, body_base: Bodies
+) -> tuple[set[str], set[frozenset[str]]]:
+    """The command strings of an event at base and the §3.3 target sets they
+    resolved to there, read once per event (§9: linear in the document)."""
+    if base_info is None:
+        return set(), set()
+    strings = set(base_info["commands"])
+    return strings, {frozenset(body_base[b][4]) for b in strings if b in body_base and not _is_comment(b)}
+
+
+def _new_to_event(
+    command: str, identity: tuple[set[str], set[frozenset[str]]], body_head: Bodies
+) -> bool:
+    """SPEC §6.1 (spec 27): the diff added the command to the event:
+    its string was not in the event at base and, when it resolves at head,
+    no command of the event resolved at base to the same target set (a
+    respelling, such as `python` -> `python3`, is not new)."""
+    strings, target_sets = identity
+    if command in strings:
+        return False
+    return not (command in body_head and frozenset(body_head[command][4]) in target_sets)
+
+
+def _stop_count(
+    events: dict[str, dict[str, Any]],
+    names: frozenset[str],
+    bodies: Bodies,
+    retargeted: dict[str, set[str]],
+    *,
+    resolved_only: bool = False,
+    base_ev: dict[str, dict[str, Any]] | None = None,
+    body_base: Bodies | None = None,
+) -> int:
+    """The Stop-like events of one file that keep a live command (§5.2).
+
+    With base_ev (the §6.1 escalator, spec 27), a command new to its
+    event counts only when it resolves to a target that can refuse. With
+    resolved_only, a command §3.3 does not resolve does not count: the count
+    the escalator would see if no unread judge body were credited (§3.3 row).
     """
-    if not _is_comment(cmd):
-        return None
-    if prev is not None and prev.strip() and not _is_comment(prev):
-        return prev
-    return lost_by_text.get(cmd.lstrip().lstrip("#").strip())
+    n = 0
+    for name in names:
+        info = events.get(name)
+        if not info:
+            continue
+        gone = retargeted.get(name, set())
+        identity = None
+        if base_ev is not None:
+            identity = _base_identity(base_ev.get(name), body_base or {})
+        for c, flags in info["command_states"]:
+            if not _live(c, flags, bodies, gone):
+                continue
+            if resolved_only and c not in bodies:
+                continue
+            if (
+                identity is not None
+                and _new_to_event(c, identity, bodies)
+                and not (c in bodies and bodies[c][3])
+            ):
+                continue
+            n += 1
+            break
+    return n
 
 
-def _stub_body_base(
-    cmd: str,
-    prev: str | None,
-    base_count: Counter[str],
-    body_base: dict[str, tuple[bool, bool, str]],
-    body_head: dict[str, tuple[bool, bool, str]],
-) -> str | None:
-    """SPEC §5 GATE_STUBBED body form: the base command whose non-stub body
-    the head command's stub body replaced, or None.
+def live_stop_events(
+    events: dict[str, dict[str, Any]],
+    names: frozenset[str],
+    body_map: Bodies,
+) -> int:
+    """SPEC §6.1: the Stop-like events of one file that keep a live command
+    (§5.2), read on one side (the spec 24 `disableAllHooks` finding)."""
+    return _stop_count(events, names, body_map, {})
 
-    The base command at the same list index pairs first (spec 4), then the
-    same command string wherever it stood at base: §5.2 compares bodies per
-    resolved target, and an unchanged command is its own base command (#10).
-    """
-    if cmd not in body_head or not body_head[cmd][0]:
-        return None
 
-    def real(command: str) -> bool:
-        return command in body_base and not body_base[command][0]
-
-    if prev is not None and real(prev):
-        return prev
-    if base_count[cmd] and real(cmd):
-        return cmd
-    return None
+def _retargets(
+    info: dict[str, Any],
+    head_info: dict[str, Any],
+    body_base: Bodies,
+    body_head: Bodies,
+) -> tuple[list[str], list[str]]:
+    """SPEC §5 GATE_STUBBED, retarget (spec 27, R12): in a Stop-like
+    event, the left judges and the new commands, which pair one to one. `left` was active at base and resolved there
+    to a target holding a decision literal; at head its string is gone from
+    the event, no `#` command of the event carries its text (that is the
+    comment-out branch's), and no active command of the event resolves to
+    its base target set. `new` gained active occurrences, resolves at head
+    to a target set no active base command of the event resolved to, and
+    resolves only to targets that mention neither `block` nor `deny`; a new
+    command that lost block capability on a same path is the spec 7
+    branch's. Left commands (base order) and new commands (head order) pair
+    one to one."""
+    b_act = Counter(c for c, f in info["command_states"] if _active(c, f))
+    h_act = Counter(c for c, f in head_info["command_states"] if _active(c, f))
+    head_strings = set(head_info["commands"])
+    # Only a `#` command the diff added is the comment-out branch's; one
+    # already at base pairs with nothing (review of 2026-10-10).
+    b_all, h_all = Counter(info["commands"]), Counter(head_info["commands"])
+    commented = {
+        c.lstrip().lstrip("#").strip() for c in head_strings if _is_comment(c) and h_all[c] > b_all[c]
+    }
+    base_sets = {frozenset(body_base[c][4]) for c in b_act if c in body_base}
+    head_sets = {frozenset(body_head[c][4]) for c in h_act if c in body_head}
+    left = [
+        c for c in dict.fromkeys(info["commands"])
+        if b_act[c] and c not in head_strings and c.strip() not in commented
+        and c in body_base and body_base[c][5]
+        and frozenset(body_base[c][4]) not in head_sets
+    ]
+    if not left:
+        return [], []
+    new = [
+        c for c in dict.fromkeys(head_info["commands"])
+        if h_act[c] > b_act[c] and c in body_head and not body_head[c][1]
+        and not body_head[c][3] and frozenset(body_head[c][4]) not in base_sets
+    ]
+    return left, new
 
 
 def _tally(states: list[tuple[str, dict[str, bool]]]) -> tuple[dict[str, int], dict[str, int]]:
@@ -165,11 +212,24 @@ def detect(
     head_ev: dict[str, dict[str, Any]],
     stop_names: frozenset[str],
     add: Any,
-    body_base: dict[str, tuple[bool, bool, str]],
-    body_head: dict[str, tuple[bool, bool, str]],
+    body_base: Bodies,
+    body_head: Bodies,
     note_unknown: Any = None,
 ) -> None:
-    head_stop = _non_stub_stop_count(head_ev, stop_names, body_head)
+    # SPEC §5 (spec 27): retargets are read first, because a
+    # retargeted command is not live (§5.2) for the §6.1 count below.
+    retargets: dict[str, tuple[list[str], list[str]]] = {}
+    for event in stop_names:
+        info, head_info = base_ev.get(event), head_ev.get(event)
+        if info is None or head_info is None or not head_info["commands"]:
+            continue
+        lists = _retargets(info, head_info, body_base, body_head)
+        if lists[0] and lists[1]:
+            retargets[event] = lists
+    retargeted = {event: {new for _left, new in zip(*lists)} for event, lists in retargets.items()}
+    head_stop = _stop_count(
+        head_ev, stop_names, body_head, retargeted, base_ev=base_ev, body_base=body_base
+    )
     kept_below_critical = False
 
     def escalate_stop(rule: str, event: str, severity: str) -> str:
@@ -214,7 +274,9 @@ def detect(
                     locator=event,
                 )
             continue
+        fired = False
         if _command_skip_added(info, head_info):
+            fired = True
             sev = escalate_stop("HOOK_BYPASSED", event, "warn")
             add(
                 rule="HOOK_BYPASSED",
@@ -227,45 +289,110 @@ def detect(
         head_cmds = head_info["commands"]
         base_count = Counter(base_cmds)
         head_count = Counter(head_cmds)
-        lost_by_text = _lost_by_text(base_cmds, base_count, head_count)
-        for i, cmd in enumerate(head_cmds):
-            at_index = base_cmds[i] if i < len(base_cmds) else None
-            prev = at_index if at_index is not None else ""
-            if stub_command(cmd) and not stub_command(prev):
-                sev = escalate_stop("GATE_STUBBED", event, "warn")
-                add(
-                    rule="GATE_STUBBED",
-                    severity=sev,
-                    message=f"hook command for {event} replaced with a v0 stub",
-                    path=path,
-                    before=prev,
-                    after=cmd,
-                    locator=event,
-                )
-            commented = _commented_base(cmd, at_index, lost_by_text)
-            if commented is not None:
-                # SPEC §5 HOOK_BYPASSED: command prefixed with a no-op. The
-                # v0 closed shape for that prefix is a shell comment.
-                sev = escalate_stop("HOOK_BYPASSED", event, "warn")
-                add(
-                    rule="HOOK_BYPASSED",
-                    severity=sev,
-                    message=f"hook command for {event} commented out",
-                    path=path,
-                    before=commented,
-                    after=cmd,
-                    locator=event,
-                )
-            stubbed = _stub_body_base(cmd, at_index, base_count, body_base, body_head)
-            lost = cmd in body_head and body_head[cmd][1]
-            if stubbed is not None and stubbed != at_index and lost and at_index is not None:
-                # Spec 12 emitted "lost block capability" here (no list-index
-                # stub-body pairing, base command at this index): keep that
-                # finding and its fingerprint, so base exemptions keep matching.
-                stubbed = None
+        # SPEC §5.1 (spec 27): commands are compared as multisets of
+        # their strings in every branch. A head command the diff added (its
+        # string gained occurrences) is compared with a base command that
+        # left (its string lost occurrences), so neither an inserted sibling
+        # nor a reorder moves a finding, and nothing pairs by list position.
+        left = [
+            b for b in dict.fromkeys(base_cmds)
+            if head_count[b] < base_count[b] and b.strip() and not _is_comment(b)
+        ]
+        left_by_text = {b.strip(): b for b in reversed(left)}
+        # Each occurrence a base string lost pairs once (one to one, as the
+        # list index paired); the fallback takes the first unpaired one in
+        # base order: not a stub string for the stub-string and comment-out
+        # forms, with a non-stub base body for the body form.
+        unpaired = Counter({b: base_count[b] - head_count[b] for b in left})
+        queues = {
+            "plain": [b for b in left if not stub_command(b)],
+            "body": [b for b in left if b in body_base and not body_base[b][0]],
+        }
+        heads = {"plain": 0, "body": 0}
+        # A `#` command whose text is a command that left pairs with it
+        # before any fallback pairing takes that command.
+        reserved: Counter[str] = Counter()
+        gained_left = Counter({c: head_count[c] - base_count[c] for c in head_count})
+        for cmd in head_cmds:
+            if _is_comment(cmd) and gained_left[cmd] > 0:
+                gained_left[cmd] -= 1
+                was = left_by_text.get(cmd.lstrip().lstrip("#").strip())
+                if was is not None and unpaired[was]:
+                    unpaired[was] -= 1
+                    reserved[cmd] += 1
+
+        def take(kind: str) -> str | None:
+            queue = queues[kind]
+            while heads[kind] < len(queue) and not unpaired[queue[heads[kind]]]:
+                heads[kind] += 1
+            if heads[kind] == len(queue):
+                return None
+            unpaired[queue[heads[kind]]] -= 1
+            return queue[heads[kind]]
+        body_fired: set[str] = set()
+        # Base commands a branch below already paired: a retarget of the same
+        # judge is not reported again (one finding per weakening).
+        paired_left: set[str] = set()
+        # Each head occurrence is read, as before; an added string pairs as
+        # many times as it gained occurrences, not once per occurrence.
+        added: Counter[str] = Counter()
+        for cmd in head_cmds:
+            gained = added[cmd] < head_count[cmd] - base_count[cmd]
+            if gained:
+                added[cmd] += 1
+            # §5 GATE_STUBBED, string form: a new stub string replaced a base
+            # command that was not one.
+            if gained and stub_command(cmd):
+                was = take("plain")
+                if was is not None:
+                    fired = True
+                    paired_left.add(was)
+                    sev = escalate_stop("GATE_STUBBED", event, "warn")
+                    add(
+                        rule="GATE_STUBBED",
+                        severity=sev,
+                        message=f"hook command for {event} replaced with a v0 stub",
+                        path=path,
+                        before=was,
+                        after=cmd,
+                        locator=event,
+                    )
+            # §5 HOOK_BYPASSED: command prefixed with a no-op, its v0 closed
+            # form a shell comment. The base command whose text the comment
+            # carries pairs first, then the first command that left.
+            if gained and _is_comment(cmd):
+                if reserved[cmd]:
+                    reserved[cmd] -= 1
+                    was = left_by_text[cmd.lstrip().lstrip("#").strip()]
+                else:
+                    was = take("plain")
+                if was is not None:
+                    fired = True
+                    paired_left.add(was)
+                    sev = escalate_stop("HOOK_BYPASSED", event, "warn")
+                    add(
+                        rule="HOOK_BYPASSED",
+                        severity=sev,
+                        message=f"hook command for {event} commented out",
+                        path=path,
+                        before=was,
+                        after=cmd,
+                        locator=event,
+                    )
+            # §5 GATE_STUBBED, body form: the command resolves (§3.3) to stub
+            # bodies while the base command resolved to a non-stub body; the
+            # same string pairs first, then (for an added command) the first
+            # command that left with a non-stub body.
+            stubbed = None
+            if cmd in body_head and body_head[cmd][0]:
+                if base_count[cmd] and cmd in body_base and not body_base[cmd][0]:
+                    stubbed = cmd
+                elif gained:
+                    stubbed = take("body")
             if stubbed is not None:
-                # SPEC §5 GATE_STUBBED, body form: the command resolves
-                # (§3.3) to a stub body while the base resolved to a real one.
+                fired = True
+                body_fired.add(cmd)
+                paired_left.add(stubbed)
                 sev = escalate_stop("GATE_STUBBED", event, "warn")
                 add(
                     rule="GATE_STUBBED",
@@ -276,11 +403,11 @@ def detect(
                     after=body_head[cmd][2],
                     locator=f"{event}:{cmd}",
                 )
-            elif lost:
-                # SPEC §5.2 (spec 7): shape-preserving gut job — the judge
-                # body can no longer refuse anything. The comparison is per
-                # target path (§3.3), so it needs no command pairing and no
-                # list position (#10).
+            elif cmd in body_head and body_head[cmd][1]:
+                # §5.2 (spec 7): shape-preserving gut job, compared per target
+                # path (§3.3), so no command pairing is needed.
+                fired = True
+                body_fired.add(cmd)
                 sev = escalate_stop("GATE_STUBBED", event, "warn")
                 add(
                     rule="GATE_STUBBED",
@@ -291,18 +418,63 @@ def detect(
                     after="no block/deny",
                     locator=f"{event}:{cmd}",
                 )
+        # §5 GATE_STUBBED, retarget (spec 27, R12): a Stop-like judge
+        # whose base body holds a decision literal left, and a command new to
+        # the event resolves only to bodies that cannot refuse.
+        # A judge another branch paired is not reported again, and a new
+        # command such a branch read is not paired with another judge: the
+        # remaining ones pair one to one (one finding per weakening).
+        r_left, r_new = retargets.get(event, ([], []))
+        for was, new in zip(
+            [w for w in r_left if w not in paired_left], [n for n in r_new if n not in body_fired]
+        ):
+            fired = True
+            sev = escalate_stop("GATE_STUBBED", event, "warn")
+            add(
+                rule="GATE_STUBBED",
+                severity=sev,
+                message=f"hook command for {event} retargeted to a body that cannot refuse",
+                path=path,
+                before=was,
+                after=new,
+                locator=f"{event}:{new}",
+            )
+        # §5 HOOK_REMOVED (spec 27): the event keeps commands but none
+        # is live (§5.2) after a command live at base left it, and no other
+        # finding above explains the event.
+        if not fired:
+            gone = [
+                c for c, f in info["command_states"]
+                if head_count[c] == 0 and _live(c, f, body_base, set())
+            ]
+            if gone and not any(
+                _live(c, f, body_head, retargeted.get(event, set()))
+                for c, f in head_info["command_states"]
+            ):
+                sev = escalate_stop("HOOK_REMOVED", event, "warn")
+                add(
+                    rule="HOOK_REMOVED",
+                    severity=sev,
+                    message=f"hook event {event} keeps no live command",
+                    path=path,
+                    before=gone[0],
+                    after="",
+                    locator=event,
+                )
     # SPEC §3.3 / §1.6 (spec 13, R12): the §6.1 count credits a command
     # §3.3 does not resolve as live, although no body was read for it.
     # Report when a Stop-like finding was kept below critical only because
     # of such a command, or when the diff left the file's Stop liveness
-    # resting only on such commands. Visibility only (§7).
+    # (§5.2) resting only on such commands. Visibility only (§7).
     if note_unknown is not None:
-        head_resolved = _non_stub_stop_count(
-            head_ev, stop_names, body_head, resolved_only=True
-        )
+        kept_unread = kept_below_critical and _stop_count(
+            head_ev, stop_names, body_head, retargeted, resolved_only=True,
+            base_ev=base_ev, body_base=body_base,
+        ) == 0
         moved = (
-            head_stop >= 1
-            and _non_stub_stop_count(base_ev, stop_names, body_base, resolved_only=True) >= 1
+            _stop_count(head_ev, stop_names, body_head, retargeted) >= 1
+            and _stop_count(head_ev, stop_names, body_head, retargeted, resolved_only=True) == 0
+            and _stop_count(base_ev, stop_names, body_base, {}, resolved_only=True) >= 1
         )
-        if head_resolved == 0 and (kept_below_critical or moved):
+        if kept_unread or moved:
             note_unknown(HOOK_LIVENESS_UNRESOLVED)

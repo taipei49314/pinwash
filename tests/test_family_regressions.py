@@ -243,7 +243,10 @@ class CommandLocalSkipFlags(unittest.TestCase):
             {"command": "other", "failOpen": True},
         ])
         payload = _pair({path: base}, {path: head})
-        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+        # Spec 24 draft (R12, AI-assisted): judge-extra was added in the
+        # diff and resolves to no body that can refuse, so it does not keep
+        # the §6.1 escalator off; spec 10 to 23 held this at warn.
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
 
     def test_flagging_an_existing_command_while_adding_a_live_one_fires(self) -> None:
         for path, event in self.CASES:
@@ -254,7 +257,9 @@ class CommandLocalSkipFlags(unittest.TestCase):
                         {"command": "judge", flag: value}, {"command": "judge-extra"},
                     ])
                     payload = _pair({path: base}, {path: head})
-                    self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+                    # Spec 24 draft (R12): the added judge-extra resolves to
+                    # no body that can refuse and keeps nothing off (§6.1).
+                    self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
 
     def test_rename_plus_flag_of_the_only_command_is_critical(self) -> None:
         path, event = self.CASES[0]
@@ -266,10 +271,12 @@ class CommandLocalSkipFlags(unittest.TestCase):
 
 
 class HookCommandPairing(unittest.TestCase):
-    """#10 index shift, #9 shifted comment-out (SPEC §5, §5.1, §5.2): a head
-    command is compared with the base command at its list index, as before,
-    and also with its own string wherever it stood at base, so an inserted
-    sibling cannot move a judge out of view."""
+    """#10 index shift, #9 shifted comment-out (SPEC §5, §5.1, §5.2). Since
+    the spec 24 draft (R12, AI-assisted) commands pair as multisets of their
+    strings in every branch and never by list position, so neither an
+    inserted sibling nor a reorder moves a finding; and a sibling the diff
+    added keeps the §6.1 escalator off only when it resolves to a body that
+    can refuse."""
 
     T = "python hooks/judge.py"
     JUDGE = "hooks/judge.py"
@@ -300,6 +307,9 @@ class HookCommandPairing(unittest.TestCase):
         return _pair(base, head)
 
     def test_gutted_judge_behind_an_inserted_live_sibling_fires(self) -> None:
+        # Spec 24 draft (R12): the inserted `echo ok` was added in the diff
+        # and resolves to no body that can refuse, so the gut is the last
+        # Stop judge gone (critical); spec 13 to 23 held it at warn.
         for path, event in self.CASES:
             for body, message in ((self.GUT, "lost block capability"),
                                   (self.STUB, "resolves to a stub body")):
@@ -309,9 +319,20 @@ class HookCommandPairing(unittest.TestCase):
                         [{"command": "echo ok"}, {"command": self.T}],
                         self.REAL, body,
                     )
-                    self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+                    self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
                     self.assertIn(message, payload["findings"][0]["message"])
-                    self.assertEqual(payload["verdict"], "pass")
+                    self.assertEqual(payload["verdict"], "block")
+
+    def test_gutted_judge_beside_a_pre_existing_live_sibling_stays_warn(self) -> None:
+        for path, event in self.CASES:
+            with self.subTest(path=path):
+                payload = self._scan(
+                    path, event, [{"command": "echo ok"}, {"command": self.T}],
+                    [{"command": self.T}, {"command": "echo ok"}],
+                    self.REAL, self.GUT,
+                )
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+                self.assertEqual(payload["verdict"], "pass")
 
     def test_gutted_judge_behind_an_inserted_non_live_sibling_blocks(self) -> None:
         for flag, value in (("disabled", True), ("failOpen", True)):
@@ -333,7 +354,7 @@ class HookCommandPairing(unittest.TestCase):
             {".claude/settings.json": base, self.JUDGE: self.REAL},
             {".claude/settings.json": head, self.JUDGE: self.GUT},
         )
-        self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+        self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
 
     def test_comment_out_behind_an_inserted_sibling_fires(self) -> None:
         for path, event in self.CASES:
@@ -343,7 +364,7 @@ class HookCommandPairing(unittest.TestCase):
                     [{"command": "echo ok"}, {"command": "# " + self.T}],
                     self.REAL, self.REAL,
                 )
-                self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+                self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
                 finding = payload["findings"][0]
                 self.assertEqual((finding["before"], finding["after"]), (self.T, "# " + self.T))
 
@@ -383,26 +404,57 @@ class HookCommandPairing(unittest.TestCase):
         )
         self.assertEqual(payload["findings"], [])
 
-    def test_list_index_pairing_still_fires_with_its_old_fields(self) -> None:
-        # The base command at the same index pairs first, so a finding that
-        # fired before keeps its before/after and fingerprint: here the real
-        # judge is removed and a pre-existing stub-body sibling moves into
-        # its index.
+    def test_judge_removed_beside_siblings_that_are_not_live_is_hook_removed(self) -> None:
+        # Spec 24 draft (R12): through spec 23 the list-index pairing caught
+        # these only when the sibling followed the judge, by accident of
+        # position (a stub body, `true` or a `#` command moved into the
+        # judge's index); with the sibling first they were silent. The
+        # event keeps commands but none live after a live command left it.
         stubby = "python hooks/stubby.py"
-        payload = _pair(
-            {".claude/settings.json": _hooks("Stop", [{"command": self.T}, {"command": stubby}]),
-             self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
-            {".claude/settings.json": _hooks("Stop", [{"command": stubby}]),
-             self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
-        )
-        self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
-        self.assertEqual(payload["findings"][0]["message"],
-                         "hook command for Stop resolves to a stub body")
+        for sibling in (stubby, "true", "# python hooks/old.py",
+                        {"command": "bash hooks/fmt.sh", "disabled": True}):
+            for order in ("after", "before"):
+                with self.subTest(sibling=sibling, order=order):
+                    base_cmds = [{"command": self.T}, sibling if isinstance(sibling, dict)
+                                 else {"command": sibling}]
+                    if order == "before":
+                        base_cmds.reverse()
+                    head_cmds = [c for c in base_cmds if c.get("command") != self.T]
+                    payload = _pair(
+                        {".claude/settings.json": _hooks("Stop", base_cmds),
+                         self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
+                        {".claude/settings.json": _hooks("Stop", head_cmds),
+                         self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
+                    )
+                    self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
+                    finding = payload["findings"][0]
+                    self.assertEqual(finding["message"], "hook event Stop keeps no live command")
+                    self.assertEqual(finding["before"], self.T)
 
-    def test_lost_block_at_an_index_keeps_its_spec12_fingerprint(self) -> None:
-        # Spec 12 emitted "lost block capability" when the stubbed judge sat
-        # at an index whose base command had no real body; string pairing
-        # must not relabel it, or a base exemption naming it stops matching.
+    def test_reordering_beside_placeholders_is_silent(self) -> None:
+        # Spec 24 draft (R12): the list-index pairing's warn noise on honest
+        # reorders and inserted placeholders is gone.
+        for placeholder in ("true", "echo {}", "# python hooks/old.py", "python hooks/stubby.py"):
+            with self.subTest(placeholder=placeholder):
+                extra = {"hooks/stubby.py": self.STUB}
+                moved = self._scan(
+                    ".claude/settings.json", "Stop",
+                    [{"command": self.T}, {"command": placeholder}],
+                    [{"command": placeholder}, {"command": self.T}], self.REAL, self.REAL, extra,
+                )
+                self.assertEqual(moved["findings"], [])
+                inserted = self._scan(
+                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    [{"command": placeholder}, {"command": self.T}], self.REAL, self.REAL, extra,
+                )
+                self.assertEqual(inserted["findings"], [])
+
+    def test_stubbed_judge_after_a_removed_sibling_reports_the_stub_body(self) -> None:
+        # Disclosed fingerprint change (spec 24 draft, R12): spec 12 to 23
+        # paired this judge with the removed sibling at its list index and
+        # reported "lost block capability"; the multiset pairing compares it
+        # with its own base body and reports the stub body, so a base
+        # allow.toml record naming the old fingerprint no longer matches.
         for first in ("echo start", "npx lint-staged"):
             with self.subTest(first=first):
                 payload = self._scan(
@@ -411,10 +463,8 @@ class HookCommandPairing(unittest.TestCase):
                     [{"command": self.T}], self.REAL, self.STUB,
                 )
                 self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
-                finding = payload["findings"][0]
-                self.assertEqual(finding["message"], "hook command for Stop lost block capability")
-                self.assertEqual((finding["before"], finding["after"]),
-                                 ("block-capable", "no block/deny"))
+                self.assertEqual(payload["findings"][0]["message"],
+                                 "hook command for Stop resolves to a stub body")
 
     def test_shifted_twin_of_the_helper_refactor_blocks_where_nothing_live_remains(self) -> None:
         # Disclosed trade (#10): moving `block` into a helper module is the
@@ -423,11 +473,18 @@ class HookCommandPairing(unittest.TestCase):
         # it now blocks too; behind a live one it is warn.
         helper = "from hooks.policy import decide\nimport sys\nsys.exit(decide(sys.stdin.read()))\n"
         policy = {"hooks/policy.py": "def decide(text):\n    return 2 if not text else 0  # block\n"}
-        for sibling, severity in (({"command": "bash hooks/fmt.sh", "disabled": True}, "critical"),
-                                  ({"command": "bash hooks/fmt.sh"}, "warn")):
-            with self.subTest(sibling=sibling):
+        # Spec 24 draft (R12): an inserted formatter was added in the diff
+        # and cannot refuse, so it keeps nothing off either (critical); a
+        # formatter already there at base still does (warn).
+        for sibling, base_sibling, severity in (
+            ({"command": "bash hooks/fmt.sh", "disabled": True}, False, "critical"),
+            ({"command": "bash hooks/fmt.sh"}, False, "critical"),
+            ({"command": "bash hooks/fmt.sh"}, True, "warn"),
+        ):
+            with self.subTest(sibling=sibling, base_sibling=base_sibling):
                 payload = self._scan(
-                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    ".claude/settings.json", "Stop",
+                    [sibling, {"command": self.T}] if base_sibling else [{"command": self.T}],
                     [sibling, {"command": self.T}], self.REAL, helper,
                     dict(policy, **{"hooks/fmt.sh": "#!/bin/sh\nnpx prettier --check .\n"}),
                 )
@@ -435,17 +492,20 @@ class HookCommandPairing(unittest.TestCase):
                 self.assertEqual(payload["findings"][0]["message"],
                                  "hook command for Stop lost block capability")
 
-    def test_shifted_comment_out_pairs_only_on_the_exact_command_text(self) -> None:
-        # The string pairing needs the text after `#` to equal the base
-        # command; any other text behind an inserted sibling stays R12 (#9).
-        # At the same index the list-index pairing still catches it.
+    def test_shifted_comment_out_pairs_on_any_command_that_left(self) -> None:
+        # Spec 24 draft (R12): a `#` command the diff added pairs with the
+        # base command whose text it carries, else with the first command
+        # that left the event, wherever either stands; through spec 23 a
+        # text other than the exact command behind an inserted sibling was
+        # silent (#9).
         for comment in ("# " + self.T + " (paused)", "#'" + self.T + "'"):
             with self.subTest(comment=comment):
                 shifted = self._scan(
                     ".claude/settings.json", "Stop", [{"command": self.T}],
                     [{"command": "echo ok"}, {"command": comment}], self.REAL, self.REAL,
                 )
-                self.assertEqual(shifted["findings"], [])
+                self.assertEqual(_rules(shifted), [("HOOK_BYPASSED", "critical")])
+                self.assertEqual(shifted["findings"][0]["before"], self.T)
                 in_place = self._scan(
                     ".claude/settings.json", "Stop", [{"command": self.T}],
                     [{"command": comment}], self.REAL, self.REAL,

@@ -107,11 +107,15 @@ class HookStopLiveness(unittest.TestCase):
         return _scan(base, head)
 
     def test_gut_beside_a_new_unresolved_sibling_reports_the_row(self) -> None:
+        # Spec 24 draft (R12, AI-assisted): a sibling the diff added keeps
+        # the §6.1 escalator off only when it resolves to a body that can
+        # refuse, so these block; the row stays, since §5.2's liveness now
+        # rests only on the unread sibling.
         for sibling in ("echo ok", "python -m pkg.mod", '"$CLAUDE_PROJECT_DIR"/hooks/x.sh'):
             with self.subTest(sibling=sibling):
                 payload = self._gut([T], [T, sibling])
-                self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
-                self.assertEqual(payload["verdict"], "pass")
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
+                self.assertEqual(payload["verdict"], "block")
                 self.assertEqual(payload["unknown_coverage"], [self.ROW])
 
     def test_skip_beside_a_pre_existing_unresolved_judge_reports_the_row(self) -> None:
@@ -143,13 +147,17 @@ class HookStopLiveness(unittest.TestCase):
         self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
         self.assertEqual(payload["unknown_coverage"], [])
 
-    def test_a_new_resolved_sibling_counts_live_without_a_row(self) -> None:
-        # R12 member, booked: a sibling added in the diff keeps the escalator
-        # off; its body was read, so no observation is missing.
-        payload = self._gut([T], [T, "python hooks/ok.py"],
-                            {"hooks/ok.py": b"import json\nprint(json.dumps({}))\n"})
-        self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
-        self.assertEqual(payload["unknown_coverage"], [])
+    def test_a_new_resolved_sibling_counts_only_when_it_can_refuse(self) -> None:
+        # Spec 24 draft (R12): a sibling added in the diff keeps the
+        # escalator off only when its body mentions block or deny; its body
+        # was read either way, so no row. A sibling that keeps the word
+        # anywhere still counts (R07).
+        for body, severity in ((b"import json\nprint(json.dumps({}))\n", "critical"),
+                               (b"import json\n# never block here\nprint(json.dumps({}))\n", "warn")):
+            with self.subTest(severity=severity):
+                payload = self._gut([T], [T, "python hooks/ok.py"], {"hooks/ok.py": body})
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", severity)])
+                self.assertEqual(payload["unknown_coverage"], [])
 
     def test_a_critical_finding_reports_no_row(self) -> None:
         payload = self._gut([T], [T])
