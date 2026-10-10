@@ -54,7 +54,7 @@ class StatusPairRows(unittest.TestCase):
     """R-22a (#22): the three status pairs §3's table does not report."""
 
     def test_new_file_pinwash_cannot_parse(self) -> None:
-        for path, data in ((CS, b"{"), (".mcp.json", b"\xef\xbb\xbf{}"), (".github/workflows/ci.yml",
+        for path, data in ((CS, b"{"), (".mcp.json", b"{"), (".github/workflows/ci.yml",
                            b"on: push\n\tjobs: {}\n"),
                            (".claude/hooks/sounds/done.wav", b"RIFF\xff\xfe")):
             with self.subTest(path=path):

@@ -99,6 +99,33 @@ def _union_paths(base: dict[str, bytes], head: dict[str, bytes]) -> list[str]:
     return sorted(norm(p) for p in names if is_surface(p))
 
 
+# SPEC §3 (spec 20, AI-assisted ruling R-22a on #22, the challenger's
+# amendment): these surfaces are decoded as their host decodes them before
+# the JSON parse. Claude Code reads its settings as UTF-16LE when the file
+# starts FF FE (a trailing odd byte dropped, as Node's decoder drops it),
+# else as UTF-8 with U+FFFD for bad bytes, and drops one leading byte order
+# mark; `.mcp.json` the same without UTF-16; gemini-cli
+# (Node, UTF-8) replaces bad bytes and keeps a byte order mark.
+_CLAUDE_SETTINGS = frozenset({".claude/settings.json", ".claude/settings.local.json"})
+
+
+def _host_decoded(path: str, data: bytes) -> bytes:
+    p = norm(path)
+    if p in _CLAUDE_SETTINGS and data[:2] == b"\xff\xfe":
+        text = data[: len(data) - len(data) % 2].decode("utf-16-le", errors="replace")
+    elif p in _CLAUDE_SETTINGS or p in (".mcp.json", ".gemini/settings.json"):
+        text = data.decode("utf-8", errors="replace")
+    else:
+        return data
+    if text.startswith("\ufeff") and p != ".gemini/settings.json":
+        text = text[1:]
+    return text.encode("utf-8", "surrogatepass")
+
+
+def _host_view(files: dict[str, bytes]) -> dict[str, bytes]:
+    return {path: _host_decoded(path, data) for path, data in files.items()}
+
+
 def scan_pair(
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
@@ -115,6 +142,8 @@ def scan_pair(
     unknown: list[dict[str, str]] = list(unobserved or [])
     config_errors: list[str] = []
     today = pinwash_today(env)
+    base_files = _host_view(base_files)
+    head_files = _host_view(head_files)
 
     def add(**kwargs: Any) -> None:
         findings.append(make_finding(**kwargs))
@@ -213,6 +242,9 @@ def scan_pair(
         if is_claude_settings(path) and norm(path) not in mode_files:
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
+            if b_st == "unparseable":
+                # Spec 20: the host ran without a base it could not parse.
+                b_obj, b_st = None, "missing"
             mode_files[norm(path)] = (path, b_obj, b_st, h_obj, h_st)
     if mode_files:
         permission.detect_claude_mode(mode_files, add, note_unknown)
@@ -254,7 +286,10 @@ def scan_pair(
                 hook_finding=len(findings) > n_before,
                 note_unknown=note,
             )
-            if is_claude_settings(path) and h_st == "ok" and b_st != "unparseable":
+            # SPEC §3 (spec 20): Claude Code rejects a settings file it
+            # cannot parse, so a head that parses is compared against an
+            # absent base when the base does not parse.
+            if is_claude_settings(path) and h_st == "ok":
                 permission.detect_claude_settings(
                     path,
                     b_obj if b_st == "ok" else None,
@@ -262,9 +297,10 @@ def scan_pair(
                     add,
                     base_union=base_allow,
                 )
-            if is_claude_settings(path) and "unparseable" not in (b_st, h_st):
+            if is_claude_settings(path) and h_st != "unparseable":
                 # SPEC §5.3 / §7 (spec 16, R17): permission changes the closed
-                # comparisons do not evaluate, a deleted file included.
+                # comparisons do not evaluate, a deleted file included; an
+                # unparseable base reads as absent (spec 20).
                 permission.route_claude_settings(base_doc, head_doc, note, base_union=base_allow)
         elif is_claude_hooks_file(path) or path in targets_base or path in targets_head:
             # Surface membership for .claude/hooks/** and §3.3 targets: the
@@ -340,7 +376,10 @@ def scan_pair(
             h_obj, h_st = json_load(head_files.get(path))
             if status_gate(path, b_st, h_st):
                 continue
-            if b_st != "unparseable" and h_st == "ok":
+            # SPEC §3 (spec 20): Claude Code reads `.mcp.json` strictly, so
+            # its head is compared against an absent base when the base does
+            # not parse; Cursor's reader is not evidenced (R19).
+            if h_st == "ok" and (b_st != "unparseable" or norm(path) == ".mcp.json"):
                 permission.detect_mcp(
                     path,
                     b_obj if b_st == "ok" else None,

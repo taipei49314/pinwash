@@ -198,11 +198,11 @@ class EffectiveModeAcrossFiles(unittest.TestCase):
                         {CS: _doc("dm", "default"), LOCAL: b"{"})
         self.assertEqual(_found(payload), [(CS, "permissions.defaultMode", "permissions.defaultMode dontAsk -> default")])
         self.assertIn(("SURFACE_UNPARSEABLE", "high"), [(f["rule"], f["severity"]) for f in payload["findings"]])
-        # A corrupt base local file: the shared file is unchanged, and the
-        # local one cannot be compared (a row; R17 books the masking).
+        # A corrupt base local file reads as absent since spec 20 (the host
+        # ran without it), so its head override of a shared dontAsk fires.
         payload = _scan({CS: _doc("dm", "dontAsk"), LOCAL: b"{"},
                         {CS: _doc("dm", "dontAsk"), LOCAL: _doc("dm", "default")})
-        self.assertEqual(payload["findings"], [])
+        self.assertEqual(_found(payload), [(LOCAL, "permissions.defaultMode", "permissions.defaultMode dontAsk -> default")])
         self.assertIn((LOCAL, "surface unparseable at base"), _rows(payload))
         # A new local file pinwash cannot parse.
         payload = _scan({CS: _doc("dm", "dontAsk")}, {CS: _doc("dm", "dontAsk"), LOCAL: b"{"})
