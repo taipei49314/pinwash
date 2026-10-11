@@ -13,7 +13,7 @@ from typing import Any
 from pinwash.allow import apply_allow, detect_allow
 from pinwash.findings import envelope, make_finding
 from pinwash.parse.gha import parse_workflow
-from pinwash.parse.hookcmd import command_body_map
+from pinwash.parse.hookcmd import command_body_map, resolver, root_form_guard
 from pinwash.parse.jsonsurf import json_load, text_load
 from pinwash.parse.tomlsub import pinwash_today
 from pinwash.gitrepo import (
@@ -213,8 +213,28 @@ def scan_pair(
     # SPEC §3.3 / §5.2: resolve hook command targets per side, then scan
     # their bodies. Targets become claude_hooks surface members. The head
     # side compares against base bodies for the block-capability shape.
-    body_base, targets_base = command_body_map(base_files)
-    body_head, targets_head = command_body_map(head_files, base_files=base_files)
+    # SPEC §3.3 (spec 26): claude_settings commands also resolve the closed
+    # project-root forms, unless only hook objects holding `args` or a
+    # `shell` other than "bash" hold the string; cursor_hooks commands do not. Each kind has its own
+    # body map, so a string both surfaces hold resolves per surface.
+    guard_base = root_form_guard(base_files)
+    guard_head = root_form_guard(head_files)
+    kind_bodies: dict[bool, tuple[Any, Any]] = {}
+    kind_resolvers: dict[bool, tuple[Any, Any]] = {}
+    targets_base: set[str] = set()
+    targets_head: set[str] = set()
+    for claude_kind in (True, False):
+        g_b = guard_base if claude_kind else frozenset()
+        g_h = guard_head if claude_kind else frozenset()
+        bb, tb = command_body_map(base_files, claude=claude_kind, guard=g_b)
+        bh, th = command_body_map(head_files, base_files=base_files, claude=claude_kind, guard=g_h)
+        kind_bodies[claude_kind] = (bb, bh)
+        kind_resolvers[claude_kind] = (
+            resolver(base_files, claude=claude_kind, guard=g_b),
+            resolver(head_files, claude=claude_kind, guard=g_h),
+        )
+        targets_base |= tb
+        targets_head |= th
     paths = sorted(set(paths) | targets_base | targets_head)
 
     # SPEC §5: the job-side REQUIRED_CHECK_DROPPED trigger is the workflow
@@ -271,7 +291,7 @@ def scan_pair(
         key: (path, b_obj if b_st == "ok" else None, h_obj if h_st == "ok" else None)
         for key, (path, b_obj, b_st, h_obj, h_st) in mode_files.items()
     }
-    switch_path = hook_switch.detect(switch_files, body_base, hook_rules.live_stop_events, add)
+    switch_path = hook_switch.detect(switch_files, kind_bodies[True][0], hook_rules.live_stop_events, add)
     if switch_path is None:
         # No command was active at base, yet the value in effect became
         # `true` (a local `false` removed under a shared `true`): the row.
@@ -303,13 +323,19 @@ def scan_pair(
                 note_unknown(_path, reason)
 
             n_before = len(findings)
+            claude_kind = is_claude_settings(path)
+            body_base, body_head = kind_bodies[claude_kind]
+            res_base, res_head = kind_resolvers[claude_kind]
             hook_rules.detect(
                 path, base_ev, head_ev, stop_names, add, body_base, body_head,
                 note_unknown=note,
             )
             # SPEC §3.3 / §5.1 / §7 (spec 13): hook-side unknown coverage.
             # Rows never add, drop or change a finding, so never the verdict.
-            hook_selector.detect(path, base_doc, head_doc, base_files, head_files, note)
+            hook_selector.detect(
+                path, base_doc, head_doc, base_files, head_files, note,
+                targets=(res_base, res_head),
+            )
             hook_coverage.detect(
                 claude_settings=is_claude_settings(path),
                 base_doc=base_doc,
@@ -323,6 +349,7 @@ def scan_pair(
                 note_unknown=note,
                 switch_finding=path == switch_path,
                 switch_anywhere=is_claude_settings(path) and switch_anywhere,
+                targets=(res_base, res_head),
             )
             # SPEC §3 (spec 20): Claude Code rejects a settings file it
             # cannot parse, so a head that parses is compared against an

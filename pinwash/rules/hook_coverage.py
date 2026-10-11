@@ -77,12 +77,15 @@ def no_longer_resolved(
     head_ev: dict[str, dict[str, Any]],
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
+    targets: Any = (None, None),
 ) -> bool:
     """A diff moved a resolved hook command out of §3.3's sight.
 
     No row for a command dropped with no replacement, for a replacement
     that resolves, or for a removed event (HOOK_REMOVED's case).
     """
+    t_base = targets[0] or (lambda c: hook_command_targets(c, base_files))
+    t_head = targets[1] or (lambda c: hook_command_targets(c, head_files))
     for event, b_info in base_ev.items():
         h_info = head_ev.get(event)
         if h_info is None:
@@ -93,13 +96,13 @@ def no_longer_resolved(
         b_resolved = {
             c
             for c, f in b_info["command_states"]
-            if _active(c, f) and hook_command_targets(c, base_files)
+            if _active(c, f) and t_base(c)
         }
-        if any(c in h_active and not hook_command_targets(c, head_files) for c in b_resolved):
+        if any(c in h_active and not t_head(c) for c in b_resolved):
             return True
         left = any(c not in h_names for c in b_resolved)
         new_unresolved = any(
-            c not in b_active and not hook_command_targets(c, head_files) for c in h_active
+            c not in b_active and not t_head(c) for c in h_active
         )
         if left and new_unresolved:
             return True
@@ -203,6 +206,7 @@ def names_changed_file(
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
     changed: list[str],
+    targets: Any = (None, None),
 ) -> bool:
     """An active command names a changed path that is not one of its own
     §3.3 targets on that side. Diff-scoped: on an unchanged tree no path
@@ -215,7 +219,9 @@ def names_changed_file(
     odd = [p for p in changed if any(ch in _REF_RIGHT for ch in p)]
     plain = changed_set.difference(odd)
     maxlen = max((len(p) for p in plain), default=0)
-    for events, files in ((base_ev, base_files), (head_ev, head_files)):
+    t_base = targets[0] or (lambda c: hook_command_targets(c, base_files))
+    t_head = targets[1] or (lambda c: hook_command_targets(c, head_files))
+    for events, resolve in ((base_ev, t_base), (head_ev, t_head)):
         seen: set[str] = set()
         for info in events.values():
             for command, flags in info["command_states"]:
@@ -226,7 +232,7 @@ def names_changed_file(
                 named = _module_paths(slashed) & changed_set
                 named |= _named_paths(slashed, plain, maxlen)
                 named.update(p for p in odd if _names_path(slashed, set(), p))
-                if named - set(hook_command_targets(command, files)):
+                if named - set(resolve(command)):
                     return True
     return False
 
@@ -393,12 +399,13 @@ def detect(
     note_unknown: Any,
     switch_finding: bool = False,
     switch_anywhere: bool = False,
+    targets: Any = (None, None),
 ) -> None:
     """Report the reasons above for one hook surface file. `changed` is a
     callable returning the diff's changed paths, computed once per run."""
-    if no_longer_resolved(base_ev, head_ev, base_files, head_files):
+    if no_longer_resolved(base_ev, head_ev, base_files, head_files, targets):
         note_unknown(TARGET_NO_LONGER_RESOLVED)
-    if names_changed_file(base_ev, head_ev, base_files, head_files, changed()):
+    if names_changed_file(base_ev, head_ev, base_files, head_files, changed(), targets):
         note_unknown(NAMES_CHANGED_FILE)
     if flag_not_boolean(base_doc, head_doc, hook_finding):
         note_unknown(FLAG_NOT_BOOLEAN)

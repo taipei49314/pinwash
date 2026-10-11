@@ -381,8 +381,10 @@ class TargetRows(unittest.TestCase):
 
     def test_unchanged_unresolved_command_with_its_file_changed(self) -> None:
         for cmd, path, body, gut in (
-            ('python "$CLAUDE_PROJECT_DIR"/hooks/judge.py', "hooks/judge.py", REAL, GUT),
-            ('"$CLAUDE_PROJECT_DIR"/.claude/hooks/judge.sh', ".claude/hooks/judge.sh", REAL_SH, GUT_SH),
+            # Spec 26: the closed project-root forms resolve only in a
+            # command's leading run of plain words; these stay unresolved.
+            ('cd /tmp && python "$CLAUDE_PROJECT_DIR"/hooks/judge.py', "hooks/judge.py", REAL, GUT),
+            ('"$CLAUDE_PROJECT_DIR"//.claude/hooks/judge.sh', ".claude/hooks/judge.sh", REAL_SH, GUT_SH),
             ('"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/judge.sh"', ".claude/hooks/judge.sh", REAL_SH, GUT_SH),
             ("./hooks/judge", "hooks/judge", REAL_SH, GUT_SH),
             ("python -m hooks.judge", "hooks/judge.py", REAL, GUT),
@@ -463,7 +465,7 @@ class SpecThirteenReviewRows(unittest.TestCase):
         self.assertIn(NO_LONGER, _reasons(payload))
 
     def test_lone_cr_rewrite_of_a_named_script_is_a_change(self) -> None:
-        cmd = '"$CLAUDE_PROJECT_DIR"/.claude/hooks/judge.sh'
+        cmd = '"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/judge.sh'
         base = {CS: _settings(cmd), ".claude/hooks/judge.sh": REAL_SH}
         head = {CS: _settings(cmd), ".claude/hooks/judge.sh": REAL_SH.replace(b"\n", b"\r")}
         self.assertIn(NAMES, _reasons(_scan(base, head)))
@@ -623,14 +625,14 @@ class RowsAreVisibilityOnly(unittest.TestCase):
             CS: json.dumps({"hooks": {
                 "Stop": [{"hooks": [_cmd(T)]}],
                 "PreToolUse": [{"matcher": "Bash", "hooks": [_cmd(GUARD)]}],
-                "PostToolUse": [{"hooks": [_cmd('"$CLAUDE_PROJECT_DIR"/hooks/fmt.sh')]}]}}),
+                "PostToolUse": [{"hooks": [_cmd('"${CLAUDE_PROJECT_DIR:-.}"/hooks/fmt.sh')]}]}}),
             "hooks/judge.py": REAL, "hooks/guard.py": REAL, "hooks/fmt.sh": FMT,
         }
         head = {
             CS: json.dumps({"disableAllHooks": "yes", "hooks": {
                 "Stop": [{"hooks": [_cmd("npx tripwire-judge")]}],
                 "PreToolUse": [{"matcher": "NoSuchTool", "hooks": [_cmd(GUARD, failOpen="true")]}],
-                "PostToolUse": [{"hooks": [_cmd('"$CLAUDE_PROJECT_DIR"/hooks/fmt.sh')]}]}}),
+                "PostToolUse": [{"hooks": [_cmd('"${CLAUDE_PROJECT_DIR:-.}"/hooks/fmt.sh')]}]}}),
             "hooks/judge.py": REAL, "hooks/guard.py": REAL, "hooks/fmt.sh": FMT + b"echo\n",
         }
         payload = _scan(base, head)
