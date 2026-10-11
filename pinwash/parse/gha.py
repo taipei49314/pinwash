@@ -126,6 +126,10 @@ class GhaJob:
     # spec 14 review: a double-quoted `name:` holding a `\` escape, whose
     # context is the decoded text the grammar does not compute.
     name_escaped: bool = False
+    # spec 23 review: the `name:` value as written, quotes and any anchor
+    # kept, with only ASCII spaces and tabs around it removed; None when the
+    # job has no single-line `name:`.
+    name_text: str | None = None
     if_value: str | None = None
     # spec 14 review: a job-level `if:` written as a block scalar or with an
     # empty value: its header and body lines as recorded (if_value is None).
@@ -891,6 +895,13 @@ def parse_workflow(text: str) -> GhaFile:
                             quote_sink = job.if_lines.append
             elif job_block == "if" and job.if_lines is not None:
                 job.if_lines.append(stripped.rstrip(" "))
+            elif job_block == "name" and job.name is not None and indent > 4:
+                # spec 23 review: a plain `name:` continued on a deeper line
+                # is one value YAML folds; its context is not read.
+                job.name = None
+                job.name_text = None
+                job.name_resolved = False
+                result.unknown.append(MULTILINE)
             elif job_block == "if" and job.if_value is not None and indent > 4:
                 # spec 22 review: a plain scalar continued on a deeper line
                 # is one value YAML folds; it is multiline, recorded as its
@@ -990,6 +1001,8 @@ def parse_workflow(text: str) -> GhaFile:
                     # spec 14 review: a double-quoted escape is decoded by
                     # YAML; the grammar does not decode it.
                     job.name_escaped = raw.startswith('"') and "\\" in raw
+                    rest = line[line.index("name:") + len("name:"):].strip(" \t")
+                    job.name_text = "" if rest.startswith("#") else truncate_inline_comment(rest).strip(" \t")
             continue
     if result.on_seen and not result.triggers:
         if ON_UNRESOLVED not in result.unknown:
