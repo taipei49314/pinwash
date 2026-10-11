@@ -21,8 +21,15 @@ applies to a hook surface file; the engine reports each (path, reason) once.
   a §5 hook finding fired in the file while either side holds one.
 * "hook settings root disableAllHooks" (§5.1, R06, #18; claude_settings):
   the root `disableAllHooks` value at head differs from base and is neither
-  absent nor the JSON `false`; or a §5 hook finding fired in the file while
-  either side's value is neither absent nor `false`.
+  absent nor the JSON `false`, unless it is the JSON `true` in a file that
+  carries the spec 24 `HOOK_BYPASSED` finding for it; or a root
+  `__proto__` object's `disableAllHooks` is present at head and differs
+  from base (spec 24: Claude Code 2.1.42 reads it, R24); or a §5 hook
+  finding other than the switch finding fired in the file while a switch
+  value (neither absent nor `false`, or a JS-truthy `__proto__` value) is
+  held by either settings file on either side (spec 24). The engine also
+  reports it on the file that supplies a head `true` in effect when no
+  switch finding fired (spec 24).
 * "hook command environment changed" (§3.3, R07, #18; claude_settings): a
   root `env` key the diff adds, changes or removes is expanded (`$K`,
   `${K...`) by an active hook command of the same file on either side.
@@ -49,6 +56,7 @@ ENV_CHANGED = "hook command environment changed"
 
 FLAG_KEYS = ("disabled", "hookEnabled", "continueOnError", "failOpen")
 _FALSE = canonical_text(False)
+_TRUE = canonical_text(True)
 
 # Closed boundary sets: a changed repo path counts as named by a command
 # only where it stands as a whole token or as the tail of a longer path.
@@ -333,12 +341,42 @@ def _root_value(doc: Any, key: str) -> str | None:
     return canonical_text(doc[key])
 
 
-def disable_all_hooks(base_doc: Any, head_doc: Any, hook_finding: bool) -> bool:
+# JavaScript's falsy JSON values: Claude Code 2.1.42 reads a root
+# `__proto__` object's members as inherited settings and tests the switch
+# for truthiness there (executed: `"false"`, `1` and `[]` switch hooks off).
+_JS_FALSY = frozenset({_FALSE, canonical_text(0), canonical_text(""), canonical_text(None)})
+
+
+def _proto_value(doc: Any) -> str | None:
+    if not isinstance(doc, dict):
+        return None
+    return _root_value(doc.get("__proto__"), "disableAllHooks")
+
+
+def switch_set(doc: Any) -> bool:
+    """The root `disableAllHooks` is neither absent nor the JSON `false`, or
+    a root `__proto__` object holds a JS-truthy one (spec 24)."""
+    if _root_value(doc, "disableAllHooks") not in (None, _FALSE):
+        return True
+    return _proto_value(doc) not in (None, *_JS_FALSY)
+
+
+def disable_all_hooks(
+    base_doc: Any, head_doc: Any, hook_finding: bool, switch_finding: bool = False,
+    switch_anywhere: bool = False,
+) -> bool:
     base = _root_value(base_doc, "disableAllHooks")
     head = _root_value(head_doc, "disableAllHooks")
-    if head != base and head not in (None, _FALSE):
+    if head != base and head not in (None, _FALSE) and not (switch_finding and head == _TRUE):
         return True
-    return hook_finding and (base not in (None, _FALSE) or head not in (None, _FALSE))
+    proto_head = _proto_value(head_doc)
+    if proto_head is not None and proto_head != _proto_value(base_doc):
+        return True
+    # Spec 24: beside a hook finding, the switch of either settings file on
+    # either side marks it (`switch_anywhere`).
+    return hook_finding and (
+        switch_set(base_doc) or switch_set(head_doc) or switch_anywhere
+    )
 
 
 def detect(
@@ -353,6 +391,8 @@ def detect(
     changed: Any,
     hook_finding: bool,
     note_unknown: Any,
+    switch_finding: bool = False,
+    switch_anywhere: bool = False,
 ) -> None:
     """Report the reasons above for one hook surface file. `changed` is a
     callable returning the diff's changed paths, computed once per run."""
@@ -362,7 +402,7 @@ def detect(
         note_unknown(NAMES_CHANGED_FILE)
     if flag_not_boolean(base_doc, head_doc, hook_finding):
         note_unknown(FLAG_NOT_BOOLEAN)
-    if claude_settings and disable_all_hooks(base_doc, head_doc, hook_finding):
+    if claude_settings and disable_all_hooks(base_doc, head_doc, hook_finding, switch_finding, switch_anywhere):
         note_unknown(DISABLE_ALL_HOOKS)
     if claude_settings and environment_changed(base_doc, head_doc, base_ev, head_ev):
         note_unknown(ENV_CHANGED)

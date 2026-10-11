@@ -47,6 +47,15 @@ def _non_stub_stop_count(
     return n
 
 
+def live_stop_events(
+    events: dict[str, dict[str, Any]],
+    names: frozenset[str],
+    body_map: dict[str, tuple[bool, bool, str]],
+) -> int:
+    """SPEC §6.1: the Stop-like events of one file that keep a live command."""
+    return _non_stub_stop_count(events, names, body_map)
+
+
 def _is_comment(command: str) -> bool:
     return command.lstrip().startswith("#")
 
