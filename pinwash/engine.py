@@ -199,6 +199,17 @@ def scan_pair(
         if b_st == "ok":
             base_contexts.update(ruleset_contexts(b_obj))
 
+    # SPEC §5.3 (spec 17): `permissions.defaultMode` is compared on the
+    # value in effect across both settings files, not per file.
+    mode_files: dict[str, tuple[str, Any, str, Any, str]] = {}
+    for path in paths:
+        if is_claude_settings(path) and norm(path) not in mode_files:
+            b_obj, b_st = json_load(base_files.get(path))
+            h_obj, h_st = json_load(head_files.get(path))
+            mode_files[norm(path)] = (path, b_obj, b_st, h_obj, h_st)
+    if mode_files:
+        permission.detect_claude_mode(mode_files, add, note_unknown)
+
     for path in paths:
         if is_claude_settings(path) or is_cursor_hooks(path):
             b_obj, b_st = json_load(base_files.get(path))
