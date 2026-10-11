@@ -891,6 +891,13 @@ def parse_workflow(text: str) -> GhaFile:
                             quote_sink = job.if_lines.append
             elif job_block == "if" and job.if_lines is not None:
                 job.if_lines.append(stripped.rstrip(" "))
+            elif job_block == "if" and job.if_value is not None and indent > 4:
+                # spec 22 review: a plain scalar continued on a deeper line
+                # is one value YAML folds; it is multiline, recorded as its
+                # header and lines and never read by §5.6.
+                job.if_lines = [job.if_value, stripped.rstrip(" ")]
+                job.if_value = None
+                result.unknown.append(MULTILINE)
             elif job_block in ("needs", "strategy"):
                 piece = truncate_inline_comment(stripped).strip()
                 target = job.needs if job_block == "needs" else job.strategy
@@ -1014,8 +1021,210 @@ def step_run_keys(job: GhaJob) -> list[tuple[str, str]]:
     return [(step.identity(), key) for step in job.steps for key in step.keys]
 
 
-def job_disabled(job: GhaJob) -> bool:
-    if job.if_value is None:
+# SPEC §5.6 (spec 22, AI-assisted rulings R-13a and R-13b on #13, as the
+# challenger amended them, and the review of 2026-10-10): the closed
+# readings of a single-line job `if:`.
+# GitHub wraps a condition with no status function as `success() && (…)`,
+# and a job its condition skips reports Success to a required check. Both
+# readings normalize alike: one optional layer of matching quotes; then a
+# value that is exactly one `${{ … }}` (text outside the braces makes
+# GitHub build a string, which is truthy) or holds no `${{`; whitespace
+# outside single-quoted literals removed and letters outside them compared
+# without case. The scan is linear and never recurses, so a value of any
+# length or nesting reads the same on every interpreter.
+_FALSE_UNQUOTED = frozenset({"false", "False", "FALSE", "0"})
+_FALSE_ATOMS = frozenset({
+    "false", "0", "null", "!true", "!always()", "!!false", "!!0", "!!null",
+})
+_FALSE_NEGATED = frozenset({"true", "always()"})
+# A YAML 1.2 core null: an empty condition, which GitHub runs as success().
+_YAML_NULL = frozenset({"null", "Null", "NULL", "~"})
+# Events whose runs never gate a pull request (spec 8 counts push and
+# pull_request as the enforcement path); closed, so merge_group,
+# pull_request_target and unknown events are never read. Compared upper-cased,
+# as GitHub compares strings (JavaScript toUpperCase).
+NON_ENFORCEMENT_EVENTS = frozenset({
+    "schedule", "workflow_dispatch", "repository_dispatch", "release",
+    "workflow_run", "workflow_call",
+})
+_NON_ENFORCEMENT_UPPER = frozenset(e.upper() for e in NON_ENFORCEMENT_EVENTS)
+_EVENT_SIDES = ("github.event_name==", "github['event_name']==")
+
+
+def _if_expression(value: str) -> str | None:
+    """The normalized expression of a single-line job `if:`, or None when
+    the value is not in the readable forms (§5.6)."""
+    v = value.strip()
+    quoted = len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'"
+    s = v[1:-1] if quoted else v
+    if quoted and v[0] == "'":
+        s = s.replace("''", "'")  # YAML's one escape in a single-quoted value
+    elif quoted and "\\" in s:
+        return None  # a double-quoted escape the grammar does not decode
+    if not quoted and s[:1] in ("!", "&", "*", "[", "{"):
+        return None  # a YAML tag, anchor, alias or flow node
+    if "${{" in s:
+        if not (s.startswith("${{") and s.endswith("}}")):
+            return None
+        s = s[3:-2]
+        if "${{" in s or "}}" in s:
+            return None
+    out: list[str] = []
+    literal = False
+    for ch in s:
+        if ch == "'":
+            literal = not literal
+            out.append(ch)
+        elif literal:
+            out.append(ch)
+        elif not ch.isspace():
+            out.append(ch.lower())
+    if literal:
+        return None
+    s = "".join(out)
+    # Parentheses and brackets outside literals must balance: GitHub rejects
+    # any other expression, so the workflow never runs.
+    opened: list[str] = []
+    literal = False
+    for ch in s:
+        if ch == "'":
+            literal = not literal
+        elif literal:
+            continue
+        elif ch in "([":
+            opened.append(ch)
+        elif ch in ")]":
+            if not opened or opened.pop() != ("[" if ch == "]" else "("):
+                return None
+    if opened:
+        return None
+    return s or None
+
+
+class _Expr:
+    """Parenthesis, bracket and literal structure of a balanced normalized
+    expression, so spans are stripped and split without rescanning nested
+    groups (an operator inside an index `[…]` is not top-level)."""
+
+    def __init__(self, s: str) -> None:
+        self.s = s
+        self.close: dict[int, int] = {}  # an opening `(`, `[` or `'` -> its end
+        opened: list[int] = []
+        i, n = 0, len(s)
+        while i < n:
+            ch = s[i]
+            if ch == "'":
+                j = s.find("'", i + 1)
+                if j < 0:
+                    break  # unreachable: _if_expression balances literals
+                self.close[i] = j
+                i = j + 1
+                continue
+            if ch in "([":
+                opened.append(i)
+            elif ch in ")]" and opened:
+                self.close[opened.pop()] = i
+            i += 1
+
+    def strip(self, i: int, j: int) -> tuple[int, int]:
+        """The span without its enclosing parentheses."""
+        while j - i >= 2 and self.s[i] == "(" and self.close.get(i) == j - 1:
+            i, j = i + 1, j - 1
+        return i, j
+
+    def split(self, i: int, j: int, op: str) -> list[tuple[int, int]]:
+        """The span's operands around `op` outside parentheses and literals."""
+        s, parts, start, k = self.s, [], i, i
+        while k < j:
+            ch = s[k]
+            if ch in "(['" and k in self.close and self.close[k] < j:
+                k = self.close[k] + 1
+            elif s.startswith(op, k) and k + len(op) <= j:
+                parts.append((start, k))
+                k += len(op)
+                start = k
+            else:
+                k += 1
+        parts.append((start, j))
+        return parts
+
+    def text(self, span: tuple[int, int]) -> str:
+        return self.s[span[0]:span[1]]
+
+
+def _atom_false(e: _Expr, span: tuple[int, int]) -> bool:
+    i, j = e.strip(*span)
+    a = e.s[i:j]
+    if a.startswith("!(") and a.endswith(")") and e.close.get(i + 1) == j - 1:
+        if e.text(e.strip(i + 1, j)) in _FALSE_NEGATED:
+            return True
+    return a in _FALSE_ATOMS
+
+
+def if_reads_false(value: str | None) -> bool:
+    """§5.6: a job `if:` GitHub evaluates as false on every run. The spec
+    0-21 reading (`false` or `${{ false }}`, quotes stripped, any case) and
+    the unquoted YAML 1.2 core false or 0 stand; otherwise the expression,
+    its enclosing parentheses stripped, reads false when every top-level
+    `||` operand does, or, with no top-level `||`, when one of its
+    top-level `&&` operands is a false atom (GitHub's `&&` returns the
+    falsy operand, so it is falsy whatever the others are)."""
+    if value is None:
         return False
-    raw = job.if_value.strip().strip("\"'")
-    return raw.lower() in {"false", "${{ false }}"}
+    v = value.strip()
+    if v in _FALSE_UNQUOTED or v.strip("\"'").lower() in ("false", "${{ false }}"):
+        return True
+    if v in _YAML_NULL:
+        return False
+    s = _if_expression(v)
+    if s is None:
+        return False
+    e = _Expr(s)
+    work = [(0, len(s))]
+    while work:
+        span = e.strip(*work.pop())
+        ors = e.split(*span, "||")
+        if len(ors) > 1:
+            work.extend(ors)
+            continue
+        if not any(_atom_false(e, part) for part in e.split(*span, "&&")):
+            return False
+    return True
+
+
+def if_event_filtered_off(value: str | None) -> bool:
+    """§5.6: a job `if:` that runs the job only on events off the
+    enforcement path: one or more `||` operands, each, its enclosing
+    parentheses stripped, `github.event_name` or `github['event_name']`
+    compared with `==` to a single-quoted event of NON_ENFORCEMENT_EVENTS,
+    in either order, without regard to case (GitHub compares strings and
+    reads context names and index keys without case)."""
+    if value is None:
+        return False
+    s = _if_expression(value)
+    if s is None:
+        return False
+    e = _Expr(s)
+    for part in e.split(*e.strip(0, len(s)), "||"):
+        term = e.text(e.strip(*part)).lower()
+        lit = None
+        for side in _EVENT_SIDES:
+            if term.startswith(side):
+                lit = term[len(side):]
+            elif term.endswith("==" + side[:-2]):
+                lit = term[: -len(side)]
+            if lit is not None:
+                break
+        if lit is None or len(lit) < 3 or lit[0] != "'" or lit[-1] != "'":
+            return False
+        if lit[1:-1].upper() not in _NON_ENFORCEMENT_UPPER:
+            return False
+    return True
+
+
+def job_disabled(job: GhaJob) -> bool:
+    return if_reads_false(job.if_value)
+
+
+def job_event_filtered_off(job: GhaJob) -> bool:
+    return if_event_filtered_off(job.if_value)
