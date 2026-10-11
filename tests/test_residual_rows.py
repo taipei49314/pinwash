@@ -24,7 +24,7 @@ SPEC_HEADER = ("ID", "Residual")
 THREATMODEL_HEADER = ("ID", "Status", "Fixture", "Residual")
 STATUSES = frozenset({"Open", "Closed"})
 # Residual rows booked through spec 12 (R01-R21).
-BOOKED = 23
+BOOKED = 24
 
 # A markdown table cell boundary is a pipe not escaped as `\|`.
 _CELL_BOUNDARY = re.compile(r"(?<!\\)\|")
