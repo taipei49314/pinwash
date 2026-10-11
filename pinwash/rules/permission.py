@@ -142,7 +142,10 @@ def detect_gemini_settings(
             after="autoAccept: true",
         )
     bm, hm = b.get("approvalMode"), h.get("approvalMode")
-    if hm in GM_APPROVAL_RANK:
+    # §5.3: only a string can sit on the lattice; any other JSON value is an
+    # unknown value (no finding), and a list or object must not reach the
+    # dict lookup, where it would raise instead (unhashable).
+    if isinstance(hm, str) and hm in GM_APPROVAL_RANK:
         if bm is None and hm in {"yolo", "auto_edit"}:
             add(
                 rule="PERMISSION_WIDENED",
@@ -151,7 +154,11 @@ def detect_gemini_settings(
                 path=path,
                 after=hm,
             )
-        elif bm in GM_APPROVAL_RANK and GM_APPROVAL_RANK[hm] < GM_APPROVAL_RANK[bm]:
+        elif (
+            isinstance(bm, str)
+            and bm in GM_APPROVAL_RANK
+            and GM_APPROVAL_RANK[hm] < GM_APPROVAL_RANK[bm]
+        ):
             add(
                 rule="PERMISSION_WIDENED",
                 severity="high",

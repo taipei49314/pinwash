@@ -231,13 +231,15 @@ def scan_pair(
                 add,
             )
         elif glob_skill(path) or is_agent_markdown(path):
-            if skill_bypass_excluded(path):
-                continue
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
             unp = _surface_unparseable(b_st, h_st)
             if unp:
                 add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+                continue
+            if skill_bypass_excluded(path):
+                # §5.4 excludes these paths from the phrase table only; the
+                # §3 parse-status check above still applies to the surface.
                 continue
             if h_st != "ok" or h_txt is None:
                 continue

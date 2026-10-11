@@ -15,6 +15,7 @@ _IF = re.compile(r"^(\s*)(-\s+)?if:\s*(.*)$")
 _NAME = re.compile(r"^(\s*)name:\s*(.*)$")
 _JOBS = re.compile(r"^jobs:\s*$")
 _ON = re.compile(r"^on:\s*(.*)$")
+_ON_QUOTED = re.compile(r"""^(?:"on"|'on') *:""")
 _BLOCK_SCALAR = re.compile(r"^[>|](?:[+-][1-9]?|[1-9][+-]?)?$")
 
 MULTILINE = "multiline uses or scalar"
@@ -100,6 +101,15 @@ def parse_workflow(text: str) -> GhaFile:
             # a top-level line starts the `on:` block or ends it
             in_on = bool(mon)
             if not mon:
+                if _ON_QUOTED.match(line):
+                    # SPEC §3.1: the closed trigger forms are read from an
+                    # unquoted column-0 `on:` key. A quoted "on" / 'on' key
+                    # (yamllint's truthy fix) is an on: block the grammar
+                    # does not resolve: seen, so never an observed trigger
+                    # removal, and unknown coverage; its triggers are not read.
+                    result.on_seen = True
+                    result.unknown.append(ON_UNRESOLVED)
+                    continue
                 if _JOBS.match(line):
                     in_jobs = True
                     current_job = None

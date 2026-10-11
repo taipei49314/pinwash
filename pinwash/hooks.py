@@ -12,17 +12,36 @@ def _as_dict(value: Any) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _commands_from_hook_object(obj: dict[str, Any]) -> list[str]:
-    found: list[str] = []
+def _hook_items(obj: dict[str, Any]) -> list[Any]:
     inner = obj.get("hooks")
-    if isinstance(inner, list):
-        for item in inner:
+    return inner if isinstance(inner, list) else []
+
+
+def _commands_from_hook_object(obj: dict[str, Any]) -> list[str]:
+    """Commands under a hook object: each item's command, or the commands of
+    an item without one (its nested "hooks"), then the object's own command.
+
+    A depth-first walk on an explicit stack, not recursion, so a subject
+    document nested at any depth reads the same on every interpreter
+    (SPEC §8 / §9). Order matches the recursive form this replaces.
+    """
+    found: list[str] = []
+    # One frame per object whose nested items are being read: [obj, next item].
+    stack: list[list[Any]] = [[obj, 0]]
+    while stack:
+        frame = stack[-1]
+        node, items = frame[0], _hook_items(frame[0])
+        if frame[1] < len(items):
+            item = items[frame[1]]
+            frame[1] += 1
             if isinstance(item, dict) and isinstance(item.get("command"), str):
                 found.append(item["command"])
             elif isinstance(item, dict):
-                found.extend(_commands_from_hook_object(item))
-    if isinstance(obj.get("command"), str):
-        found.append(obj["command"])
+                stack.append([item, 0])
+            continue
+        stack.pop()
+        if isinstance(node.get("command"), str):
+            found.append(node["command"])
     return found
 
 
@@ -35,6 +54,15 @@ def _direct_flags_from_obj(obj: dict[str, Any]) -> dict[str, bool]:
     }
 
 
+def _merged_flags(
+    obj: dict[str, Any], inherited: dict[str, bool] | None
+) -> dict[str, bool]:
+    flags = _direct_flags_from_obj(obj)
+    if inherited is None:
+        return flags
+    return {key: val or inherited[key] for key, val in flags.items()}
+
+
 def _command_states_from_hook_object(
     obj: dict[str, Any], inherited: dict[str, bool] | None = None,
 ) -> list[tuple[str, dict[str, bool]]]:
@@ -42,27 +70,27 @@ def _command_states_from_hook_object(
 
     A matcher object's skip applies to its children; a skipped child must
     not make its still-active siblings non-live. Command ordering matches
-    _commands_from_hook_object, including its bounded nested shape.
+    _commands_from_hook_object, and so does the explicit-stack walk.
     """
-    flags = _direct_flags_from_obj(obj)
-    if inherited is not None:
-        flags = {key: val or inherited[key] for key, val in flags.items()}
     found: list[tuple[str, dict[str, bool]]] = []
-    inner = obj.get("hooks")
-    if isinstance(inner, list):
-        for item in inner:
+    # [obj, its effective flags, next item]
+    stack: list[list[Any]] = [[obj, _merged_flags(obj, inherited), 0]]
+    while stack:
+        frame = stack[-1]
+        node, flags, items = frame[0], frame[1], _hook_items(frame[0])
+        if frame[2] < len(items):
+            item = items[frame[2]]
+            frame[2] += 1
             if not isinstance(item, dict):
                 continue
             if isinstance(item.get("command"), str):
-                child_flags = _direct_flags_from_obj(item)
-                effective = {
-                    key: val or flags[key] for key, val in child_flags.items()
-                }
-                found.append((item["command"], effective))
+                found.append((item["command"], _merged_flags(item, flags)))
             else:
-                found.extend(_command_states_from_hook_object(item, flags))
-    if isinstance(obj.get("command"), str):
-        found.append((obj["command"], flags))
+                stack.append([item, _merged_flags(item, flags), 0])
+            continue
+        stack.pop()
+        if isinstance(node.get("command"), str):
+            found.append((node["command"], flags))
     return found
 
 
