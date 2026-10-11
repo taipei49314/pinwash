@@ -21,7 +21,6 @@ from pinwash.engine import scan_pair
 from pinwash.findings import fingerprint
 from pinwash.hooks import extract_event_hooks
 from pinwash.parse.jsonsurf import _C_PARSER_DEPTH, _json_int, _loads_iterative, json_load
-from pinwash.parse.tomlsub import parse_checkwash_config
 from pinwash.rules.required_check import ruleset_contexts
 from pinwash.textutil import dump_json, sha256_text
 
@@ -419,8 +418,8 @@ class FingerprintsUnchanged(unittest.TestCase):
             ["SKILL_BYPASS/.agents/skills/技能/SKILL.md/v1:ff6157da881192aa686b2e1b1f266cea57a7729cf9c5faa0c547c729033735d9"],
         ),
         "config_relaxed": (
-            {".checkwash/config.toml": 'fail_on = "high"\n'},
-            {".checkwash/config.toml": 'fail_on = "critical"\n'},
+            {".checkwash/config.toml": '[gate]\nfail_on = "high"\n'},
+            {".checkwash/config.toml": '[gate]\nfail_on = "critical"\n'},
             ["CONFIG_RELAXED/.checkwash/config.toml/v1:d357466d82e49fc3a0bd5a3b073427df6335f8828edfd9559765bd6b7b90512d"],
         ),
         "claude_perm": (
@@ -493,24 +492,25 @@ class TypeConfusion(unittest.TestCase):
 class FailOnCaseFolding(unittest.TestCase):
     """SPEC §8: re.IGNORECASE also matches U+0130 (İ) and U+0131 (ı) for
     "i", so `fail_on = "hİgh"` reached the severity lookup as "hi\u0307gh"
-    and raised KeyError (exit 2, hiding every other finding). A value that
-    is not one of the four severities is outside the §3.2 subset: not read."""
+    and raised KeyError (exit 2, hiding every other finding). Since spec 19
+    a `gate.fail_on` that is not exactly one of the four severities is the
+    default, as checkwash reads it (§3.2): case is not folded."""
 
     C = ".checkwash/config.toml"
-    ODD = ("h\u0130gh", "\u0131nfo", "cr\u0130t\u0130cal", "H\u0130GH")
+    ODD = ("h\u0130gh", "\u0131nfo", "cr\u0130t\u0130cal", "H\u0130GH", "HIGH", "Warn", "w\u0430rn")
 
-    def test_value_outside_the_subset_is_not_read(self) -> None:
+    def test_a_value_that_is_not_a_severity_is_the_default(self) -> None:
+        from pinwash.rules.config_rule import checkwash_read
+
         for value in self.ODD:
             with self.subTest(value=value):
-                self.assertIsNone(parse_checkwash_config(f'fail_on = "{value}"\n')["fail_on"])
-        for line, value in (('FAIL_ON = "HIGH"', "high"), ("fail_on = 'Warn'", "warn")):
-            with self.subTest(line=line):
-                self.assertEqual(parse_checkwash_config(line + "\n")["fail_on"], value)
+                self.assertEqual(checkwash_read(f'[gate]\nfail_on = "{value}"\n'.encode()), ("high", []))
+        self.assertEqual(checkwash_read(b'[GATE]\nFAIL_ON = "warn"\n'), ("high", []))
 
     def test_no_engine_error_on_any_side(self) -> None:
-        high = 'fail_on = "high"\n'
+        high = '[gate]\nfail_on = "high"\n'
         for value in self.ODD:
-            odd = f'fail_on = "{value}"\n'
+            odd = f'[gate]\nfail_on = "{value}"\n'
             for base, head in (
                 ({self.C: high}, {self.C: odd}),
                 ({}, {self.C: odd}),
@@ -523,7 +523,7 @@ class FailOnCaseFolding(unittest.TestCase):
     def test_other_findings_keep_their_verdict(self) -> None:
         payload = _pair(
             {SETTINGS: STOP},
-            {SETTINGS: '{"hooks": {}}', self.C: 'fail_on = "h\u0131gh"\n'},
+            {SETTINGS: '{"hooks": {}}', self.C: '[gate]\nfail_on = "h\u0131gh"\n'},
         )
         self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
         self.assertEqual(payload["verdict"], "block")
@@ -725,12 +725,10 @@ class ExcludedInstructionFiles(unittest.TestCase):
 
 
 class EffectiveFailOn(unittest.TestCase):
-    """SPEC §5 CONFIG_RELAXED: an edit that raises fail_on above the base
-    value (or above default high if the base file is missing). A head
-    without a fail_on line runs on the default high. A head fail_on line
-    the §3.2 single-line subset does not read is a residual, never the
-    default. A deleted config file is not an edit; what it should emit is
-    open for a ruling, so it is not pinned here."""
+    """SPEC §5 CONFIG_RELAXED (spec 19): the config in force raises
+    `gate.fail_on` above the base's (the default high when a side has none
+    or checkwash cannot parse it). A config is read as checkwash reads it:
+    tomllib, `gate.fail_on` and `detectors.disable` only (§3.2)."""
 
     C = ".checkwash/config.toml"
     G = ".greenwash/config.toml"
@@ -744,71 +742,74 @@ class EffectiveFailOn(unittest.TestCase):
     def test_removing_a_stricter_fail_on_fires(self) -> None:
         for base, before in (('fail_on = "warn"\n', "warn"), ("fail_on = 'info'\n", "info")):
             for path in (self.C, self.G):
-                for head in ("detect_x = true\n", "detect_x = true\n# fail_on = \"warn\"\n"):
+                for head in ("[gate]\nx = 1\n", "[gate]\n# fail_on = \"warn\"\n", "", None):
                     with self.subTest(base=base, path=path, head=head):
-                        payload = _pair({path: base + "detect_x = true\n"}, {path: head})
+                        payload = _pair({path: "[gate]\n" + base}, {} if head is None else {path: head})
                         self.assertEqual(
                             self._relaxed(payload),
                             [("high", f"fail_on raised {before} -> high", before, "high")],
                         )
                         self.assertEqual(payload["verdict"], "block")
 
-    def test_fail_on_line_outside_the_subset_is_not_the_default(self) -> None:
-        base = {self.C: 'fail_on = "warn"\n'}
+    def test_every_toml_spelling_checkwash_reads_is_read(self) -> None:
+        # Spellings the spec 18 single-line subset did not read.
+        base = {self.C: '[gate]\nfail_on = "warn"\n'}
         for head in (
-            'fail_on = "warn"  # keep strict: warn findings fail CI\n',
-            '\ufefffail_on = "warn"\n',
-            'fail_on = """warn"""\n',
-            'fail_on = """\nwarn"""\n',
-            'fail_on = "bogus"\n',
-            '"fail_on" = "warn"\n',
-            "checkwash.fail_on = 'warn'\n",
-            'fail_on = "w\u0430rn"\n',
-            'fail_on = "h\u0130gh"\n',
+            '[gate]\nfail_on = "warn"  # keep strict: warn findings fail CI\n',
+            '\ufeff[gate]\nfail_on = "warn"\n',
+            '[gate]\nfail_on = """warn"""\n',
+            '[gate]\nfail_on = """\nwarn"""\n',
+            '[gate]\n"fail_on" = "warn"\n',
+            'gate.fail_on = "warn"\n',
+            'gate = { fail_on = "warn" }\n',
         ):
             with self.subTest(head=head):
                 self.assertEqual(_pair(base, {self.C: head})["findings"], [])
 
-    def test_resolved_values_compare_as_before(self) -> None:
-        base = {self.C: 'fail_on = "warn"\n'}
-        # A value the subset reads is used, as at c71c468, even beside a
-        # line it does not read; other matchers still see every line.
-        self.assertEqual(_pair(base, {self.C: 'fail_on = "warn"\nfail_on = "x" # y\n'})["findings"], [])
-        self.assertEqual(
-            self._relaxed(_pair(base, {self.C: 'fail_on = "critical"\nfail_on = "x" # y\n'})),
-            [("high", "fail_on raised warn -> critical", "warn", "critical")],
-        )
-        payload = _pair({}, {self.C: "FAIL_ON = false\n"})
-        self.assertEqual(
-            [f["message"] for f in payload["findings"]], ["detector FAIL_ON disabled"]
-        )
+    def test_keys_checkwash_does_not_read_are_the_default(self) -> None:
+        base = {self.C: '[gate]\nfail_on = "warn"\n'}
+        for head in ('fail_on = "warn"\n', '[other]\nfail_on = "warn"\n', "checkwash.fail_on = 'warn'\n",
+                     '[gate]\nfail_on = "bogus"\n'):
+            with self.subTest(head=head):
+                self.assertEqual(
+                    self._relaxed(_pair(base, {self.C: head})),
+                    [("high", "fail_on raised warn -> high", "warn", "high")],
+                )
+
+    def test_a_text_tomllib_rejects_is_the_defaults(self) -> None:
+        # A duplicate key, a bad byte or a stray line: checkwash runs on the
+        # defaults, so a stricter base is relaxed and a default one is not.
+        for head in ('[gate]\nfail_on = "warn"\nfail_on = "warn"\n', b'[gate]\nfail_on = "warn"\n\xff\n',
+                     b"\xff", '[gate]\nfail_on = "warn"\nnot toml\n'):
+            with self.subTest(head=head):
+                payload = _pair({self.C: '[gate]\nfail_on = "warn"\n'}, {self.C: head})
+                self.assertEqual(self._relaxed(payload), [("high", "fail_on raised warn -> high", "warn", "high")])
+                self.assertEqual(_pair({self.C: '[gate]\nfail_on = "high"\n'}, {self.C: head})["findings"], [])
+                self.assertEqual(payload["unknown_coverage"], [])
 
     def test_default_or_looser_base_stays_silent(self) -> None:
-        for base in ("", "# no fail_on\n", 'fail_on = "high"\n', 'fail_on = "critical"\n', 'disable = ["X"]\n'):
+        for base in ("", "# no fail_on\n", '[gate]\nfail_on = "high"\n', '[gate]\nfail_on = "critical"\n',
+                     '[detectors]\ndisable = ["X"]\n'):
             with self.subTest(base=base):
                 self.assertEqual(_pair({self.C: base}, {})["findings"], [])
                 self.assertEqual(_pair({self.C: base}, {self.C: "# none\n"})["findings"], [])
 
-    def test_unreadable_head_keeps_its_behaviour(self) -> None:
-        payload = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: b"\xff"})
-        self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
-
     def test_existing_findings_keep_message_and_fingerprint(self) -> None:
-        # Expected values computed by the engine at c71c468.
+        # The c71c468 fingerprints, on the [gate] / [detectors] spellings.
         for base, head, expected in (
-            ({}, {self.C: 'fail_on = "critical"\n'}, [(
+            ({}, {self.C: '[gate]\nfail_on = "critical"\n'}, [(
                 "fail_on raised high -> critical",
                 "CONFIG_RELAXED/.checkwash/config.toml/v1:d357466d82e49fc3a0bd5a3b073427df6335f8828edfd9559765bd6b7b90512d",
             )]),
-            ({self.C: 'fail_on = "warn"\n'}, {self.C: 'fail_on = "high"\n'}, [(
+            ({self.C: '[gate]\nfail_on = "warn"\n'}, {self.C: '[gate]\nfail_on = "high"\n'}, [(
                 "fail_on raised warn -> high",
                 "CONFIG_RELAXED/.checkwash/config.toml/v1:63d02d450e1097b543cfdeb86a56a55762d370c4b62dd63845f125af66bae031",
             )]),
-            ({self.G: "fail_on = 'info'\n"}, {self.G: 'fail_on = "critical"\n'}, [(
+            ({self.G: "[gate]\nfail_on = 'info'\n"}, {self.G: '[gate]\nfail_on = "critical"\n'}, [(
                 "fail_on raised info -> critical",
                 "CONFIG_RELAXED/.greenwash/config.toml/v1:e55df05af581407cb8386725085d71daaefafb57fcf123ba9525906633c6c92f",
             )]),
-            ({}, {self.C: 'disable = ["HOOK_REMOVED"]\ndetect_hooks = false\n'}, [
+            ({}, {self.C: '[detectors]\ndisable = ["HOOK_REMOVED", "detect_hooks"]\n'}, [
                 ("detector HOOK_REMOVED disabled",
                  "CONFIG_RELAXED/.checkwash/config.toml/v1:8fc182156ecf8b544b84d9a9bd79e3d246d45e41366660b424a6de25fc8fcb79"),
                 ("detector detect_hooks disabled",
@@ -823,8 +824,8 @@ class EffectiveFailOn(unittest.TestCase):
                 )
 
     def test_removal_and_explicit_raise_share_one_identity(self) -> None:
-        explicit = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: 'fail_on = "high"\n'})
-        removed = _pair({self.C: 'fail_on = "warn"\n'}, {self.C: "\n"})
+        explicit = _pair({self.C: '[gate]\nfail_on = "warn"\n'}, {self.C: '[gate]\nfail_on = "high"\n'})
+        removed = _pair({self.C: '[gate]\nfail_on = "warn"\n'}, {self.C: "\n"})
         prints = {p["findings"][0]["fingerprint"] for p in (explicit, removed)}
         self.assertEqual(len(prints), 1)
 

@@ -348,7 +348,10 @@ class UnknownCoverageReasons(unittest.TestCase):
             permission.OFF_LATTICE,
             permission.TOOLWIDE_EDIT,
         }
-        self.assertEqual(self._spec_reasons(), gha | hook | producer | spec16)
+        # Spec 19: a checkwash config checkwash cannot load (§3.2, R22).
+        from pinwash.rules import config_rule
+
+        self.assertEqual(self._spec_reasons(), gha | hook | producer | spec16 | {config_rule.NOT_LOADED})
 
 
 if __name__ == "__main__":

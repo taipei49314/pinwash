@@ -88,7 +88,7 @@ class _Fingerprints(unittest.TestCase):
         cls.hook_record = _record(cls.hook_fp, "HOOK_REMOVED")
         cls.relaxed_fp = _only(_scan({ALLOW: cls.hook_record}, {}), "CONFIG_RELAXED", ALLOW)
         cls.added_fp = _only(_scan({}, {ALLOW: cls.hook_record}), "EXEMPTION_ADDED", ALLOW)
-        config = _scan({CONFIG: 'fail_on = "high"\n'}, {CONFIG: 'fail_on = "critical"\n'})
+        config = _scan({CONFIG: '[gate]\nfail_on = "high"\n'}, {CONFIG: '[gate]\nfail_on = "critical"\n'})
         cls.config_fp = _only(config, "CONFIG_RELAXED", CONFIG)
 
     def _removal_with(self, allow_text: str, today: date = TODAY) -> dict[str, Any]:
@@ -151,7 +151,7 @@ class SelfExemption(_Fingerprints):
         self.assertEqual(payload["verdict"], "pass")
 
     def test_checkwash_config_relaxation_stays_exemptible(self) -> None:
-        base_config, head_config = 'fail_on = "high"\n', 'fail_on = "critical"\n'
+        base_config, head_config = '[gate]\nfail_on = "high"\n', '[gate]\nfail_on = "critical"\n'
         bare = _scan({CONFIG: base_config}, {CONFIG: head_config})
         self.assertEqual(_rules(bare), [("CONFIG_RELAXED", "high")])
         allow_text = _record(self.config_fp, "CONFIG_RELAXED")

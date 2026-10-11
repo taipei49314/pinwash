@@ -55,7 +55,7 @@ class StatusPairRows(unittest.TestCase):
 
     def test_new_file_pinwash_cannot_parse(self) -> None:
         for path, data in ((CS, b"{"), (".mcp.json", b"\xef\xbb\xbf{}"), (".github/workflows/ci.yml",
-                           b"on: push\n\tjobs: {}\n"), (".checkwash/config.toml", b"fail_on = \"warn\"\n\xff"),
+                           b"on: push\n\tjobs: {}\n"),
                            (".claude/hooks/sounds/done.wav", b"RIFF\xff\xfe")):
             with self.subTest(path=path):
                 payload = _scan({}, {path: data})
@@ -88,8 +88,6 @@ class StatusPairRows(unittest.TestCase):
         (".cursor/mcp.json", JSON), (".mcp.json", JSON),
         (GEMINI, JSON), (OPENCODE, JSON),
         (".pinwash/pins.json", (b"[]", b"[")),
-        (".checkwash/config.toml", (b"fail_on = \"warn\"\n", b"fail_on = \"warn\"\n\xff")),
-        (".greenwash/config.toml", (b"fail_on = \"warn\"\n", b"fail_on = \"warn\"\n\xff")),
         ("AGENTS.md", TEXT), ("CLAUDE.md", TEXT), (".cursorrules", TEXT),
         (".github/copilot-instructions.md", TEXT), (".cursor/rules/a.mdc", TEXT),
         ("pkg/SKILL.md", TEXT), (".agents/skills/x/SKILL.md", TEXT),

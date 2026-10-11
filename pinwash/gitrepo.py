@@ -915,6 +915,10 @@ def _index_paths(repo: Path) -> frozenset[str]:
     )
 
 
+# SPEC §3.2 (spec 19 review): the paths config_rule.CONFIG_ORDER names.
+_CHECKWASH_CONFIGS = frozenset({".checkwash/config.toml", ".greenwash/config.toml"})
+
+
 def ls_worktree(repo: Path) -> tuple[dict[str, bytes], list[str]]:
     """The working tree's tracked and not-ignored untracked files, and (SPEC
     §2, R21, spec 16) each untracked entry at or below a fixed surface
@@ -937,9 +941,14 @@ def ls_worktree(repo: Path) -> tuple[dict[str, bytes], list[str]]:
             continue
         full = repo.joinpath(*path.split("/"))
         try:
-            if not full.is_file():
+            if path in _CHECKWASH_CONFIGS and full.is_symlink():
+                # SPEC §3.2: checkwash reads its config from git, where a
+                # symlink is stored as its link text.
+                data = os.fsencode(os.readlink(full))
+            elif not full.is_file():
                 continue
-            data = full.read_bytes()
+            else:
+                data = full.read_bytes()
         except OSError as exc:
             if exc.errno in _ABSENT_ERRNOS:
                 continue

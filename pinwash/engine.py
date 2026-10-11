@@ -379,16 +379,10 @@ def scan_pair(
                 continue
             pin_rules.detect_declared_pins(path, b_obj, h_obj if h_st == "ok" else None, add)
         elif is_checkwash_config(path):
-            b_txt, b_st = text_load(base_files.get(path))
-            h_txt, h_st = text_load(head_files.get(path))
-            if status_gate(path, b_st, h_st):
-                continue
-            config_rule.detect(
-                path,
-                b_txt if b_st == "ok" else None,
-                h_txt if h_st == "ok" else None,
-                add,
-            )
+            # SPEC §3.2 / §5 (spec 19): read as checkwash reads it, so a
+            # config is never unparseable; the configs in force are
+            # compared once, after this loop.
+            continue
         elif glob_skill(path) or is_agent_markdown(path):
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
@@ -402,6 +396,15 @@ def scan_pair(
                 continue
             base_s = b_txt if b_st == "ok" and b_txt is not None else ""
             skill_bypass.detect(path, base_s, h_txt, add)
+
+    # SPEC §3.2: checkwash reads each path with `git show`, spelled exactly,
+    # so no other spelling of it (`.checkwash\config.toml`) is its config.
+    config_rule.detect(
+        {p: d for p, d in base_files.items() if p in config_rule.CONFIG_ORDER},
+        {p: d for p, d in head_files.items() if p in config_rule.CONFIG_ORDER},
+        add,
+        note_unknown,
+    )
 
     detect_allow(base_files, head_files, today, add, config_errors)
 
