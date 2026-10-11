@@ -29,8 +29,6 @@ EXACT = frozenset(
     }
 )
 
-SKILL_BYPASS_EXCLUDED_NAMES = frozenset({"SPEC.md", "THREATMODEL.md", "README.md"})
-
 
 def norm(path: str) -> str:
     p = path.replace("\\", "/")
@@ -59,11 +57,6 @@ def is_surface(path: str) -> bool:
     if p == "SKILL.md" or p.endswith("/SKILL.md"):
         return True
     return False
-
-
-def skill_bypass_excluded(path: str) -> bool:
-    name = norm(path).rsplit("/", 1)[-1]
-    return name in SKILL_BYPASS_EXCLUDED_NAMES
 
 
 def glob_skill(path: str) -> bool:

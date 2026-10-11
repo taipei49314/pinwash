@@ -684,19 +684,20 @@ class QuotedOnKey(unittest.TestCase):
         self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
 
 
-class ExcludedInstructionFiles(unittest.TestCase):
-    """SPEC §3 / §5.4: the SPEC/THREATMODEL/README basename exclusion is for
-    SKILL_BYPASS phrase matching only. The file stays an agent_markdown
-    surface, so the §3 parse-status check applies ("Do not skip the file")."""
+class DocNamedInstructionFiles(unittest.TestCase):
+    """SPEC §3 / §5.4: files under `.cursor/rules/` named like pinwash's
+    own documents are agent_markdown surfaces like any other: the §3
+    parse-status check applies, and since spec 21 (AI-assisted ruling
+    R-5.4) no name is excluded from the phrase table."""
 
-    EXCLUDED = (
+    DOC_NAMED = (
         ".cursor/rules/x/README.md",
         ".cursor/rules/SPEC.md",
         ".cursor/rules/a/b/THREATMODEL.md",
     )
 
-    def test_excluded_file_made_non_utf8_is_surface_unparseable(self) -> None:
-        for path in self.EXCLUDED:
+    def test_doc_named_file_made_non_utf8_is_surface_unparseable(self) -> None:
+        for path in self.DOC_NAMED:
             with self.subTest(path=path):
                 payload = _pair({path: "rules\n"}, {path: b"\xff\xfe"})
                 self.assertEqual(_rules(payload), [("SURFACE_UNPARSEABLE", "high")])
@@ -708,20 +709,28 @@ class ExcludedInstructionFiles(unittest.TestCase):
         # SPEC §3 states the (ok, unparseable) and (unparseable, unparseable)
         # findings. The other pairs with an unparseable side are rows since
         # spec 16 (#22), pinned in tests/test_spec16_rows.py.
-        for path in self.EXCLUDED:
+        for path in self.DOC_NAMED:
             with self.subTest(path=path):
                 self.assertEqual(_pair({path: b"\xff"}, {path: "fixed\n"})["findings"], [])
 
-    def test_phrase_exclusion_unchanged(self) -> None:
-        for path in self.EXCLUDED:
+    def test_no_name_is_excluded_from_the_phrase_table(self) -> None:
+        for path in self.DOC_NAMED:
             with self.subTest(path=path):
                 payload = _pair({path: "rules\n"}, {path: "rules\nskip tripwire\n"})
-                self.assertEqual(payload["findings"], [])
+                self.assertEqual(_rules(payload), [("SKILL_BYPASS", "warn")])
+                self.assertEqual(payload["verdict"], "pass")
         payload = _pair(
             {".cursor/rules/x/rules.md": "rules\n"},
             {".cursor/rules/x/rules.md": "rules\nskip tripwire\n"},
         )
         self.assertEqual(_rules(payload), [("SKILL_BYPASS", "warn")])
+        # A SKILL.md under .claude/hooks/ is a skill_md path too (spec 21
+        # review); its parse status is read first, as for any hook file.
+        for path in (".claude/hooks/SKILL.md", ".claude/hooks/x/SKILL.md"):
+            with self.subTest(path=path):
+                payload = _pair({path: "skill\n"}, {path: "skill\nskip tripwire\n"})
+                self.assertEqual(_rules(payload), [("SKILL_BYPASS", "warn")])
+                self.assertEqual(_rules(_pair({path: "skill\n"}, {path: b"\xff"})), [("SURFACE_UNPARSEABLE", "high")])
 
 
 class EffectiveFailOn(unittest.TestCase):
