@@ -704,8 +704,8 @@ class ExcludedInstructionFiles(unittest.TestCase):
 
     def test_head_that_decodes_again_is_silent(self) -> None:
         # SPEC §3 states the (ok, unparseable) and (unparseable, unparseable)
-        # rows. A created or a deleted unreadable file is a pair §3 leaves
-        # open (a pending ruling), so it is not pinned here.
+        # findings. The other pairs with an unparseable side are rows since
+        # spec 16 (#22), pinned in tests/test_spec16_rows.py.
         for path in self.EXCLUDED:
             with self.subTest(path=path):
                 self.assertEqual(_pair({path: b"\xff"}, {path: "fixed\n"})["findings"], [])
@@ -975,7 +975,8 @@ class GitlinkEntries(_GitCli):
     entry, type commit) names a commit of another repository that is not in
     this object store; asking cat-file for it made every repository with a
     submodule exit 2. A gitlink is a directory in a checkout, never surface
-    bytes, so the trees are read without it."""
+    bytes, so the trees are read without it; one at a fixed surface
+    directory hides that directory's surfaces (residual R23)."""
 
     GITLINK = "160000,1111111111111111111111111111111111111111,vendor/judge"
 

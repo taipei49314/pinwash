@@ -8,6 +8,39 @@ WIDEN_ALLOW = frozenset(
     {"Bash(*)", "Bash(rm *)", "Bash(git push --force*)", "*"}
 )
 PM_RANK = {"default": 2, "acceptEdits": 1, "dontAsk": 0}
+
+# SPEC §5.3 / §7 (spec 16, AI-assisted rulings on #16): permission changes
+# the closed comparisons do not evaluate, reported as unknown_coverage rows.
+MODE_CHANGED = "permission mode changed (not evaluated)"
+OFF_LATTICE = "permission value outside the lattice"
+TOOLWIDE_EDIT = "tool-wide edit grant added (not evaluated)"
+# The host tools whose rules apply to file edits (R17).
+_EDIT_TOOLS = frozenset({"Edit", "Write", "NotebookEdit", "MultiEdit"})
+# `permissions` keys that switch a host mode off (their change is routed).
+_MODE_SWITCHES = ("defaultMode", "disableBypassPermissionsMode", "disableAutoMode")
+_ABSENT = object()
+
+
+def canonical_rule(entry: str) -> str:
+    """SPEC §5.3 canonical form of a `permissions.allow` entry (spec 16).
+
+    Only two rewrites, both spellings the host documents as equivalent:
+    `Tool()` / `Tool(*)` -> `Tool` (a tool name holding neither `)` nor
+    `*`), and the legacy `Bash(X:*)` -> `Bash(X *)` when X is non-empty and
+    holds no `*`. Nothing is trimmed, case-folded, collapsed or unescaped;
+    any other entry is returned unchanged.
+    """
+    q = entry.find("(")
+    if q <= 0 or not entry.endswith(")"):
+        return entry
+    tool, content = entry[:q], entry[q + 1 : -1]
+    if ")" in tool:
+        return entry
+    if content in ("", "*") and "*" not in tool:
+        return tool
+    if tool == "Bash" and len(content) > 2 and content.endswith(":*") and "*" not in content[:-2]:
+        return f"Bash({content[:-2]} *)"
+    return entry
 GM_APPROVAL_RANK = {"default": 2, "auto_edit": 1, "yolo": 0}
 OC_RANK = {"deny": 2, "ask": 1, "allow": 0}
 
@@ -57,10 +90,13 @@ def detect_claude_settings(
 ) -> None:
     if head_doc is None:
         return
-    base_allow = set(_perm_allow_list(base_doc))
+    # A base entry with the same canonical form already grants the head
+    # entry (an equivalence, never a coverage test: a narrower or flagged
+    # base entry suppresses nothing; spec 16, #16).
+    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)}
     head_allow = _perm_allow_list(head_doc)
     for item in head_allow:
-        if item in base_allow:
+        if canonical_rule(item) in base_canon:
             continue
         if item in WIDEN_ALLOW:
             add(
@@ -217,3 +253,76 @@ def detect_opencode_config(
                 before=prev,
                 after=val,
             )
+
+
+def _lookup(doc: Any, *keys: str) -> Any:
+    """The value at `keys` in nested objects, or `_ABSENT`."""
+    node = doc
+    for key in keys:
+        if not isinstance(node, dict) or key not in node:
+            return _ABSENT
+        node = node[key]
+    return node
+
+
+def _off_lattice(value: Any, lattice: dict[str, int]) -> bool:
+    """A present value that is not a string on the lattice."""
+    return value is not _ABSENT and not (isinstance(value, str) and value in lattice)
+
+
+def _lattice_routed(base: Any, head: Any, lattice: dict[str, int]) -> bool:
+    """SPEC §5.3 (spec 16): a lattice key whose value changed while either
+    side is off its lattice (another string, or not a string), or which was
+    removed; the closed comparisons read neither."""
+    if _same(base, head):
+        return False
+    if head is _ABSENT:
+        return True
+    return _off_lattice(base, lattice) or _off_lattice(head, lattice)
+
+
+def _same(a: Any, b: Any) -> bool:
+    """Equal JSON values of the same type (`1` is not `true`)."""
+    return a is b or (type(a) is type(b) and a == b)
+
+
+def route_claude_settings(base_doc: Any, head_doc: Any, note: Any) -> None:
+    """SPEC §5.3 / §7 (spec 16, R17): rows for a `claude_settings` file whose
+    sides both parse or are absent. Never a finding."""
+    for key in _MODE_SWITCHES:
+        b = _lookup(base_doc, "permissions", key)
+        h = _lookup(head_doc, "permissions", key)
+        if not _same(b, h):
+            note(MODE_CHANGED)
+            break
+    if _lattice_routed(
+        _lookup(base_doc, "permissionMode"), _lookup(head_doc, "permissionMode"), PM_RANK
+    ):
+        note(OFF_LATTICE)
+    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)}
+    for item in _perm_allow_list(head_doc):
+        canon = canonical_rule(item)
+        if canon in _EDIT_TOOLS and canon not in base_canon:
+            note(TOOLWIDE_EDIT)
+            break
+
+
+def route_gemini_settings(base_doc: Any, head_doc: Any, note: Any) -> None:
+    """SPEC §5.3 / §7 (spec 16, R17): `approvalMode` off its lattice."""
+    if _lattice_routed(
+        _lookup(base_doc, "approvalMode"), _lookup(head_doc, "approvalMode"), GM_APPROVAL_RANK
+    ):
+        note(OFF_LATTICE)
+
+
+def route_opencode_config(base_doc: Any, head_doc: Any, note: Any) -> None:
+    """SPEC §5.3 / §7 (spec 16, R17): a `permission.<tool>` value off its
+    lattice (an object-form pattern included) or removed."""
+    b = _lookup(base_doc, "permission")
+    h = _lookup(head_doc, "permission")
+    b = b if isinstance(b, dict) else {}
+    h = h if isinstance(h, dict) else {}
+    for key in sorted(set(b) | set(h)):
+        if _lattice_routed(b.get(key, _ABSENT), h.get(key, _ABSENT), OC_RANK):
+            note(OFF_LATTICE)
+            return

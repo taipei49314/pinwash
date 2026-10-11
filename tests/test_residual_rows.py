@@ -24,7 +24,7 @@ SPEC_HEADER = ("ID", "Residual")
 THREATMODEL_HEADER = ("ID", "Status", "Fixture", "Residual")
 STATUSES = frozenset({"Open", "Closed"})
 # Residual rows booked through spec 12 (R01-R21).
-BOOKED = 21
+BOOKED = 23
 
 # A markdown table cell boundary is a pipe not escaped as `\|`.
 _CELL_BOUNDARY = re.compile(r"(?<!\\)\|")
@@ -128,7 +128,8 @@ class ResidualRows(unittest.TestCase):
     def test_rows_routed_since_spec_12_have_one_wording(self) -> None:
         # THREATMODEL says the rows booked in spec 12 use SPEC §11's wording;
         # the routing bumps (spec 13: R06, R07, R12, R13; spec 14: R03, R14,
-        # R15, R16, R20) rewrite rows in both tables at once. R07 keeps
+        # R15, R16, R20; spec 16: R06, R17-R19, R21, and R22-R23 booked)
+        # rewrite rows in both tables at once. R07 keeps
         # THREATMODEL's own prefix ("the SPEC §5.2 closed body lists").
         spec = {cells[0]: cells[1] for cells in spec_rows()}
         tm = {cells[0]: cells[3] for cells in threatmodel_rows()}

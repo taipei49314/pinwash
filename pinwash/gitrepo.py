@@ -31,7 +31,93 @@ _ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOO
 # such a file is unparseable, a finding (§8), and a path that is no surface
 # is ignored as before. The worktree is subject data (§1.1), not git.
 UNREADABLE = b"\xff"
+# SPEC §2 (spec 16, AI-assisted ruling on #17): the reserved range token for
+# the working tree, valid only on the right of `..`. The working tree is
+# head-side data (§1.1) and never a base, whose allowlist and contexts govern
+# the run (§1.2). Any ref git resolves by the name WORKTREE is spelled in
+# full (refs/heads/WORKTREE, refs/tags/WORKTREE).
 WORKTREE = "WORKTREE"
+# SPEC §2 / R21 (spec 16): the §3 surface paths as literal pathspecs, each
+# exact path and the fixed directory every surface glob sits under. git
+# prunes each directory no pathspec reaches, so an ignored node_modules is
+# walked only inside a fixed surface directory. Only `**/SKILL.md` under no
+# fixed surface directory has no fixed prefix, and it is not listed (a glob
+# pathspec walks every ignored tree).
+SURFACE_PREFIXES = (
+    ".agents/skills/",
+    ".checkwash/config.toml",
+    ".claude/hooks/",
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    ".clinerules",
+    ".cursor/hooks.json",
+    ".cursor/mcp.json",
+    ".cursor/rules/",
+    ".cursor/skills/",
+    ".cursorrules",
+    ".gemini/settings.json",
+    ".github/copilot-instructions.md",
+    ".github/required-ruleset.json",
+    ".github/rulesets/",
+    ".github/workflows/",
+    ".greenwash/config.toml",
+    ".mcp.json",
+    ".pinwash/allow.toml",
+    ".pinwash/pins.json",
+    ".windsurfrules",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "QWEN.md",
+    "SKILL.md",
+    "opencode.json",
+)
+
+
+def _surface_dirs() -> frozenset[str]:
+    """Every directory a fixed surface path sits in or under."""
+    dirs: set[str] = set()
+    for path in SURFACE_PREFIXES:
+        parts = path.rstrip("/").split("/")
+        upto = len(parts) if path.endswith("/") else len(parts) - 1
+        for i in range(1, upto + 1):
+            dirs.add("/".join(parts[:i]))
+    return frozenset(dirs)
+
+
+_SURFACE_DIRS = _surface_dirs()
+_SURFACE_DIR_PREFIXES = tuple(p for p in SURFACE_PREFIXES if p.endswith("/"))
+
+
+def _at_surface_dir(bare: str) -> bool:
+    """SPEC §2 (spec 16): a fixed surface directory, or a path below one."""
+    return bare in _SURFACE_DIRS or bare.startswith(_SURFACE_DIR_PREFIXES)
+
+
+def _symlink(full: Path) -> bool:
+    """lstat says symlink. An lstat that fails says nothing: below a
+    directory the judge cannot open, git lists nothing either (R21)."""
+    try:
+        return full.is_symlink()
+    except OSError:
+        return False
+
+
+def _undescended(repo: Path, path: str) -> bool:
+    """A listed entry git does not descend: a nested repository (listed as
+    `dir/`), a symlink at a fixed surface directory, or a symlink to a
+    directory below one (a symlink to a file is read through it)."""
+    if path.endswith("/"):
+        return True
+    full = repo.joinpath(*path.split("/"))
+    if not _symlink(full):
+        return False
+    if path in _SURFACE_DIRS:
+        return True
+    try:
+        return full.is_dir()
+    except OSError:
+        return True
 
 # A path no file can occupy (below the null device). As the graft, shallow
 # and hooks locations it makes git read none of .git/info/grafts,
@@ -50,6 +136,11 @@ _GIT = (
     # index's untracked cache, and none of these commands runs a hook.
     "-c", "core.untrackedCache=false",
     "-c", f"core.hooksPath={_NO_FILE}",
+    # ls-files matches untracked names to the index byte for byte, as every
+    # surface predicate does: with core.ignoreCase=true a case-variant decoy
+    # in the index (.cursor/MCP.json) hid a new .cursor/mcp.json from the
+    # worktree read on a case-sensitive filesystem (SPEC §2, spec 16).
+    "-c", "core.ignoreCase=false",
 )
 
 
@@ -729,7 +820,8 @@ def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str
     raw = range_arg.strip()
     if "..." in raw:
         left, right = raw.split("...", 1)
-        if not left or not right:
+        if not left or not right or WORKTREE in (left, right):
+            # SPEC §2 (spec 16): WORKTREE has no merge base.
             raise GitError("invalid range")
         left_oid = _rev(repo, fmt, left)
         right_oid = _rev(repo, fmt, right)
@@ -745,7 +837,8 @@ def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str
         return verified[0], right_oid, left, right
     if ".." in raw:
         left, right = raw.split("..", 1)
-        if not left or not right:
+        if not left or not right or left == WORKTREE:
+            # SPEC §2 (spec 16): the working tree is never a base.
             raise GitError("invalid range")
         return left, right, left, right
     raise GitError("invalid range")
@@ -754,7 +847,7 @@ def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str
 def ls_tree(repo: Path, spec: str) -> dict[str, bytes]:
     fmt, prefix = _layout(repo)
     if spec == WORKTREE:
-        return _ls_worktree(repo)
+        return ls_worktree(repo)[0]
     oid = _rev(repo, fmt, spec)
     with _Store(repo, fmt) as store:
         roots = [store.peel(oid, b"tree")]
@@ -806,20 +899,42 @@ def _blobs(store: _Store, roots: list[str]) -> list[tuple[str, str]]:
                 # whitespace included. A gitlink (submodule, kind commit)
                 # names a commit of another repository, absent from this
                 # object store. It is a directory in a checkout, never
-                # file bytes, so no surface can be one.
+                # file bytes, so no surface can be one; a gitlink at a
+                # fixed surface directory hides that directory's surfaces
+                # (SPEC §11 R23).
                 found.append(((base + name).decode("utf-8", "surrogateescape"), child))
     return found
 
 
-def _ls_worktree(repo: Path) -> dict[str, bytes]:
+def _index_paths(repo: Path) -> frozenset[str]:
+    proc = _run(repo, ["ls-files", "-z", "-c"])
+    if proc.returncode != 0:
+        raise GitError(_UNREADABLE_GIT)
+    return frozenset(
+        name.decode("utf-8", "surrogateescape") for name in proc.stdout.split(b"\0") if name
+    )
+
+
+def ls_worktree(repo: Path) -> tuple[dict[str, bytes], list[str]]:
+    """The working tree's tracked and not-ignored untracked files, and (SPEC
+    §2, R21, spec 16) each untracked entry at or below a fixed surface
+    directory that git does not descend: a nested repository or a symlinked
+    directory, ignored or not. Those are names only, never read. A tracked
+    gitlink or symlink is not listed (R23)."""
+    tracked = _index_paths(repo)
     proc = _run(repo, ["ls-files", "-z", "-co", "--exclude-standard"])
     if proc.returncode != 0:
         raise GitError(_UNREADABLE_GIT)
     out: dict[str, bytes] = {}
+    unread: set[str] = set()
     for name in proc.stdout.split(b"\0"):
         if not name:
             continue
         path = name.decode("utf-8", "surrogateescape")
+        bare = path.rstrip("/")
+        if bare not in tracked and _at_surface_dir(bare) and _undescended(repo, path):
+            unread.add(bare)
+            continue
         full = repo.joinpath(*path.split("/"))
         try:
             if not full.is_file():
@@ -830,4 +945,80 @@ def _ls_worktree(repo: Path) -> dict[str, bytes]:
                 continue
             data = UNREADABLE
         out[path] = data
-    return out
+    # An ignored symlink at a fixed surface directory is in no listing: no
+    # surface pathspec names the link itself. A directory reached through
+    # a tracked or symlinked ancestor is that ancestor's (R23, or its row).
+    for bare in sorted(_SURFACE_DIRS):
+        parts = bare.split("/")
+        ancestors = ["/".join(parts[:i]) for i in range(1, len(parts))]
+        if bare in tracked or any(
+            a in tracked or _symlink(repo.joinpath(*a.split("/"))) for a in ancestors
+        ):
+            continue
+        if _symlink(repo.joinpath(*parts)):
+            unread.add(bare)
+    return out, sorted(unread)
+
+
+def _ignored_group(path: str) -> str:
+    """The directory directly below a fixed surface directory that holds
+    `path`, or `path` itself when it sits directly in one or is exact."""
+    for prefix in _SURFACE_DIR_PREFIXES:
+        if path.startswith(prefix):
+            rest = path[len(prefix):]
+            if "/" in rest:
+                return prefix + rest.split("/", 1)[0]
+    return path
+
+
+def ignored_surface_paths(repo: Path) -> tuple[list[str], list[str], list[str]]:
+    """SPEC §2, R21 (spec 16): what an ignore rule hides at the fixed-prefix
+    surface paths, names only (the worktree read never opens them): the
+    ignored surface files, the ignored entries at or below a fixed surface
+    directory that git does not descend, and, in place of its entries, each
+    directory directly below a fixed surface directory that holds more than
+    one of them. Literal pathspecs keep git out of every ignored tree
+    outside the fixed surface directories."""
+    from pinwash.surfaces import is_surface
+
+    proc = _run(
+        repo,
+        [
+            "ls-files", "-z", "-o", "-i", "--exclude-standard", "--",
+            *(":(literal)" + p for p in SURFACE_PREFIXES),
+        ],
+    )
+    if proc.returncode != 0:
+        raise GitError(_UNREADABLE_GIT)
+    # True: not descended; False: a surface file, or a symlinked directory
+    # that only an lstat tells apart, done for an entry left alone in its
+    # group (a tree collapsed into one row needs none).
+    entries: dict[str, bool] = {}
+    for name in proc.stdout.split(b"\0"):
+        if not name:
+            continue
+        path = name.decode("utf-8", "surrogateescape")
+        bare = path.rstrip("/")
+        if path.endswith("/"):
+            if _at_surface_dir(bare):
+                entries[bare] = True
+        elif is_surface(path):
+            entries[path] = False
+        elif _at_surface_dir(path) and _undescended(repo, path):
+            entries[path] = True
+    groups: dict[str, list[str]] = {}
+    for path in sorted(entries):
+        groups.setdefault(_ignored_group(path), []).append(path)
+    files: list[str] = []
+    directories: list[str] = []
+    undescended: list[str] = []
+    for group, members in groups.items():
+        if len(members) > 1:
+            directories.append(group)
+            continue
+        path = members[0]
+        if entries[path] or (_at_surface_dir(path) and _undescended(repo, path)):
+            undescended.append(path)
+        else:
+            files.append(path)
+    return sorted(files), sorted(directories), sorted(undescended)

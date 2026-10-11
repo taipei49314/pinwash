@@ -275,7 +275,8 @@ class UnknownCoverageReasons(unittest.TestCase):
             if not line.startswith("|"):
                 break
             first = line.split("|")[1]
-            reasons.update(part.split("`")[1] for part in first.split(",") if "`" in part)
+            # Each reason is one backticked span (spec 16 reasons hold commas).
+            reasons.update(first.split("`")[1::2])
         return reasons
 
     def _gha_reasons(self) -> set[str]:
@@ -332,7 +333,22 @@ class UnknownCoverageReasons(unittest.TestCase):
         self.assertEqual(len(gha), 11, gha)
         producer = self._required_check_reasons()
         self.assertEqual(len(producer), 8, producer)
-        self.assertEqual(self._spec_reasons(), gha | hook | producer)
+        # Spec 16: the parse-status and working-tree rows (engine) and the
+        # permission rows (§5.3).
+        from pinwash import engine
+        from pinwash.rules import permission
+
+        spec16 = {
+            engine.NEW_UNPARSEABLE,
+            engine.BASE_UNPARSEABLE,
+            engine.IGNORED_SURFACE,
+            engine.IGNORED_SURFACE_DIR,
+            engine.UNREAD_SURFACE_DIR,
+            permission.MODE_CHANGED,
+            permission.OFF_LATTICE,
+            permission.TOOLWIDE_EDIT,
+        }
+        self.assertEqual(self._spec_reasons(), gha | hook | producer | spec16)
 
 
 if __name__ == "__main__":

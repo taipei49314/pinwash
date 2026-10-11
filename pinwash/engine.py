@@ -16,7 +16,14 @@ from pinwash.parse.gha import parse_workflow
 from pinwash.parse.hookcmd import command_body_map
 from pinwash.parse.jsonsurf import json_load, text_load
 from pinwash.parse.tomlsub import pinwash_today
-from pinwash.gitrepo import GitError, ls_tree, resolve_range
+from pinwash.gitrepo import (
+    WORKTREE,
+    GitError,
+    ignored_surface_paths,
+    ls_tree,
+    ls_worktree,
+    resolve_range,
+)
 from pinwash.hooks import CLAUDE_STOP_EVENTS, CURSOR_STOP_EVENTS, extract_event_hooks
 from pinwash.rules import (
     config_rule,
@@ -48,12 +55,28 @@ from pinwash.surfaces import (
 )
 
 
+# SPEC §3 / §7 (spec 16, AI-assisted ruling on #22): the status pairs the
+# closed table below does not report are unknown_coverage rows, never
+# findings.
+NEW_UNPARSEABLE = "new surface file unparseable"
+BASE_UNPARSEABLE = "surface unparseable at base"
+# SPEC §2 / §7 (spec 16, AI-assisted ruling on #17, R21): working-tree
+# entries at surface paths that the worktree read does not open.
+IGNORED_SURFACE = "untracked surface file matched by an ignore rule, not read"
+IGNORED_SURFACE_DIR = "untracked surface files under this directory matched by an ignore rule, not read"
+UNREAD_SURFACE_DIR = (
+    "untracked surface directory git does not descend (nested repository or symlink), not read"
+)
+
+
 def _surface_unparseable(b_st: str, h_st: str) -> tuple[str, str] | None:
     """SPEC §3 closed table.
 
     (ok, unparseable) -> high; (unparseable, unparseable) -> warn.
-    Every other status pair emits nothing: a file absent at base never
-    weakens, and a head that parses is not a weakening of a corrupt base.
+    No other status pair is a finding: a file absent at base never weakens,
+    and a head that parses is not a weakening of a corrupt base. Since spec
+    16, (missing, unparseable), (unparseable, ok) and (unparseable, missing)
+    are rows (`status_gate` in `scan_pair`).
     """
     if b_st == "ok" and h_st == "unparseable":
         return "high", "surface file parsed at base and is unparseable at head"
@@ -83,10 +106,13 @@ def scan_pair(
     base_label: str,
     head_label: str,
     env: dict[str, str] | None = None,
+    unobserved: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     env = env if env is not None else dict(os.environ)
     findings: list[dict[str, Any]] = []
-    unknown: list[dict[str, str]] = []
+    # Inputs the caller could not observe (SPEC §1.6): working-tree entries
+    # the read does not open (§2, R21; spec 16). Visibility only (§7).
+    unknown: list[dict[str, str]] = list(unobserved or [])
     config_errors: list[str] = []
     today = pinwash_today(env)
 
@@ -98,6 +124,22 @@ def scan_pair(
         row = {"path": path, "reason": reason}
         if row not in unknown:
             unknown.append(row)
+
+    def status_gate(path: str, b_st: str, h_st: str) -> bool:
+        """SPEC §3: the parse-status pair of `path`. True when it ends the
+        comparison: a `SURFACE_UNPARSEABLE` finding, or a new file pinwash
+        cannot parse (a row). A corrupt base is a row, and the comparison
+        goes on as before (spec 16, #22)."""
+        unp = _surface_unparseable(b_st, h_st)
+        if unp:
+            add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            return True
+        if b_st == "missing" and h_st == "unparseable":
+            note_unknown(path, NEW_UNPARSEABLE)
+            return True
+        if b_st == "unparseable":
+            note_unknown(path, BASE_UNPARSEABLE)
+        return False
 
     changed_cache: list[list[str]] = []
 
@@ -161,9 +203,7 @@ def scan_pair(
         if is_claude_settings(path) or is_cursor_hooks(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             stop_names = (
                 CLAUDE_STOP_EVENTS if is_claude_settings(path) else CURSOR_STOP_EVENTS
@@ -203,6 +243,10 @@ def scan_pair(
                     h_obj,
                     add,
                 )
+            if is_claude_settings(path) and "unparseable" not in (b_st, h_st):
+                # SPEC §5.3 / §7 (spec 16, R17): permission changes the closed
+                # comparisons do not evaluate, a deleted file included.
+                permission.route_claude_settings(base_doc, head_doc, note)
         elif is_claude_hooks_file(path) or path in targets_base or path in targets_head:
             # Surface membership for .claude/hooks/** and §3.3 targets: the
             # §3 parse-status check applies — do not skip the file.
@@ -212,9 +256,7 @@ def scan_pair(
             else:
                 _btxt, b_st = text_load(base_files.get(path))
                 _htxt, h_st = text_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            status_gate(path, b_st, h_st)
         elif is_gha_workflow(path):
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
@@ -222,9 +264,7 @@ def scan_pair(
             head_g = parse_workflow(h_txt) if h_st == "ok" and h_txt is not None else None
             b_eff = _workflow_status(b_st, base_g)
             h_eff = _workflow_status(h_st, head_g)
-            unp = _surface_unparseable(b_eff, h_eff)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_eff, h_eff):
                 continue
             # #4: a base-side residual can hide a comparison as well as a
             # head-side one; each (path, reason) is reported once.
@@ -271,9 +311,7 @@ def scan_pair(
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             base_ctx = ruleset_contexts(b_obj) if b_st == "ok" else []
             head_ctx = ruleset_contexts(h_obj) if h_st == "ok" else []
@@ -281,9 +319,7 @@ def scan_pair(
         elif is_cursor_mcp(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             if b_st != "unparseable" and h_st == "ok":
                 permission.detect_mcp(
@@ -295,9 +331,7 @@ def scan_pair(
         elif is_gemini_settings(path) or is_opencode_config(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             if b_st != "unparseable" and h_st == "ok":
                 base_doc = b_obj if b_st == "ok" else None
@@ -305,12 +339,22 @@ def scan_pair(
                     permission.detect_gemini_settings(path, base_doc, h_obj, add)
                 else:
                     permission.detect_opencode_config(path, base_doc, h_obj, add)
+            if "unparseable" not in (b_st, h_st):
+                # SPEC §5.3 / §7 (spec 16, R17): values off their lattice.
+                route = (
+                    permission.route_gemini_settings
+                    if is_gemini_settings(path)
+                    else permission.route_opencode_config
+                )
+                route(
+                    b_obj if b_st == "ok" else None,
+                    h_obj if h_st == "ok" else None,
+                    lambda reason, _path=path: note_unknown(_path, reason),
+                )
         elif is_declared_pins(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             if b_st != "ok":
                 continue
@@ -318,9 +362,7 @@ def scan_pair(
         elif is_checkwash_config(path):
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             config_rule.detect(
                 path,
@@ -331,9 +373,7 @@ def scan_pair(
         elif glob_skill(path) or is_agent_markdown(path):
             b_txt, b_st = text_load(base_files.get(path))
             h_txt, h_st = text_load(head_files.get(path))
-            unp = _surface_unparseable(b_st, h_st)
-            if unp:
-                add(rule="SURFACE_UNPARSEABLE", severity=unp[0], message=unp[1], path=path)
+            if status_gate(path, b_st, h_st):
                 continue
             if skill_bypass_excluded(path):
                 # §5.4 excludes these paths from the phrase table only; the
@@ -363,7 +403,20 @@ def scan_repo(repo_path: str, range_arg: str | None) -> tuple[dict[str, Any], in
     try:
         base_spec, head_spec, base_label, head_label = resolve_range(repo, range_arg)
         base_files = ls_tree(repo, base_spec)
-        head_files = ls_tree(repo, head_spec)
+        unobserved: list[dict[str, str]] = []
+        if head_spec == WORKTREE:
+            head_files, unread = ls_worktree(repo)
+            ignored, ignored_dirs, ignored_unread = ignored_surface_paths(repo)
+            unobserved = (
+                [{"path": p, "reason": IGNORED_SURFACE} for p in ignored]
+                + [{"path": p, "reason": IGNORED_SURFACE_DIR} for p in ignored_dirs]
+                + [
+                    {"path": p, "reason": UNREAD_SURFACE_DIR}
+                    for p in sorted(set(unread) | set(ignored_unread))
+                ]
+            )
+        else:
+            head_files = ls_tree(repo, head_spec)
     except GitError as exc:
         return {"error": exc.message}, 2
     payload = scan_pair(
@@ -371,6 +424,7 @@ def scan_repo(repo_path: str, range_arg: str | None) -> tuple[dict[str, Any], in
         head_files,
         base_label=base_label,
         head_label=head_label,
+        unobserved=unobserved,
     )
     code = 1 if payload["verdict"] == "block" else 0
     return payload, code
