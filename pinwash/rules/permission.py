@@ -38,7 +38,8 @@ _ABSENT = object()
 def canonical_rule(entry: str) -> str:
     """SPEC §5.3 canonical form of a `permissions.allow` entry (spec 16).
 
-    Only two rewrites, both spellings the host documents as equivalent:
+    Only two rewrites, spellings the host reads as equivalent (the second
+    and `Bash(*)` = `Bash` documented, `Tool()` inferred from its parser):
     `Tool()` / `Tool(*)` -> `Tool` (a tool name holding neither `)` nor
     `*`), and the legacy `Bash(X:*)` -> `Bash(X *)` when X is non-empty and
     holds no `*`. Nothing is trimmed, case-folded, collapsed or unescaped;
@@ -55,6 +56,9 @@ def canonical_rule(entry: str) -> str:
     if tool == "Bash" and len(content) > 2 and content.endswith(":*") and "*" not in content[:-2]:
         return f"Bash({content[:-2]} *)"
     return entry
+# SPEC §5.3 (spec 18, AI-assisted ruling R-16b on #16): each literal's
+# canonical form, mapped to the literal's own spelling.
+WIDEN_CANON = {canonical_rule(x): x for x in sorted(WIDEN_ALLOW)}
 GM_APPROVAL_RANK = {"default": 2, "auto_edit": 1, "yolo": 0}
 OC_RANK = {"deny": 2, "ask": 1, "allow": 0}
 
@@ -92,27 +96,44 @@ def _perm_allow_list(doc: Any) -> list[str]:
     return []
 
 
+def base_allow_union(base_docs: list[Any]) -> frozenset[str]:
+    """SPEC §5.3 (spec 18): the canonical forms of the base allow entries of
+    both settings files. The host merges `permissions.allow` across
+    `.claude/settings.local.json` and `.claude/settings.json`, so a base
+    entry in either file grants the class."""
+    return frozenset(canonical_rule(x) for doc in base_docs for x in _perm_allow_list(doc))
+
+
 def detect_claude_settings(
-    path: str, base_doc: Any, head_doc: Any, add: Any
+    path: str, base_doc: Any, head_doc: Any, add: Any,
+    base_union: frozenset[str] | None = None,
 ) -> None:
     if head_doc is None:
         return
     # A base entry with the same canonical form already grants the head
     # entry (an equivalence, never a coverage test: a narrower or flagged
-    # base entry suppresses nothing; spec 16, #16).
-    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)}
-    head_allow = _perm_allow_list(head_doc)
-    for item in head_allow:
-        if canonical_rule(item) in base_canon:
+    # base entry suppresses nothing; spec 16, #16). Since spec 18 a head
+    # entry matches the literals on its canonical form too, one finding per
+    # class gained: on the literal's own spelling when the head holds it,
+    # else on the first spelling in head order; and a base entry in either
+    # settings file suppresses (the host merges the two lists).
+    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)} | (base_union or frozenset())
+    gained: dict[str, str] = {}
+    for item in _perm_allow_list(head_doc):
+        canon = canonical_rule(item)
+        literal = WIDEN_CANON.get(canon)
+        if literal is None or canon in base_canon or gained.get(canon) == literal:
             continue
-        if item in WIDEN_ALLOW:
-            add(
-                rule="PERMISSION_WIDENED",
-                severity="high",
-                message=f"permissions.allow gained {item}",
-                path=path,
-                after=item,
-            )
+        if canon not in gained or item == literal:
+            gained[canon] = item
+    for item in gained.values():
+        add(
+            rule="PERMISSION_WIDENED",
+            severity="high",
+            message=f"permissions.allow gained {item}",
+            path=path,
+            after=item,
+        )
     base_mode = _lookup(base_doc, "permissionMode")
     head_mode = _lookup(head_doc, "permissionMode")
     if _top_level_widened(base_mode, head_mode):
@@ -439,7 +460,9 @@ def _same(a: Any, b: Any) -> bool:
     return a is b or (type(a) is type(b) and a == b)
 
 
-def route_claude_settings(base_doc: Any, head_doc: Any, note: Any) -> None:
+def route_claude_settings(
+    base_doc: Any, head_doc: Any, note: Any, base_union: frozenset[str] | None = None
+) -> None:
     """SPEC §5.3 / §7 (spec 16, R17): rows for a `claude_settings` file whose
     sides both parse or are absent. Never a finding."""
     for key in _MODE_SWITCHES:
@@ -454,7 +477,7 @@ def route_claude_settings(base_doc: Any, head_doc: Any, note: Any) -> None:
         base_mode, head_mode, PM_LATTICE
     ):
         note(OFF_LATTICE)
-    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)}
+    base_canon = {canonical_rule(x) for x in _perm_allow_list(base_doc)} | (base_union or frozenset())
     for item in _perm_allow_list(head_doc):
         canon = canonical_rule(item)
         if canon in _EDIT_TOOLS and canon not in base_canon:

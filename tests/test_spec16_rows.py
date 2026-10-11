@@ -235,7 +235,7 @@ class CanonicalSuppression(unittest.TestCase):
         "*": {"*"},
     }
 
-    def test_only_documented_equivalents_share_a_literal_canonical_form(self) -> None:
+    def test_only_host_equivalents_share_a_literal_canonical_form(self) -> None:
         targets = {canonical_rule(x) for x in WIDEN_ALLOW}
         self.assertEqual(targets, set(self.EQUIVALENT))
         for entry in self.NEAR:
@@ -264,10 +264,11 @@ class CanonicalSuppression(unittest.TestCase):
             with self.subTest(base=base, head=head):
                 self.assertEqual(_widened(_doc(base), _doc(base, head)), [f"permissions.allow gained {head}"])
 
-    def test_head_side_still_matches_verbatim(self) -> None:
+    def test_head_side_matches_on_the_canonical_form(self) -> None:
+        # Spec 18 (R-16b, the allow-spelling detection bump).
         for head in ("Bash", "Bash()", "Bash(rm:*)"):
             with self.subTest(head=head):
-                self.assertEqual(_widened(_doc(), _doc(head)), [])
+                self.assertEqual(_widened(_doc(), _doc(head)), [f"permissions.allow gained {head}"])
 
 
 if __name__ == "__main__":

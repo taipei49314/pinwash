@@ -199,6 +199,13 @@ def scan_pair(
         if b_st == "ok":
             base_contexts.update(ruleset_contexts(b_obj))
 
+    # SPEC §5.3 (spec 18): the host merges the allow lists of both settings
+    # files, so a base entry in either one grants its class.
+    base_allow = permission.base_allow_union([
+        obj for obj, st in (json_load(base_files.get(path)) for path in paths if is_claude_settings(path))
+        if st == "ok"
+    ])
+
     # SPEC §5.3 (spec 17): `permissions.defaultMode` is compared on the
     # value in effect across both settings files, not per file.
     mode_files: dict[str, tuple[str, Any, str, Any, str]] = {}
@@ -253,11 +260,12 @@ def scan_pair(
                     b_obj if b_st == "ok" else None,
                     h_obj,
                     add,
+                    base_union=base_allow,
                 )
             if is_claude_settings(path) and "unparseable" not in (b_st, h_st):
                 # SPEC §5.3 / §7 (spec 16, R17): permission changes the closed
                 # comparisons do not evaluate, a deleted file included.
-                permission.route_claude_settings(base_doc, head_doc, note)
+                permission.route_claude_settings(base_doc, head_doc, note, base_union=base_allow)
         elif is_claude_hooks_file(path) or path in targets_base or path in targets_head:
             # Surface membership for .claude/hooks/** and §3.3 targets: the
             # §3 parse-status check applies — do not skip the file.
