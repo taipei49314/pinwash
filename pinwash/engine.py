@@ -107,7 +107,37 @@ def scan_pair(
             changed_cache.append(hook_coverage.changed_paths(base_files, head_files))
         return changed_cache[0]
 
+    changed_set_cache: list[set[str]] = []
+
+    def changed_set() -> set[str]:
+        if not changed_set_cache:
+            changed_set_cache.append(set(changed()))
+        return changed_set_cache[0]
+
     paths = _union_paths(base_files, head_files)
+
+    calls_cache: dict[str, tuple[list[str], bool]] = {}
+
+    def _calls_and_callable(path: str) -> tuple[list[str], bool]:
+        """Job-level `uses:` values of a workflow file on either side, and
+        whether its `on:` names `workflow_call` on either side (§5.5
+        reusable-workflow producers; spec 14 review), parsed once per run."""
+        if path not in calls_cache:
+            found: list[str] = []
+            callable_wf = False
+            if is_gha_workflow(path):
+                for files in (base_files, head_files):
+                    txt, st = text_load(files.get(path))
+                    if st == "ok" and txt is not None:
+                        g = parse_workflow(txt)
+                        if not g.unparseable:
+                            found.extend(j.calls for j in g.jobs.values() if j.calls)
+                            callable_wf = callable_wf or "workflow_call" in g.triggers
+            calls_cache[path] = (found, callable_wf)
+        return calls_cache[path]
+
+    def calls_of(path: str) -> list[str]:
+        return _calls_and_callable(path)[0]
 
     # SPEC §3.3 / §5.2: resolve hook command targets per side, then scan
     # their bodies. Targets become claude_hooks surface members. The head
@@ -198,17 +228,46 @@ def scan_pair(
                 continue
             # #4: a base-side residual can hide a comparison as well as a
             # head-side one; each (path, reason) is reported once.
+            # Spec 14 review: the job-table grammar rows hide only what the
+            # §5 producer reading consumes, so they are reported for a file
+            # the diff changed while a base ruleset names a context; or, for
+            # a job table read only in part, while the diff changes another
+            # workflow that can be called, which a job it does not read may
+            # call.
+            job_rows = bool(base_contexts) and (
+                b_txt != h_txt
+                or (
+                    any(
+                        side is not None and not side.unparseable and side.job_table_partial()
+                        for side in (base_g, head_g)
+                    )
+                    and any(
+                        p != path and is_gha_workflow(p) and _calls_and_callable(p)[1]
+                        for p in changed_set()
+                    )
+                )
+            )
             reasons: list[str] = []
             for side in (head_g, base_g):
                 if side is None or side.unparseable:
                     continue
-                for reason in side.unknown:
+                for reason in side.unknown + (side.job_unknown if job_rows else []):
                     if reason not in reasons:
                         reasons.append(reason)
             for reason in reasons:
                 note_unknown(path, reason)
+
+            def note_gha(reason: str, _path: str = path) -> None:
+                note_unknown(_path, reason)
+
             pin_rules.detect_workflow_pins(path, base_g, head_g, add)
-            required_check.detect_jobs(path, base_g, head_g, base_contexts, add)
+            # SPEC §5 findings and the §5.5 producer rows (spec 14); a row
+            # never adds, drops or changes a finding, so never the verdict.
+            required_check.detect_jobs(
+                path, base_g, head_g, base_contexts, add,
+                note=note_gha, changed=lambda p: p in changed_set(),
+                calls_of=calls_of,
+            )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))
             h_obj, h_st = json_load(head_files.get(path))

@@ -293,12 +293,23 @@ class WorkflowMultilineIfCoverage(unittest.TestCase):
         )
         self.assertEqual(payload["findings"], [])
 
-    def test_single_line_expressions_do_not_gain_unknown_coverage(self) -> None:
-        for condition in ("true", "'|'", "${{ 3 > 2 }}"):
+    def test_single_line_expressions_gain_producer_coverage_not_multiline(self) -> None:
+        # Spec 14 (#13, R-13a, AI-assisted ruling): a linked producer's job
+        # `if:` changed to a single-line value outside the closed forms is
+        # `producer job if unresolved`; it is still not a multiline residual
+        # and still no finding. The always-running form `true` stays clean.
+        payload = self._scan(self._workflow("    if: true\n"))
+        self.assertEqual(payload["unknown_coverage"], [])
+        self.assertEqual(payload["findings"], [])
+        for condition in ("'|'", "${{ 3 > 2 }}"):
             with self.subTest(condition=condition):
                 payload = self._scan(self._workflow(f"    if: {condition}\n"))
-                self.assertEqual(payload["unknown_coverage"], [])
+                self.assertEqual(
+                    payload["unknown_coverage"],
+                    [{"path": self.PATH, "reason": "producer job if unresolved"}],
+                )
                 self.assertEqual(payload["findings"], [])
+                self.assertEqual(payload["verdict"], "pass")
 
     def test_single_line_false_keeps_existing_required_check_detection(self) -> None:
         payload = self._scan(self._workflow("    if: false # maintenance\n"))

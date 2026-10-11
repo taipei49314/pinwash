@@ -145,6 +145,35 @@ class WorkflowValueResiduals(unittest.TestCase):
         self.assertIn(self.MULTILINE, payload["unknown_coverage"])
         self.assertEqual(payload["findings"], [])
 
+    def test_step_continue_on_error_block_scalar_or_empty_is_unknown(self) -> None:
+        # #14 / #4 parity (SPEC §3.1): a step-level `continue-on-error:` whose
+        # value continues on later lines is a multiline residual, as the same
+        # forms of step `if:` already are; dash-first and the starter layout
+        # (step items at job indent) included. No finding, verdict unchanged.
+        steps = (
+            "      - run: echo ready\n        continue-on-error: |\n          true\n",
+            "      - run: echo ready\n        continue-on-error: >-\n          true\n",
+            "      - run: echo ready\n        continue-on-error:\n          true\n",
+            "      - run: echo ready\n        continue-on-error: # later\n          true\n",
+            "      - continue-on-error: |\n          true\n        run: echo ready\n",
+            "    - continue-on-error: |\n        true\n      run: echo ready\n",
+        )
+        for step in steps:
+            with self.subTest(step=step):
+                payload = self._scan(self._workflow(), self._workflow(steps=step))
+                self.assertIn(self.MULTILINE, payload["unknown_coverage"])
+                self.assertNotIn(self.CONTINUE, payload["unknown_coverage"])
+                self.assertEqual(payload["findings"], [])
+                self.assertEqual(payload["verdict"], "pass")
+
+    def test_step_continue_on_error_block_scalar_needs_no_ruleset(self) -> None:
+        # Like step `if: |`, the row is a §3.1 grammar hit on either side,
+        # not a producer row: it does not depend on a ruleset.
+        step = "      - run: echo ready\n        continue-on-error: |\n          true\n"
+        payload = _pair({self.PATH: self._workflow(steps=step)}, {self.PATH: self._workflow()})
+        self.assertEqual(payload["unknown_coverage"], [self.MULTILINE])
+        self.assertEqual(payload["findings"], [])
+
     def test_on_block_scalar_is_unresolved_not_an_invented_trigger_loss(self) -> None:
         payload = self._scan(self._workflow(), self._workflow(on="on: >\n  push\n"))
         self.assertIn(self.ON, payload["unknown_coverage"])
