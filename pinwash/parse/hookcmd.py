@@ -299,6 +299,7 @@ def command_body_map(
     # Each body is read once per side, however many commands name it.
     scan_cache: dict[str, tuple[bool, str]] = {}
     lost_cache: dict[str, bool] = {}
+    refuse_cache: dict[str, tuple[bool, bool]] = {}
     resolve = resolver(files, claude=claude, guard=guard)
     for path in sorted(files):
         if not (is_claude_settings(path) if claude else is_cursor_hooks(path)):
@@ -331,5 +332,43 @@ def command_body_map(
                 evidence = next((s[1] for s in scans if s[1]), "")
                 if lost_block and not evidence:
                     evidence = "block capability removed"
-                bodies[cmd] = (all_stub, lost_block, evidence)
+                for t in targets:
+                    if t not in refuse_cache:
+                        refuse_cache[t] = (
+                            body_can_refuse(files[t], not claude),
+                            body_has_decision_literal(files[t], not claude),
+                        )
+                bodies[cmd] = (
+                    all_stub,
+                    lost_block,
+                    evidence,
+                    any(refuse_cache[t][0] for t in targets),
+                    tuple(targets),
+                    any(refuse_cache[t][1] for t in targets),
+                )
     return bodies, targets_all
+
+
+# SPEC §5.2 / §6.1 (spec 27, R12, #10): a body *can refuse* when it
+# mentions `block` or `deny` (the spec 7 marker) or holds a spec 25 exit-2
+# form; on cursor_hooks also when it holds Cursor's stop output key
+# `followup_message`. The retarget disjunct (§5) needs a quoted decision
+# literal in the base body, the values Claude Code reads from a hook's JSON
+# output, or `followup_message` on cursor_hooks.
+_DECISION_LITERALS = ('"block"', "'block'", '\\"block\\"', '"deny"', "'deny'", '\\"deny\\"')
+
+
+def _folded(data: bytes) -> str | None:
+    text = decode_utf8(data)
+    return None if text is None else crlf_to_lf(text).casefold()
+
+
+def body_can_refuse(data: bytes, cursor: bool = False) -> bool:
+    f = _folded(data)
+    return f is not None and (any(m in f for m in _BLOCK_MARKERS) or exit2_count(f) > 0
+                              or (cursor and "followup_message" in f))
+
+
+def body_has_decision_literal(data: bytes, cursor: bool = False) -> bool:
+    f = _folded(data)
+    return f is not None and (any(m in f for m in _DECISION_LITERALS) or (cursor and "followup_message" in f))
