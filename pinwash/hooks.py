@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 CLAUDE_STOP_EVENTS = frozenset({"Stop"})
-CURSOR_STOP_EVENTS = frozenset({"stop", "Stop", "finish", "afterAgentResponse"})
+# SPEC §6.1 (spec 13, #26 item 6): the Stop-like set is closed and
+# case-sensitive per surface. On cursor_hooks it is `stop`, the event that
+# runs when the agent loop ends and can submit a follow-up message;
+# observe-only events (`afterAgentResponse`, `afterAgentThought`), the
+# subagent's `subagentStop`, and `finish` / `Stop` (no Cursor event) never
+# keep the escalator off.
+CURSOR_STOP_EVENTS = frozenset({"stop"})
 
 
 def _as_dict(value: Any) -> dict[str, Any] | None:

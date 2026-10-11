@@ -20,7 +20,9 @@ from pinwash.gitrepo import GitError, ls_tree, resolve_range
 from pinwash.hooks import CLAUDE_STOP_EVENTS, CURSOR_STOP_EVENTS, extract_event_hooks
 from pinwash.rules import (
     config_rule,
+    hook_coverage,
     hook_rules,
+    hook_selector,
     permission,
     pin_rules,
     required_check,
@@ -91,6 +93,20 @@ def scan_pair(
     def add(**kwargs: Any) -> None:
         findings.append(make_finding(**kwargs))
 
+    def note_unknown(path: str, reason: str) -> None:
+        """SPEC §7: each (path, reason) row is reported once."""
+        row = {"path": path, "reason": reason}
+        if row not in unknown:
+            unknown.append(row)
+
+    changed_cache: list[list[str]] = []
+
+    def changed() -> list[str]:
+        """Paths the diff changed (§3.3 rows), computed once per run."""
+        if not changed_cache:
+            changed_cache.append(hook_coverage.changed_paths(base_files, head_files))
+        return changed_cache[0]
+
     paths = _union_paths(base_files, head_files)
 
     # SPEC §3.3 / §5.2: resolve hook command targets per side, then scan
@@ -124,8 +140,31 @@ def scan_pair(
             )
             base_ev = extract_event_hooks(b_obj) if b_st == "ok" else {}
             head_ev = extract_event_hooks(h_obj) if h_st == "ok" else {}
+            base_doc = b_obj if b_st == "ok" else None
+            head_doc = h_obj if h_st == "ok" else None
+
+            def note(reason: str, _path: str = path) -> None:
+                note_unknown(_path, reason)
+
+            n_before = len(findings)
             hook_rules.detect(
-                path, base_ev, head_ev, stop_names, add, body_base, body_head
+                path, base_ev, head_ev, stop_names, add, body_base, body_head,
+                note_unknown=note,
+            )
+            # SPEC §3.3 / §5.1 / §7 (spec 13): hook-side unknown coverage.
+            # Rows never add, drop or change a finding, so never the verdict.
+            hook_selector.detect(path, base_doc, head_doc, base_files, head_files, note)
+            hook_coverage.detect(
+                claude_settings=is_claude_settings(path),
+                base_doc=base_doc,
+                head_doc=head_doc,
+                base_ev=base_ev,
+                head_ev=head_ev,
+                base_files=base_files,
+                head_files=head_files,
+                changed=changed,
+                hook_finding=len(findings) > n_before,
+                note_unknown=note,
             )
             if is_claude_settings(path) and h_st == "ok" and b_st != "unparseable":
                 permission.detect_claude_settings(
@@ -167,7 +206,7 @@ def scan_pair(
                     if reason not in reasons:
                         reasons.append(reason)
             for reason in reasons:
-                unknown.append({"path": path, "reason": reason})
+                note_unknown(path, reason)
             pin_rules.detect_workflow_pins(path, base_g, head_g, add)
             required_check.detect_jobs(path, base_g, head_g, base_contexts, add)
         elif is_gha_ruleset(path):

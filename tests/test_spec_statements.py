@@ -1,4 +1,5 @@
-"""Engine behaviour that SPEC text states since spec 12 (#25, #26 items 3, 5).
+"""Engine behaviour that SPEC text states since spec 12 (#25, #26 items 3, 5)
+and spec 13 (#26 item 6).
 
 Spec 12 wrote these sentences to what the engine already did, with no
 verdict change. Each class pins one of them, so the text and the engine
@@ -8,8 +9,10 @@ changes the sentence and this test together.
 
 from __future__ import annotations
 
+import ast
 import json
 import unittest
+from pathlib import Path
 from typing import Any
 
 from pinwash.engine import scan_pair
@@ -173,6 +176,130 @@ class WorkflowLocatorCount(unittest.TestCase):
             "      - uses: org/tool@v2\n"
         )
         self.assertEqual(parse_workflow(text).uses, [("org/tool", sha, 0), ("org/tool", "v2", 1)])
+
+
+class StopLikeSet(unittest.TestCase):
+    """SPEC §6.1 (spec 13, #26 item 6): the Stop-like set is closed and
+    case-sensitive per surface: `Stop` on claude_settings, `stop` on
+    cursor_hooks. A hook under any other name never keeps the escalator off."""
+
+    C = ".cursor/hooks.json"
+    J = "judge-stop"
+    T = "npx telemetry after-response"
+
+    def _hooks(self, **events: list[str]) -> str:
+        return json.dumps({"version": 1, "hooks": {
+            e: [{"command": c} for c in cmds] for e, cmds in events.items()}})
+
+    def _rules(self, base: str, head: str) -> list[tuple[str, str]]:
+        return _rules(_pair({self.C: base}, {self.C: head}))
+
+    def test_cursor_stop_removed_or_stubbed_is_critical_whatever_else_stays(self) -> None:
+        # Passes that became blocks: a non-`stop` hook no longer masks the
+        # removal of the real `stop` judge.
+        for other in ("afterAgentResponse", "afterAgentThought", "subagentStop", "finish", "Stop",
+                      "beforeSubmitPrompt"):
+            with self.subTest(other=other):
+                base = self._hooks(stop=[self.J], **{other: [self.T]})
+                self.assertEqual(self._rules(base, self._hooks(**{other: [self.T]})),
+                                 [("HOOK_REMOVED", "critical")])
+                stubbed = self._hooks(stop=["true"], **{other: [self.T]})
+                self.assertEqual(self._rules(base, stubbed), [("GATE_STUBBED", "critical")])
+
+    def test_judge_moved_out_of_cursor_stop_is_critical(self) -> None:
+        for other in ("afterAgentResponse", "finish", "Stop", "subagentStop"):
+            with self.subTest(other=other):
+                rules = self._rules(self._hooks(stop=[self.J]), self._hooks(**{other: [self.J]}))
+                self.assertEqual(rules, [("HOOK_REMOVED", "critical")])
+
+    def test_events_outside_the_set_removed_or_stubbed_stay_warn(self) -> None:
+        # Blocks that became passes: `afterAgentResponse`, `finish` and
+        # `Stop` hooks on cursor_hooks are not Stop-like.
+        for other in ("afterAgentResponse", "afterAgentThought", "subagentStop", "finish", "Stop"):
+            with self.subTest(other=other):
+                self.assertEqual(self._rules(self._hooks(**{other: [self.J]}), self._hooks()),
+                                 [("HOOK_REMOVED", "warn")])
+                stubbed = self._rules(self._hooks(**{other: [self.J]}), self._hooks(**{other: ["true"]}))
+                self.assertEqual(stubbed, [("GATE_STUBBED", "warn")])
+
+    def test_honest_non_gate_stop_hook_removal_now_blocks(self) -> None:
+        # Disclosed cost: removing a `stop` hook that is no gate (a sound
+        # notification) while an `afterAgentResponse` hook stays has the same
+        # bytes as the attack, so it blocks.
+        base = self._hooks(stop=["afplay done.aiff"], afterAgentResponse=[self.T])
+        self.assertEqual(self._rules(base, self._hooks(afterAgentResponse=[self.T])),
+                         [("HOOK_REMOVED", "critical")])
+
+    def test_a_sibling_stop_command_still_masks_the_judge(self) -> None:
+        # Open, R12: the judge removed from `stop` while another `stop`
+        # command (a plugin's) stays gives no finding at all.
+        base = self._hooks(stop=[self.J, "npx plugin-stop"])
+        self.assertEqual(self._rules(base, self._hooks(stop=["npx plugin-stop"])), [])
+
+    def test_claude_set_is_stop_only(self) -> None:
+        def settings(**events: str) -> str:
+            return json.dumps({"hooks": {
+                e: [{"hooks": [{"type": "command", "command": c}]}] for e, c in events.items()}})
+        path = ".claude/settings.json"
+        rules = _rules(_pair({path: settings(Stop=self.J, SubagentStop=self.J)},
+                             {path: settings(SubagentStop=self.J)}))
+        self.assertEqual(rules, [("HOOK_REMOVED", "critical")])
+        rules = _rules(_pair({path: settings(SubagentStop=self.J)}, {path: settings()}))
+        self.assertEqual(rules, [("HOOK_REMOVED", "warn")])
+
+
+class UnknownCoverageReasons(unittest.TestCase):
+    """SPEC §7 (spec 13): `reason` is fixed text from a closed list. The list
+    in SPEC and the reasons the engine can emit are the same set."""
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def _spec_reasons(self) -> set[str]:
+        text = (self.ROOT / "SPEC.md").read_text(encoding="utf-8")
+        start = text.index("\n## 7. Findings envelope")
+        section = text[start:text.index("\n## 8.", start)]
+        header = section.index("| Reason | Surface | Where |")
+        reasons: set[str] = set()
+        for line in section[header:].split("\n")[2:]:
+            if not line.startswith("|"):
+                break
+            first = line.split("|")[1]
+            reasons.update(part.split("`")[1] for part in first.split(",") if "`" in part)
+        return reasons
+
+    def _gha_reasons(self) -> set[str]:
+        path = self.ROOT / "pinwash" / "parse" / "gha.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        constants = {
+            node.targets[0].id: node.value.value
+            for node in tree.body
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+            and isinstance(node.targets[0], ast.Name) and isinstance(node.value.value, str)
+        }
+        found: set[str] = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "append" and isinstance(node.func.value, ast.Attribute)
+                    and node.func.value.attr == "unknown"):
+                arg = node.args[0]
+                found.add(arg.value if isinstance(arg, ast.Constant) else constants[arg.id])
+        return found
+
+    def test_the_closed_list_is_what_the_engine_emits(self) -> None:
+        from pinwash.rules import hook_coverage, hook_rules, hook_selector
+
+        hook = {
+            hook_rules.HOOK_LIVENESS_UNRESOLVED,
+            hook_selector.REASON,
+            hook_coverage.TARGET_NO_LONGER_RESOLVED,
+            hook_coverage.NAMES_CHANGED_FILE,
+            hook_coverage.FLAG_NOT_BOOLEAN,
+            hook_coverage.DISABLE_ALL_HOOKS,
+            hook_coverage.ENV_CHANGED,
+        }
+        gha = self._gha_reasons()
+        self.assertEqual(len(gha), 5, gha)
+        self.assertEqual(self._spec_reasons(), gha | hook)
 
 
 if __name__ == "__main__":
