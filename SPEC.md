@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite. On 2026-10-09 the maintainer extended that delegation to every ruling, including one that reverses SPEC text or turns a passing result into a block, on the condition that each ruling the maintaining agent makes is marked **AI-assisted** in its §16 row, its commit message and its issue; rulings the maintainer makes are marked as the maintainer's.
 
-Spec version: **30** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **31** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -201,6 +201,8 @@ Base severity of every finding is `warn`, except the producer-side disjuncts of 
 No other rule IDs exist in this spec version. Internal helper names must not appear in JSON `rule` fields.
 
 ### 5.1 HOOK_BYPASSED key table
+
+Spec 31 (AI-assisted, #44 async): a direct Claude Stop command handler with its own JSON `async: true` still executes, so its body and environment remain observable, but it is not live for refusal or Stop escalation. If a command string loses synchronous occurrences and gains asynchronous ones, emit `HOOK_BYPASSED`, locator `Stop:async`; a last blocking command makes it critical, otherwise warn. Group async is not inherited. Newly added async notifiers, an unchanged async base, changing true to false, prompt/agent, Cursor and non-Stop handlers do not create this finding. A command removed beside an async sibling remains a removal. Non-boolean async and event-key changes are handled by the following visibility ruling; no boolean coercion is used.
 
 Spec 30 (AI-assisted, #45): the empty-command removal requires that the base had a command; a command-free event unchanged on both sides never invents a removal. Direct Claude `prompt`/`agent` handlers with a nonempty string `prompt` are active modeled judges, not commands. Removing all such handlers is `HOOK_REMOVED` (`<event>:handlers`); disabling them through `disableAllHooks` is read by the switch. A handler type present at both sides keeps the Stop escalator off; a same-diff new type does not automatically certify a replacement judge. Changed/new handler content reports `non-command hook handler changed (not evaluated)`, visibility only. Actual model refusal, handler schema outside this shape, and prompt semantics remain R13/R24; an honest command-to-prompt migration can block and needs explicit review. No model is called.
 
@@ -525,6 +527,8 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 - Auto-fixing the diff.
 
 ## 16. Spec changelog
+
+- **31** — AI-assisted. Claude Stop async detection (#44), tests.test_hook_async.StopAsync: executing and refusing are distinct, occurrence changes are diff-sensitive, group async is not inherited. Existing two-version issue execution supplies host facts; no new host probes run. Invalid list-form holders cannot alter another file root guard. NOT_RUN locally; pool pending.
 
 - **30** — AI-assisted. Non-command handler and empty-list ruling (#45), tests.test_noncommand_hooks.NonCommandHooks. Unchanged prompt/agent-only events do not invent removal; switch-off and actual handler removal retain protection. Changed handler content is a visibility row; new-type replacements are not certified. Model refusal and schema remain R13/R24. NOT_RUN locally; pool pending.
 

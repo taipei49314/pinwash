@@ -67,7 +67,7 @@ _IDENT_REST = _IDENT_START | frozenset("0123456789")
 
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 

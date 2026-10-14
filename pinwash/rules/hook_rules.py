@@ -32,7 +32,7 @@ def _is_comment(command: str) -> bool:
 def _active(command: str, flags: dict[str, bool]) -> bool:
     """No §5.1 skip flag (own or inherited), not a §5.2 stub string, not
     commented out."""
-    return not any(flags.values()) and not stub_command(command) and not _is_comment(command)
+    return not any(v for k, v in flags.items() if k != "async") and not stub_command(command) and not _is_comment(command)
 
 
 def _live(command: str, flags: dict[str, bool], bodies: Bodies, retargeted: set[str]) -> bool:
@@ -41,6 +41,8 @@ def _live(command: str, flags: dict[str, bool], bodies: Bodies, retargeted: set[
     (§5) to a body that cannot refuse. Nothing else is read: a command §3.3
     does not resolve is live."""
     if not _active(command, flags):
+        return False
+    if flags.get("async", False):
         return False
     if command in bodies and (bodies[command][0] or bodies[command][1]):
         return False
@@ -145,8 +147,8 @@ def _retargets(
     command that lost block capability on a same path is the spec 7
     branch's. Left commands (base order) and new commands (head order) pair
     one to one."""
-    b_act = Counter(c for c, f in info["command_states"] if _active(c, f))
-    h_act = Counter(c for c, f in head_info["command_states"] if _active(c, f))
+    b_act = Counter(c for c, f in info["command_states"] if _active(c, f) and not f.get("async", False))
+    h_act = Counter(c for c, f in head_info["command_states"] if _active(c, f) and not f.get("async", False))
     head_strings = set(head_info["commands"])
     # Only a `#` command the diff added is the comment-out branch's; one
     # already at base pairs with nothing (review of 2026-10-10).
@@ -177,7 +179,7 @@ def _tally(states: list[tuple[str, dict[str, bool]]]) -> tuple[dict[str, int], d
     active: dict[str, int] = {}
     skipped: dict[str, int] = {}
     for command, flags in states:
-        bucket = skipped if any(flags.values()) else active
+        bucket = skipped if any(v for k, v in flags.items() if k != "async") else active
         bucket[command] = bucket.get(command, 0) + 1
     return active, skipped
 
@@ -287,6 +289,15 @@ def detect(
                 )
             continue
         fired = False
+        base_sync = Counter(c for c, f in info["command_states"] if _active(c, f) and not f.get("async", False))
+        head_sync = Counter(c for c, f in head_info["command_states"] if _active(c, f) and not f.get("async", False))
+        base_async = Counter(c for c, f in info["command_states"] if _active(c, f) and f.get("async", False))
+        head_async = Counter(c for c, f in head_info["command_states"] if _active(c, f) and f.get("async", False))
+        if any(head_sync[c] < n and head_async[c] > base_async[c] for c, n in base_sync.items()):
+            fired = True
+            add(rule="HOOK_BYPASSED", severity=escalate_stop("HOOK_BYPASSED", event, "warn"),
+                message=f"hook command for {event} made asynchronous", path=path,
+                before="synchronous", after="async:true", locator=f"{event}:async")
         if _command_skip_added(info, head_info):
             fired = True
             sev = escalate_stop("HOOK_BYPASSED", event, "warn")

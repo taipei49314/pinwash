@@ -138,6 +138,9 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
                     commands.extend(h["command"] for h in live_commands)
                     states = [(h["command"], {k: False for k in _direct_flags_from_obj(h)})
                               for h in live_commands]
+                    if event == "Stop":
+                        states = [(c, {**f, "async": h.get("async") is True})
+                                  for (c, f), h in zip(states, live_commands)]
                 else:
                     commands.extend(_commands_from_hook_object(entry))
                     states = _command_states_from_hook_object(entry)
@@ -220,10 +223,6 @@ def command_holders(doc: Any) -> tuple[set[str], set[str]]:
         for event, lst in hooks.items():
             if isinstance(event, str) and isinstance(lst, list):
                 entries.extend(e for e in lst if isinstance(e, dict))
-    elif isinstance(hooks, list):
-        for e in hooks:
-            if isinstance(e, dict) and isinstance(e.get("event") or e.get("type") or "unknown", str):
-                entries.append(e)
     for entry in entries:
         items = entry.get("hooks")
         for node in items if isinstance(items, list) else []:

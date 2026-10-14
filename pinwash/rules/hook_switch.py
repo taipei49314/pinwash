@@ -56,7 +56,7 @@ def flipped_in_effect(files: dict[str, tuple[str, Any, Any]]) -> str | None:
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
     """SPEC §3.3: no §5.1 skip flag, not a §5.2 stub string, no leading `#`."""
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 
