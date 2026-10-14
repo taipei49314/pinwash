@@ -33,7 +33,8 @@ class ProducerIdentity(unittest.TestCase):
         dependent = b"  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
         self.assertTrue(drops(scan({P: wf() + dependent}, {P: wf("verify") + dependent})))
         for run in ("echo ${{ needs.gate.result }}", "echo ${{ needs['gate'].result }}",
-                    "echo ${{ (needs).gate.result }}", "echo ${{ jobs [ 'gate' ].result }}"):
+                    "echo ${{ (needs).gate.result }}", "echo ${{ jobs [ 'gate' ].result }}",
+                    "echo ${{ (( needs ) ) . gate.result }}"):
             with self.subTest(run=run):
                 self.assertTrue(drops(scan({P: wf(run=run)}, {P: wf("verify", run)})))
 

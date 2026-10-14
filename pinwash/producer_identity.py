@@ -59,7 +59,7 @@ def matches(base, head):
             # Explicit dependencies/expressions are not admitted. The
             # name line is stable literal identity, not a key reference.
             keys = "(?:" + re.escape(bk) + "|" + re.escape(hk) + ")"
-            context_reference = (r"\b(?:needs|jobs)\s*\)*\s*(?:\.\s*" + keys
+            context_reference = (r"\b(?:needs|jobs)(?:\s*\))*\s*(?:\.\s*" + keys
                                  + r"(?![A-Za-z0-9_-])|\[\s*['\"]" + keys + r"['\"]\s*\])")
             if (any(set(needs_names(j)) & {bk, hk} for j in bg.jobs.values())
                     or re.search(context_reference, rest)):
