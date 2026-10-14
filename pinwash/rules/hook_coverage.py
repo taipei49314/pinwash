@@ -34,9 +34,9 @@ applies to a hook surface file; the engine reports each (path, reason) once.
   root `env` key the diff adds, changes or removes is expanded (`$K`,
   `${K...`) by an active hook command of the same file on either side.
 
-"Active" means no §5.1 skip flag (own or inherited), not a §5.2 stub string
-and not starting with `#`: flagged, stub and commented-out commands are
-judged by findings and run nothing pinwash would need to read.
+"Active" means no host-effective §5.1 skip flag (Cursor only), not a §5.2
+stub string and not starting with `#`. Claude host-neutral flags retain
+activity; async retains observation activity but cannot refuse a Stop.
 """
 
 from __future__ import annotations

@@ -27,6 +27,44 @@ def write_json(path: Path, value: object) -> None:
         handle.write("\n")
 
 
+def stop_owned(process, expired, *, windows: bool) -> tuple[bytes, bytes, dict[str, object]]:
+    """Bound cleanup and retain evidence; uncertainty prevents further steps."""
+    cleanup: dict[str, object] = {"confirmed": False, "errors": []}
+    errors = cleanup["errors"]
+    killed = False
+    try:
+        if windows:
+            killer = Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"
+            result = subprocess.run([str(killer), "/PID", str(process.pid), "/T", "/F"],
+                                    capture_output=True, timeout=15, check=False)
+            cleanup.update(exit_code=result.returncode,
+                           stdout=result.stdout.decode("utf-8", "replace"),
+                           stderr=result.stderr.decode("utf-8", "replace"))
+            killed = result.returncode == 0
+            if not killed:
+                errors.append("owned-tree termination returned nonzero")
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass  # group already gone; pipe drainage must still complete
+            killed = True
+    except (OSError, KeyError, subprocess.TimeoutExpired) as exc:
+        errors.append(f"owned-tree termination failed: {type(exc).__name__}: {exc}")
+    try:
+        stdout, stderr = process.communicate(timeout=15)
+        reaped = process.returncode is not None
+        if not reaped:
+            errors.append("owned parent has no terminal return code")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        stdout = getattr(exc, "stdout", None) or getattr(expired, "stdout", None) or b""
+        stderr = getattr(exc, "stderr", None) or getattr(expired, "stderr", None) or b""
+        reaped = False
+        errors.append(f"owned pipe drainage failed: {type(exc).__name__}: {exc}")
+    cleanup["confirmed"] = killed and reaped
+    return stdout, stderr, cleanup
+
+
 def main() -> int:
     required = ("EC_WORKLOAD_SOURCE", "EC_WORKLOAD_OUT", "EC_WORKLOAD_SHA")
     if any(not os.environ.get(key) for key in required):
@@ -48,43 +86,56 @@ def main() -> int:
     env["PINWASH_TODAY"] = "2026-09-30"
     env.pop("PINWASH_DOCTOR_SELFTEST", None)
     steps: list[dict[str, object]] = []
-    deadline = time.monotonic() + 1170  # still inside the declared 20 minutes
+    # Reserve 30 seconds for owned-tree cleanup plus 30 for receipt writing.
+    # The declaration stays at 20 minutes; expired budgets never launch work.
+    deadline = time.monotonic() + 1140
+    blocked: str | None = None
 
     def run(name: str, command: list[str], *, seed: str = "1", depth: str | None = None) -> tuple[int, bytes, bytes]:
+        nonlocal blocked
         started = time.monotonic()
         step_env = dict(env, PYTHONHASHSEED=seed)
         if depth is not None:
             step_env["PINWASH_DOCTOR_SELFTEST"] = depth
         timed_out = False
-        try:
-            process = subprocess.Popen(command, cwd=ROOT, env=step_env,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       start_new_session=os.name != "nt")
-            bound = 570 if name in ("suite", "doctor") else 30
-            stdout, stderr = process.communicate(timeout=max(1, min(bound, deadline - time.monotonic())))
-            code = process.returncode
-        except subprocess.TimeoutExpired as exc:
-            code, timed_out = 2, True
-            # Kill only this owned command's process tree before starting
-            # the next step; a timed-out doctor must not keep testing.
-            if os.name == "nt":
-                killer = Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"
-                subprocess.run([str(killer), "/PID", str(process.pid), "/T", "/F"],
-                               capture_output=True, timeout=15, check=False)
-            else:
-                os.killpg(process.pid, signal.SIGKILL)
+        cleanup = None
+        remaining = deadline - started
+        if remaining <= 0 and blocked is None:
+            blocked = "command budget expired; cleanup and receipt reserve retained"
+        if blocked is not None:
+            code, stdout, stderr = 2, b"", blocked.encode("utf-8")
+            state = "NOT_RUN"
+        else:
+            state = "COMPLETED"
+            process = None
             try:
-                stdout, stderr = process.communicate(timeout=15)
-            except subprocess.TimeoutExpired:
-                stdout, stderr = exc.stdout or b"", exc.stderr or b""
-        except OSError as exc:
-            code, stdout, stderr = 2, b"", str(exc).encode("utf-8")
+                process = subprocess.Popen(command, cwd=ROOT, env=step_env,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                           start_new_session=os.name != "nt")
+                bound = 570 if name in ("suite", "doctor") else 30
+                stdout, stderr = process.communicate(timeout=min(bound, remaining))
+                code = process.returncode
+            except subprocess.TimeoutExpired as exc:
+                code, timed_out, state = 2, True, "TIMED_OUT"
+                stdout, stderr, cleanup = stop_owned(process, exc, windows=os.name == "nt")
+                if not cleanup["confirmed"]:
+                    blocked = "owned command cleanup unconfirmed; further commands NOT_RUN"
+            except OSError as exc:
+                code, stdout, stderr = 2, b"", str(exc).encode("utf-8")
+                state = "START_FAILED"
+                if process is not None:
+                    stdout, stderr, cleanup = stop_owned(process, exc, windows=os.name == "nt")
+                    stderr += str(exc).encode("utf-8")
+                    state = "IO_FAILED"
+                    if not cleanup["confirmed"]:
+                        blocked = "owned command cleanup unconfirmed; further commands NOT_RUN"
         (out / f"{name}.stdout").write_bytes(stdout)
         (out / f"{name}.stderr").write_bytes(stderr)
         steps.append({
             "name": name, "command": command, "exit_code": code,
             "elapsed_seconds": round(time.monotonic() - started, 3),
             "timed_out": timed_out, "pythonhashseed": seed,
+            "state": state, "cleanup": cleanup,
             "doctor_selftest_depth": depth,
             "stdout_sha256": sha256(stdout), "stderr_sha256": sha256(stderr),
         })

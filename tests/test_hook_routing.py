@@ -119,12 +119,12 @@ class HookStopLiveness(unittest.TestCase):
                 self.assertEqual(payload["unknown_coverage"], [self.ROW])
 
     def test_skip_beside_a_pre_existing_unresolved_judge_reports_the_row(self) -> None:
-        base = {CS: _settings("npx tripwire-judge", "bash hooks/lint.sh"), "hooks/lint.sh": FMT}
-        head = {CS: _settings("npx tripwire-judge", _cmd("bash hooks/lint.sh", disabled=True)),
+        base = {CH: _cursor_settings("npx tripwire-judge", "bash hooks/lint.sh"), "hooks/lint.sh": FMT}
+        head = {CH: _cursor_settings("npx tripwire-judge", _cmd("bash hooks/lint.sh", disabled=True)),
                 "hooks/lint.sh": FMT}
         payload = _scan(base, head)
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
-        self.assertEqual(payload["unknown_coverage"], [self.ROW])
+        self.assertEqual(payload["unknown_coverage"], [{"path": CH, "reason": LIVENESS}])
 
     def test_liveness_moved_onto_unresolved_commands_reports_the_row(self) -> None:
         # Silent passes before spec 13 (challenger's defect 1): the judge
@@ -170,7 +170,7 @@ class HookStopLiveness(unittest.TestCase):
         head = _events({"Stop": stop})
         payload = _scan({CS: base}, {CS: head})
         self.assertEqual(_rules(payload), [("HOOK_REMOVED", "warn")])
-        self.assertEqual(payload["unknown_coverage"], [])
+        self.assertEqual(payload["unknown_coverage"], [{"path": CS, "reason": "hook event keys changed (host validity not evaluated)"}])
         unchanged = _scan({CS: head}, {CS: head})
         self.assertEqual((unchanged["findings"], unchanged["unknown_coverage"]), ([], []))
 
@@ -268,8 +268,12 @@ class SelectorRow(unittest.TestCase):
 
     def test_if_type_and_nested_matcher_are_rows(self) -> None:
         self._row_only(self._pre("Bash"), self._pre("Bash", _cmd(GUARD, **{"if": "Bash(nosuch *)"})))
-        self._row_only(self._pre("Bash"), self._pre("Bash", {"type": "disabled", "command": GUARD}))
         self._row_only(self._pre("Bash"), self._pre("NoSuchTool", _cmd(GUARD, matcher="*")))
+
+    def test_non_command_type_does_not_preserve_a_command(self) -> None:
+        payload = _scan(self._pre("Bash"), self._pre("Bash", {"type": "disabled", "command": GUARD}))
+        self.assertEqual(_rules(payload), [("HOOK_REMOVED", "warn")])
+        self.assertEqual(payload["unknown_coverage"], [])
 
     def test_same_targets_spelled_differently_is_the_same_command(self) -> None:
         for spelled in ("python  hooks/guard.py", "python ./hooks/guard.py", "python3 hooks/guard.py"):
@@ -451,9 +455,15 @@ class TargetRows(unittest.TestCase):
         head = {CS: _settings("python hooks/stop_judge.py", "pnpm typecheck"), "hooks/stop_judge.py": REAL}
         self.assertEqual(_reasons(_scan(base, head)), [])
 
-    def test_flagged_stub_and_commented_commands_are_not_active(self) -> None:
-        for cmd in (_cmd('"$CLAUDE_PROJECT_DIR"/hooks/judge.py', disabled=True),
-                    "# python hooks/judge.py", "true"):
+    def test_claude_flagged_command_is_still_active(self) -> None:
+        base = {CS: _settings(_cmd('"$CLAUDE_PROJECT_DIR"/hooks/judge.py', disabled=True),
+                             "npx tripwire-judge"), "hooks/judge.py": REAL}
+        payload = _scan(base, dict(base, **{"hooks/judge.py": GUT}))
+        self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
+        self.assertEqual(payload["unknown_coverage"], [{"path": CS, "reason": LIVENESS}])
+
+    def test_stub_and_commented_commands_are_not_active(self) -> None:
+        for cmd in ("# python hooks/judge.py", "true"):
             with self.subTest(cmd=cmd):
                 base = {CS: _settings(cmd, "npx tripwire-judge"), "hooks/judge.py": REAL}
                 payload = _scan(base, dict(base, **{"hooks/judge.py": GUT}))
@@ -465,9 +475,10 @@ class SpecThirteenReviewRows(unittest.TestCase):
     """Rows the spec 13 review found missing; each is visibility only."""
 
     def test_judge_replaced_by_enabling_a_pre_staged_unresolved_sibling(self) -> None:
-        base = {CS: _settings(_cmd(GUARD), _cmd("npx some-guard", disabled=True), event="PreToolUse"),
+        # Cursor retains the skip-flag contract; Claude ignores this flag.
+        base = {CH: _settings(_cmd(GUARD), _cmd("npx some-guard", disabled=True), event="preToolUse"),
                 "hooks/guard.py": REAL}
-        head = {CS: _settings(_cmd("npx some-guard"), event="PreToolUse"), "hooks/guard.py": REAL}
+        head = {CH: _settings(_cmd("npx some-guard"), event="preToolUse"), "hooks/guard.py": REAL}
         payload = _scan(base, head)
         self.assertEqual(payload["verdict"], "pass")
         self.assertIn(NO_LONGER, _reasons(payload))
@@ -618,7 +629,7 @@ class DisableAllHooksRow(unittest.TestCase):
         on = {CS: _settings(T, root={"disableAllHooks": True}), "hooks/judge.py": REAL}
         payload = _scan(on, {CS: json.dumps({"disableAllHooks": True, "hooks": {}})})
         self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
-        self.assertEqual(_reasons(payload), [DAH])
+        self.assertEqual(_reasons(payload), sorted([DAH, "hook event keys changed (host validity not evaluated)"]))
 
     def test_cursor_hooks_has_no_such_row(self) -> None:
         base = {CH: json.dumps({"version": 1, "hooks": {"stop": [{"command": T}]}}), "hooks/judge.py": REAL}
@@ -633,6 +644,7 @@ class RowsAreVisibilityOnly(unittest.TestCase):
 
     def test_every_reason_at_once_is_sorted_and_verdict_neutral(self) -> None:
         base = {
+            CH: _cursor_settings(GUARD),
             CS: json.dumps({"hooks": {
                 "Stop": [{"hooks": [_cmd(T)]}],
                 "PreToolUse": [{"matcher": "Bash", "hooks": [_cmd(GUARD)]}],
@@ -640,6 +652,7 @@ class RowsAreVisibilityOnly(unittest.TestCase):
             "hooks/judge.py": REAL, "hooks/guard.py": REAL, "hooks/fmt.sh": FMT,
         }
         head = {
+            CH: _cursor_settings(_cmd(GUARD, failOpen="true")),
             CS: json.dumps({"disableAllHooks": "yes", "hooks": {
                 "Stop": [{"hooks": [_cmd("npx tripwire-judge")]}],
                 "PreToolUse": [{"matcher": "NoSuchTool", "hooks": [_cmd(GUARD, failOpen="true")]}],
@@ -649,7 +662,8 @@ class RowsAreVisibilityOnly(unittest.TestCase):
         payload = _scan(base, head)
         self.assertEqual(payload["findings"], [])
         self.assertEqual(payload["verdict"], "pass")
-        self.assertEqual(_reasons(payload), sorted([DAH, NAMES, NO_LONGER, FLAG, LIVENESS, SELECTOR]))
+        self.assertEqual(_reasons(payload, CS), sorted([DAH, NAMES, NO_LONGER, LIVENESS, SELECTOR]))
+        self.assertEqual(_reasons(payload, CH), [FLAG])
         reasons = [(u["path"], u["reason"]) for u in payload["unknown_coverage"]]
         self.assertEqual(reasons, sorted(set(reasons)))
 
