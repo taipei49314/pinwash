@@ -1,0 +1,27 @@
+"""#29: preserve literal producer identity only in closed pure moves."""
+import json
+import unittest
+from pinwash.engine import scan_pair
+P, N, R = ".github/workflows/ci.yml", ".github/workflows/moved.yml", ".github/rulesets/main.json"
+RS = json.dumps({"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "tripwire"}]}}]}).encode()
+def wf(key="gate", run="python verify.py", extra=""):
+    return ("on: [push, pull_request]\n" + extra + "jobs:\n  " + key + ":\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: " + run + "\n").encode()
+def scan(b, h):
+    return scan_pair({R: RS, **b}, {R: RS, **h}, base_label="b", head_label="h", env={"PINWASH_TODAY": "2026-10-14"})
+def drops(r):
+    return [f for f in r["findings"] if f["rule"] == "REQUIRED_CHECK_DROPPED"]
+class ProducerIdentity(unittest.TestCase):
+    def test_pure_rekey_with_literal_context_is_not_deleted(self):
+        self.assertEqual(drops(scan({P: wf()}, {P: wf("verify")})), [])
+    def test_identical_whole_file_move_is_not_deleted(self):
+        self.assertEqual(drops(scan({P: wf()}, {N: wf()})), [])
+    def test_same_name_gutted_decoy_does_not_hide_deletion(self):
+        self.assertTrue(drops(scan({P: wf()}, {P: wf("verify", "true")})))
+    def test_changed_top_level_execution_settings_do_not_match(self):
+        self.assertTrue(drops(scan({P: wf()}, {N: wf(extra="permissions: {}\n")})))
+    def test_dynamic_job_read_prevents_rekey(self):
+        self.assertTrue(drops(scan({P: wf(run="echo $GITHUB_JOB")}, {P: wf("verify", "echo $GITHUB_JOB")})))
+    def test_ambiguous_whole_file_destinations_do_not_match(self):
+        self.assertTrue(drops(scan({P: wf()}, {N: wf(), ".github/workflows/also.yml": wf()})))
+    def test_comment_like_run_bytes_are_not_discarded(self):
+        self.assertTrue(drops(scan({P: wf(run="echo '# old'")}, {P: wf("verify", "echo '# new'")})))

@@ -13,6 +13,7 @@ from typing import Any
 
 from pinwash.allow import apply_allow, detect_allow
 from pinwash.textutil import canonical_text
+from pinwash.producer_identity import matches as producer_identity_matches
 from pinwash.findings import envelope, make_finding
 from pinwash.parse.gha import parse_workflow
 from pinwash.parse.hookcmd import command_body_map, resolver, root_form_guard
@@ -265,6 +266,7 @@ def scan_pair(
         [text_load(head_files.get(path)) for path in paths if is_gha_workflow(path)]
         if base_contexts else []
     )
+    producer_moves = producer_identity_matches(base_files, head_files) if base_contexts else {}
     base_folded = required_check.fold_contexts(base_contexts)
     head_folded = required_check.fold_contexts(head_contexts)
 
@@ -458,10 +460,11 @@ def scan_pair(
             # SPEC §5 findings and the §5.5 producer rows (spec 14); a row
             # never adds, drops or changes a finding, so never the verdict.
             required_check.detect_jobs(
-                path, base_g, head_g, base_contexts, add,
+                path, base_g, producer_moves.get(path, (path, head_g, {}))[1], base_contexts, add,
                 note=note_gha, changed=lambda p: p in changed_set(),
                 calls_of=calls_of, head_contexts=head_folded,
                 head_reporting=head_reporting, base_folded=base_folded,
+                job_matches=producer_moves.get(path, (path, head_g, {}))[2],
             )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))
