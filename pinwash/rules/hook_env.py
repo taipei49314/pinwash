@@ -45,7 +45,7 @@ def bash_events(doc: Any):
     return selected, remaining
 
 def source_path(value: Any) -> str | None:
-    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_.-]+)*\.(?:sh|bash)", value):
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\.(?:sh|bash)", value):
         return None
     if any(part in (".", "..") for part in value.split("/")):
         return None

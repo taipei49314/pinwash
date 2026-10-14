@@ -8,6 +8,7 @@ the exemption channel in pinwash/allow.
 from __future__ import annotations
 
 import os
+from collections import Counter
 from typing import Any
 
 from pinwash.allow import apply_allow, detect_allow
@@ -62,6 +63,9 @@ from pinwash.surfaces import (
 # findings.
 NEW_UNPARSEABLE = "new surface file unparseable"
 BASE_UNPARSEABLE = "surface unparseable at base"
+NONCOMMAND_HANDLER = "non-command hook handler changed (not evaluated)"
+ASYNC_UNKNOWN = "hook async value not boolean"
+EVENT_KEYS = "hook event keys changed (host validity not evaluated)"
 # SPEC §2 / §7 (spec 16, AI-assisted ruling on #17, R21): working-tree
 # entries at surface paths that the worktree read does not open.
 IGNORED_SURFACE = "untracked surface file matched by an ignore rule, not read"
@@ -332,7 +336,21 @@ def scan_pair(
                     before_handlers = base_ev.get(event, {}).get("non_commands", [])
                     after_handlers = head_ev.get(event, {}).get("non_commands", [])
                     if after_handlers and canonical_text(before_handlers) != canonical_text(after_handlers):
-                        note("non-command hook handler changed (not evaluated)")
+                        note(NONCOMMAND_HANDLER)
+                b_hooks = base_doc.get("hooks") if isinstance(base_doc, dict) else None
+                h_hooks = head_doc.get("hooks") if isinstance(head_doc, dict) else None
+                b_keys = {k for k in b_hooks if isinstance(k, str)} if isinstance(b_hooks, dict) else set()
+                h_keys = {k for k in h_hooks if isinstance(k, str)} if isinstance(h_hooks, dict) else set()
+                if h_keys != b_keys:
+                    note(EVENT_KEYS)
+                def opaque_async(doc: Any) -> Counter:
+                    return Counter((e, h.get("command"), canonical_text(h["async"]))
+                                   for e, h in hook_env.handlers(doc)
+                                   if e == "Stop" and h.get("type", "command") == "command"
+                                   and isinstance(h.get("command"), str) and "async" in h
+                                   and not isinstance(h["async"], bool))
+                if opaque_async(head_doc) - opaque_async(base_doc):
+                    note(ASYNC_UNKNOWN)
             body_base, body_head = kind_bodies[claude_kind]
             res_base, res_head = kind_resolvers[claude_kind]
             hook_rules.detect(

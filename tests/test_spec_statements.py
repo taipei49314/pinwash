@@ -315,7 +315,8 @@ class UnknownCoverageReasons(unittest.TestCase):
         return found
 
     def test_the_closed_list_is_what_the_engine_emits(self) -> None:
-        from pinwash.rules import hook_coverage, hook_rules, hook_selector
+        from pinwash.rules import hook_coverage, hook_rules, hook_selector, hook_env
+        from pinwash import engine
 
         hook = {
             hook_rules.HOOK_LIVENESS_UNRESOLVED,
@@ -325,6 +326,11 @@ class UnknownCoverageReasons(unittest.TestCase):
             hook_coverage.FLAG_NOT_BOOLEAN,
             hook_coverage.DISABLE_ALL_HOOKS,
             hook_coverage.ENV_CHANGED,
+            engine.NONCOMMAND_HANDLER,
+            engine.ASYNC_UNKNOWN,
+            engine.EVENT_KEYS,
+            hook_env.GLOBAL_ENV,
+            hook_env.BASH_SOURCE,
         }
         gha = self._gha_reasons()
         # Spec 14: six grammar reasons (#23, #24, and the layout reason of
