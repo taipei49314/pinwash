@@ -37,6 +37,12 @@ class ProducerIdentity(unittest.TestCase):
             with self.subTest(run=run):
                 self.assertTrue(drops(scan({P: wf(run=run)}, {P: wf("verify", run)})))
 
+    def test_unrelated_hyphenated_job_reference_does_not_prevent_rekey(self):
+        rest = (b"  gate-other:\n    name: other\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+                b"  helper:\n    name: helper\n    needs: gate-other\n    runs-on: ubuntu-latest\n    steps:\n"
+                b"      - run: echo ${{ needs.gate-other.result }}\n")
+        self.assertEqual(drops(scan({P: wf() + rest}, {P: wf("verify") + rest})), [])
+
     def test_indexed_context_and_whitespace_prevent_rekey(self):
         for run in ("echo ${{ github['job'] }}", 'echo ${{ github [ "job" ] }}',
                     "echo ${{ github['workflow_ref'] }}", "echo ${{ github . job }}",
