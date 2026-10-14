@@ -197,6 +197,7 @@ def selector_changed(
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
     targets: Any = (None, None),
+    *, claude: bool = False,
 ) -> bool:
     """Pair live commands by string first, so each string's selector is
     judged on its own (a narrowing of one command cannot hide behind a
@@ -204,6 +205,11 @@ def selector_changed(
     string changed pair by their §3.3 target set."""
     base_ev = _events(base_doc)
     head_ev = _events(head_doc)
+    if claude:
+        for events in (base_ev, head_ev):
+            for records in events.values():
+                for record in records:
+                    record["flagged"] = False
     for event in sorted(set(base_ev) & set(head_ev)):
         b_s: dict[str, list[dict[str, Any]]] = {}
         h_s: dict[str, list[dict[str, Any]]] = {}
@@ -236,5 +242,5 @@ def detect(
     note_unknown: Any,
     targets: Any = (None, None),
 ) -> None:
-    if selector_changed(base_doc, head_doc, base_files, head_files, targets):
+    if selector_changed(base_doc, head_doc, base_files, head_files, targets, claude=path in (".claude/settings.json", ".claude/settings.local.json")):
         note_unknown(REASON)

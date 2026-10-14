@@ -100,7 +100,7 @@ def _command_states_from_hook_object(
     return found
 
 
-def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
+def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str, Any]]:
     """Map event name -> commands, command states, matchers, array_len.
 
     Skip flags live only in the command-local states (SPEC §5.1, spec 10);
@@ -126,7 +126,10 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
                 if isinstance(entry.get("matcher"), str):
                     matchers.append(entry["matcher"])
                 commands.extend(_commands_from_hook_object(entry))
-                command_states.extend(_command_states_from_hook_object(entry))
+                states = _command_states_from_hook_object(entry)
+                if claude:
+                    states = [(c, {k: False for k in f}) for c, f in states]
+                command_states.extend(states)
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,

@@ -314,8 +314,8 @@ def scan_pair(
             stop_names = (
                 CLAUDE_STOP_EVENTS if is_claude_settings(path) else CURSOR_STOP_EVENTS
             )
-            base_ev = extract_event_hooks(b_obj) if b_st == "ok" else {}
-            head_ev = extract_event_hooks(h_obj) if h_st == "ok" else {}
+            base_ev = extract_event_hooks(b_obj, claude=is_claude_settings(path)) if b_st == "ok" else {}
+            head_ev = extract_event_hooks(h_obj, claude=is_claude_settings(path)) if h_st == "ok" else {}
             base_doc = b_obj if b_st == "ok" else None
             head_doc = h_obj if h_st == "ok" else None
 

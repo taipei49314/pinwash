@@ -407,7 +407,7 @@ def detect(
         note_unknown(TARGET_NO_LONGER_RESOLVED)
     if names_changed_file(base_ev, head_ev, base_files, head_files, changed(), targets):
         note_unknown(NAMES_CHANGED_FILE)
-    if flag_not_boolean(base_doc, head_doc, hook_finding):
+    if not claude_settings and flag_not_boolean(base_doc, head_doc, hook_finding):
         note_unknown(FLAG_NOT_BOOLEAN)
     if claude_settings and disable_all_hooks(base_doc, head_doc, hook_finding, switch_finding, switch_anywhere):
         note_unknown(DISABLE_ALL_HOOKS)

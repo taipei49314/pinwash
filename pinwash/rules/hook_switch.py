@@ -91,7 +91,7 @@ def detect(
         b_doc = files[key][1]
         if not isinstance(b_doc, dict):
             continue
-        events = extract_event_hooks(b_doc)
+        events = extract_event_hooks(b_doc, claude=True)
         active = active or any(
             _active(command, flags)
             for info in events.values()
