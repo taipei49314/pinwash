@@ -42,4 +42,6 @@ Static source review corrected the retarget locator to `Stop:python hooks/new.py
 
 ## Remaining acceptance work
 
+Before the first dispatch, integration review of EC `tools/pool/workload.py::workload_env` found that the entry incorrectly required `EC_WORKLOAD_PROFILE`, which EC does not export to the workload. EC verifies the declared profile in its trusted prepare step. The source-only repair removes that non-exported variable check; repository/name/exact SHA/source checks remain. Manifest, predictions, declaration hash, candidate engine and SPEC are unchanged. The originally approved dispatcher source `d00a95b` was not POSTed; the repaired exact source must be recorded before its first execution.
+
 This runner does not run the complete suite or top-level doctor, replay historical cells with the candidate, probe Claude/Cursor, or provide an OS/Python matrix. Native Windows full-suite failures and the first-batch local Docker acceptance boundary remain visible. Linux/macOS matrix work, candidate historical replay, independent natural/attack samples, EC consumer policy, grammar/reader work and publication require their own concrete delivery and applicable execution approval. No new accuracy, release or merge claim follows from this workload.

@@ -206,10 +206,11 @@ def main() -> int:
     expected = os.environ.get("EC_WORKLOAD_SHA", "")
     if (os.environ.get("EC_WORKLOAD_REPOSITORY") != "taipei49314/pinwash"
             or os.environ.get("EC_WORKLOAD_NAME") != "candidate-sessions"
-            or os.environ.get("EC_WORKLOAD_PROFILE") != "profile-ec-integrity"
             or not re.fullmatch(r"[0-9a-f]{40}", expected)
             or Path(os.environ["EC_WORKLOAD_SOURCE"]).resolve() != ROOT):
         raise RuntimeError("requires exact reviewed EC candidate-sessions dispatch")
+    # EC validates declaration.profile against its listener before execution;
+    # workload_env exports repository/name/source/SHA, not EC_WORKLOAD_PROFILE.
     out = Path(os.environ["EC_WORKLOAD_OUT"]).resolve()
     if out == ROOT or ROOT in out.parents or out in ROOT.parents:
         raise RuntimeError("output and source must be separate")
