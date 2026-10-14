@@ -22,11 +22,11 @@ Covered interactions:
 
 - Claude ignored flags, Cursor supported flags, direct command holders, command reorder, prompt/agent Stop and global switches.
 - Async loss of refusal, live sibling severity, group async negative control, nonboolean async and event-key visibility.
-- Exact true shell prefix, a changed CRLF BASH_ENV file, cross-settings PATH visibility and a safe-prefix control.
+- Exact true shell prefix, a changed CRLF BASH_ENV file, cross-settings PATH visibility and an outside-closed-prefix control.
 - Producer pure rekey/move, same-name gutted decoy and dependency reference. Honest moves retain the `head job claims a required context` visibility row; pass does not erase unknown coverage.
 - Session exemption planting, a valid exact base exemption, the zero-exit held outcome, renamed/gutted judge, and a required context/producer weakening split between commit and worktree.
 
-The exemption fixture fingerprint is computed independently from the published §7 formula and literal removal identity before execution, never learned from candidate output. Other finding fingerprints must have the published shape, remain byte-identical between hash seeds, and remain equal across range labels when rule/path/locator/severity/before/after identities are equal.
+The exemption fixture fingerprint is computed independently from the published §7 formula and literal removal identity before execution, never learned from candidate output. Every finding fingerprint is independently checked against the published formula, remains byte-identical between hash seeds, and remains equal across cases/range labels when rule/path/locator/before/after identities are equal. Severity is not a fingerprint input; the two async cases also check this when a live sibling changes critical to warn.
 
 Static source review corrected the retarget locator to `Stop:python hooks/new.py` and retained the producer claimant rows before any run. Since spec 27, both combined and plain scans catch the renamed/gutted fixture, using different detector branches. No historical pass has been relabelled.
 

@@ -692,8 +692,8 @@
           ]
         }
       ],
-      "id": "safe-prefix-control",
-      "purpose": "",
+      "id": "outside-closed-prefix-control",
+      "purpose": "outside the admitted detection form; no host-safety claim",
       "session_expected": "pass",
       "worktree": {
         ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"echo\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
