@@ -1,0 +1,1328 @@
+{
+  "candidate_pinwash_tree": "8f3dd1e10dc590d0bc0d3335817d81648b36b4e4",
+  "candidate_revision": "a5af21c166b1522a4e0d9d4074ff9bdd299a5ef5",
+  "cases": [
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "claude-neutral-flags",
+      "purpose": "#42: ignored Claude flags do not disable an unchanged Stop command",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"continueOnError\": true, \"disabled\": true, \"enabled\": false, \"failOpen\": true, \"hookEnabled\": false, \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true, \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "disableAllHooks",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "disableAllHooks",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "claude-flags-do-not-hide-switch",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"disableAllHooks\": true, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true, \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_REMOVED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_REMOVED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "group-command-is-not-live",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"command\": \"python hooks/judge.py\", \"hooks\": []}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "prompt-docs-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        "README.md": "honest documentation edit\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"agent\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "disableAllHooks",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "disableAllHooks",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "agent-switch",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"disableAllHooks\": true, \"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"agent\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:handlers",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_REMOVED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:handlers",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_REMOVED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "prompt-removal",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": []}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:async",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:async",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "stop-async",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": true, \"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "async-group-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"async\": true, \"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "Stop:async",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "Stop:async",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "async-live-sibling",
+      "purpose": "severity depends on the retained, resolved blocking sibling",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": true, \"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook async value not boolean"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook async value not boolean"
+            }
+          ]
+        }
+      ],
+      "id": "async-nonboolean",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": \"true\", \"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "event-key-visibility",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}], \"WorktreeCreate\": []}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "true-shell-prefix",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"env\": {\"BASH_ENV\": \"hooks/environment.sh\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/environment.sh": "true\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "env.BASH_ENV",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook BASH_ENV source changed (not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "env.BASH_ENV",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook BASH_ENV source changed (not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "bash-source-becomes-exit-zero",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        "hooks/environment.sh": "# fixture\r\n:\r\nexit 0\r\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{}\n",
+        ".claude/settings.local.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "cross-settings-path-visibility",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"PATH\": \"/safe/bin\"}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook global environment changed (not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "safe-prefix-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"echo\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        }
+      ],
+      "id": "producer-rekey-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/moved.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/moved.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        }
+      ],
+      "id": "producer-move-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".github/workflows/ci.yml": null,
+        ".github/workflows/moved.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "gate",
+              "path": ".github/workflows/ci.yml",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "high"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "gate",
+              "path": ".github/workflows/ci.yml",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "high"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        }
+      ],
+      "id": "producer-gutted-decoy",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "gate",
+              "path": ".github/workflows/ci.yml",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "high"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "gate",
+              "path": ".github/workflows/ci.yml",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "high"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "reason": "head job claims a required context"
+            }
+          ]
+        }
+      ],
+      "id": "producer-linkage-rekey",
+      "purpose": "",
+      "session_expected": "block",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "command-reorder-control",
+      "purpose": "",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/other.py\", \"type\": \"command\"}, {\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:python hooks/new.py",
+              "path": ".claude/settings.json",
+              "rule": "GATE_STUBBED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:python hooks/new.py",
+              "path": ".claude/settings.json",
+              "rule": "GATE_STUBBED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "retarget-gutted-judge",
+      "purpose": "#10/spec27 retarget protection through the public CLI",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/new.py\", \"type\": \"command\"}]}]}}\n",
+        "hooks/new.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "",
+              "path": ".pinwash/allow.toml",
+              "rule": "EXEMPTION_ADDED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "",
+              "path": ".pinwash/allow.toml",
+              "rule": "EXEMPTION_ADDED",
+              "severity": "warn"
+            },
+            {
+              "locator": "Stop",
+              "path": ".claude/settings.json",
+              "rule": "HOOK_REMOVED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "session-exemption-plant",
+      "purpose": "committed exemption + uncommitted weakening: combined blocks while plain scan passes",
+      "session_expected": "block",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": [
+            {
+              "path": ".claude/settings.json",
+              "reason": "hook event keys changed (host validity not evaluated)"
+            }
+          ]
+        }
+      ],
+      "id": "base-exemption-control",
+      "purpose": "exact, in-force base record suppresses only its matching finding",
+      "session_expected": "pass",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "",
+              "path": ".pinwash/allow.toml",
+              "rule": "EXEMPTION_ADDED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "",
+              "path": ".pinwash/allow.toml",
+              "rule": "EXEMPTION_ADDED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "session-exemption-held",
+      "purpose": "all CLI exits 0, but the README consumer recipe holds for added exemption",
+      "session_expected": "held",
+      "worktree": {
+        "README.md": "honest change\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/new.py\", \"type\": \"command\"}]}]}}\n",
+        "hooks/judge.py": null,
+        "hooks/new.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:python hooks/new.py",
+              "path": ".claude/settings.json",
+              "rule": "GATE_STUBBED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "Stop:python hooks/new.py",
+              "path": ".claude/settings.json",
+              "rule": "GATE_STUBBED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "session-renamed-then-gutted",
+      "purpose": "combined retarget detection and plain same-path loss both block under spec27+",
+      "session_expected": "block",
+      "worktree": {
+        "hooks/new.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".cursor/hooks.json": "{\"hooks\": {\"stop\": [{\"command\": \"python hooks/judge.py\"}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "stop",
+              "path": ".cursor/hooks.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "stop",
+              "path": ".cursor/hooks.json",
+              "rule": "HOOK_BYPASSED",
+              "severity": "critical"
+            }
+          ],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "cursor-disabled-control",
+      "purpose": "Cursor retains its supported skip flag; Claude control stays separate",
+      "session_expected": "block",
+      "worktree": {
+        ".cursor/hooks.json": "{\"hooks\": {\"stop\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}, {\"context\": \"unit\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  unit:\n    name: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"unit\"}]}, \"type\": \"required_status_checks\"}]}\n"
+      },
+      "expected": [
+        {
+          "exit_code": 0,
+          "findings": [
+            {
+              "locator": "tripwire",
+              "path": ".github/rulesets/main.json",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "warn"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 1,
+          "findings": [
+            {
+              "locator": "tripwire",
+              "path": ".github/rulesets/main.json",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "warn"
+            },
+            {
+              "locator": "gate",
+              "path": ".github/workflows/ci.yml",
+              "rule": "REQUIRED_CHECK_DROPPED",
+              "severity": "high"
+            }
+          ],
+          "unknown_coverage": []
+        },
+        {
+          "exit_code": 0,
+          "findings": [],
+          "unknown_coverage": []
+        }
+      ],
+      "id": "session-ruleset-producer-split",
+      "purpose": "context removed in commit, its producer removed on disk: pinned combined scan blocks",
+      "session_expected": "block",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  unit:\n    name: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+      }
+    }
+  ],
+  "engine_version": "0.0.0",
+  "ranges": [
+    "BASE..HEAD",
+    "BASE..WORKTREE",
+    "HEAD..WORKTREE"
+  ],
+  "schema_version": 1,
+  "seeds": [
+    "1",
+    "17"
+  ],
+  "spec_sha256": "e7728c61d1c1c12331b5d7d58315d9e4e0d60dd47cdaef3260abe6cb131f7581",
+  "spec_version": 36,
+  "status": "preregistered; NOT_RUN",
+  "today": "2026-10-14"
+}
