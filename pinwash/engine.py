@@ -29,6 +29,7 @@ from pinwash.hooks import CLAUDE_STOP_EVENTS, CURSOR_STOP_EVENTS, extract_event_
 from pinwash.rules import (
     config_rule,
     hook_coverage,
+    hook_env,
     hook_rules,
     hook_switch,
     hook_selector,
@@ -293,6 +294,7 @@ def scan_pair(
         for key, (path, b_obj, b_st, h_obj, h_st) in mode_files.items()
     }
     switch_path = hook_switch.detect(switch_files, kind_bodies[True][0], hook_rules.live_stop_events, add)
+    hook_env.detect(switch_files, base_files, head_files, kind_bodies[True][0], add, note_unknown)
     if switch_path is None:
         # No command was active at base, yet the value in effect became
         # `true` (a local `false` removed under a shared `true`): the row.

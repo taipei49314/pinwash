@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite. On 2026-10-09 the maintainer extended that delegation to every ruling, including one that reverses SPEC text or turns a passing result into a block, on the condition that each ruling the maintaining agent makes is marked **AI-assisted** in its §16 row, its commit message and its issue; rulings the maintainer makes are marked as the maintainer's.
 
-Spec version: **31** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **32** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -202,6 +202,8 @@ No other rule IDs exist in this spec version. Internal helper names must not app
 
 ### 5.1 HOOK_BYPASSED key table
 
+Spec 32 (AI-assisted, #43): changed root `env.CLAUDE_CODE_SHELL_PREFIX`, `env.BASH_ENV` or `env.PATH` reports `hook global environment changed (not evaluated)` when either repository settings file holds hook activity on either side, without requiring expansion in a command. A named, directly repo-relative `.sh`/`.bash` BASH_ENV source whose bytes change reports `hook BASH_ENV source changed (not evaluated)` even with an unchanged key. Findings are deliberately narrower: the base supplier file has a bash-run command (no args, missing/bash shell), the other file defines no competing key on either side, and either the head SHELL_PREFIX is exactly the string `true` while base is absent/empty, or BASH_ENV newly resolves to a UTF-8 body containing at least one exact `exit 0` and otherwise only `true`, `:` or `exit 0` after blank/full-comment removal and CRLF-to-LF. Lone CR is kept. Both forms are `HOOK_BYPASSED`, locator `env.<key>`; critical only when the affected Stop commands were live and no unaffected modeled Stop handler stays in that file. PATH, other prefixes, ambiguous suppliers, cross-file-only hooks, exec/non-bash forms and general BASH_ENV programs remain R07/R24. The body reader retains R07's symbolic-link/text limitation. Rows remain after exemption of a finding. No host precedence is inferred from the disableAllHooks rule.
+
 Spec 31 (AI-assisted, #44 async): a direct Claude Stop command handler with its own JSON `async: true` still executes, so its body and environment remain observable, but it is not live for refusal or Stop escalation. If a command string loses synchronous occurrences and gains asynchronous ones, emit `HOOK_BYPASSED`, locator `Stop:async`; a last blocking command makes it critical, otherwise warn. Group async is not inherited. Newly added async notifiers, an unchanged async base, changing true to false, prompt/agent, Cursor and non-Stop handlers do not create this finding. A command removed beside an async sibling remains a removal. Non-boolean async and event-key changes are handled by the following visibility ruling; no boolean coercion is used.
 
 Spec 30 (AI-assisted, #45): the empty-command removal requires that the base had a command; a command-free event unchanged on both sides never invents a removal. Direct Claude `prompt`/`agent` handlers with a nonempty string `prompt` are active modeled judges, not commands. Removing all such handlers is `HOOK_REMOVED` (`<event>:handlers`); disabling them through `disableAllHooks` is read by the switch. A handler type present at both sides keeps the Stop escalator off; a same-diff new type does not automatically certify a replacement judge. Changed/new handler content reports `non-command hook handler changed (not evaluated)`, visibility only. Actual model refusal, handler schema outside this shape, and prompt semantics remain R13/R24; an honest command-to-prompt migration can block and needs explicit review. No model is called.
@@ -388,6 +390,7 @@ Each finding:
 | `hook skip flag value not boolean` | `claude_settings`, `cursor_hooks` | §5.1 (R06) |
 | `hook settings root disableAllHooks` | `claude_settings` | §5.1 (R06) |
 | `hook command environment changed` | `claude_settings` | §3.3 (R07) |
+| `hook global environment changed (not evaluated)`, `hook BASH_ENV source changed (not evaluated)` | `claude_settings` | §5.1 (R07/R24) |
 | `non-command hook handler changed (not evaluated)` | `claude_settings` | §5.1 (R13/R24) |
 | `new surface file unparseable`, `surface unparseable at base` | every surface but `checkwash_config` (spec 19) | §3 (R19) |
 | `checkwash config checkwash cannot load (not compared)` | `checkwash_config` | §3.2 (R22) |
@@ -527,6 +530,8 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 - Auto-fixing the diff.
 
 ## 16. Spec changelog
+
+- **32** — AI-assisted. Bounded environment visibility and detection (#43), tests.test_hook_environment.HookEnvironment. Global keys do not need literal expansion; BASH_ENV source-byte change is observable. Exact true prefix and unconditional exit0 source only; ambiguous/cross-file execution and PATH remain visible residuals. Named source behavior comes from existing two-version issue evidence, not new probes. NOT_RUN locally; EC pool pending.
 
 - **31** — AI-assisted. Claude Stop async detection (#44), tests.test_hook_async.StopAsync: executing and refusing are distinct, occurrence changes are diff-sensitive, group async is not inherited. Existing two-version issue execution supplies host facts; no new host probes run. Invalid list-form holders cannot alter another file root guard. NOT_RUN locally; pool pending.
 
