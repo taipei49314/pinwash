@@ -155,8 +155,8 @@ class AddedSiblings(unittest.TestCase):
         self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
 
     def test_disable_and_replace_with_a_judge_that_can_refuse_is_warn(self) -> None:
-        payload = _scan({CS: _hooks("Stop", [T]), J: REAL},
-                        {CS: _hooks("Stop", [{"type": "command", "command": T, "disabled": True}, T2]),
+        payload = _scan({CH: _hooks("stop", [T], CH), J: REAL},
+                        {CH: _hooks("stop", [{"type": "command", "command": T, "disabled": True}, T2], CH),
                          J: REAL, J2: REAL})
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
 

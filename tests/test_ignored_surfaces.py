@@ -12,6 +12,7 @@ from tests.test_alpha2_git_cli import SETTINGS_PATH, STOP_SETTINGS, _CLIIntegrat
 
 REASON = "untracked surface file matched by an ignore rule, not read"
 DIR_REASON = "untracked surface files under this directory matched by an ignore rule, not read"
+EVENT_KEYS = "hook event keys changed (host validity not evaluated)"
 UNREAD_DIR = "untracked surface directory git does not descend (nested repository or symlink), not read"
 WIDE_MCP = json.dumps({"mcpServers": {"x": {"command": "x", "autoApprove": ["*"]}}})
 
@@ -50,7 +51,7 @@ class IgnoredSurfaceRouting(_CLIIntegration):
         self._write(repo, SETTINGS_PATH, json.dumps({"hooks": {}}))
         proc, payload = self._check(repo)
         self._assert_exit(proc, payload, 1)
-        self.assertEqual(payload["unknown_coverage"], [])
+        self.assertEqual(payload["unknown_coverage"], [{"path": SETTINGS_PATH, "reason": EVENT_KEYS}])
 
     def test_untracking_and_ignoring_a_surface_reads_as_deleted(self) -> None:
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS})
@@ -59,7 +60,8 @@ class IgnoredSurfaceRouting(_CLIIntegration):
         proc, payload = self._check(repo)
         self._assert_exit(proc, payload, 1)
         self.assertEqual(self._findings(payload, "HOOK_REMOVED")[0]["severity"], "critical")
-        self.assertEqual(payload["unknown_coverage"], [{"path": SETTINGS_PATH, "reason": REASON}])
+        self.assertEqual(payload["unknown_coverage"], [
+            {"path": SETTINGS_PATH, "reason": EVENT_KEYS}, {"path": SETTINGS_PATH, "reason": REASON}])
 
     def test_paths_under_ignored_dependency_trees_are_not_listed(self) -> None:
         repo = self._repo({"README.md": "x\n", ".gitignore": "node_modules/\n"})

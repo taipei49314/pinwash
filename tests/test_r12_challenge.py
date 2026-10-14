@@ -94,10 +94,16 @@ class CommentIsNotARespelling(unittest.TestCase):
                 self.assertEqual([s for _r, s in _rules(payload)], ["critical"])
 
     def test_python_to_python3_respelling_still_counts(self) -> None:
+        payload = _scan({CH: _hooks("stop", [T, "bash hooks/lint.sh"], CH), J: REAL, "hooks/lint.sh": "npx eslint .\n"},
+                        {CH: _hooks("stop", ["python3 hooks/judge.py", {"type": "command", "command": "bash hooks/lint.sh", "disabled": True}], CH),
+                         J: REAL, "hooks/lint.sh": "npx eslint .\n"})
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+
+    def test_claude_respelling_with_host_neutral_flag_does_not_bypass(self) -> None:
         payload = _scan({CS: _hooks("Stop", [T, "bash hooks/lint.sh"]), J: REAL, "hooks/lint.sh": "npx eslint .\n"},
                         {CS: _hooks("Stop", ["python3 hooks/judge.py", {"type": "command", "command": "bash hooks/lint.sh", "disabled": True}]),
                          J: REAL, "hooks/lint.sh": "npx eslint .\n"})
-        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+        self.assertEqual(_rules(payload), [])
 
 
 class BookedR11Decoy(unittest.TestCase):

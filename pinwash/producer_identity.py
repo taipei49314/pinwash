@@ -1,7 +1,7 @@
 """Spec 34: narrow syntactic producer rekeys/moves, not semantic proof."""
 from __future__ import annotations
 import re
-from pinwash.parse.gha import parse_workflow
+from pinwash.parse.gha import needs_names, parse_workflow
 from pinwash.surfaces import is_gha_workflow
 
 # A closed syntactic match cannot prove context-property independence. Reject
@@ -58,8 +58,11 @@ def matches(base, head):
             rest = "\n".join(lines[:i] + lines[i+1:])
             # Explicit dependencies/expressions are not admitted. The
             # name line is stable literal identity, not a key reference.
-            references = "\n".join(line for line in rest.split("\n") if not line.startswith("    name:"))
-            if re.search(r"\b(?:" + re.escape(bk) + "|" + re.escape(hk) + r")\b", references):
+            keys = "(?:" + re.escape(bk) + "|" + re.escape(hk) + ")"
+            context_reference = (r"\b(?:needs|jobs)\s*\)*\s*(?:\.\s*" + keys
+                                 + r"\b|\[\s*['\"]" + keys + r"['\"]\s*\])")
+            if (any(set(needs_names(j)) & {bk, hk} for j in bg.jobs.values())
+                    or re.search(context_reference, rest)):
                 continue
             lines[i] = after
             if "\n".join(lines) == h:

@@ -26,6 +26,17 @@ class ProducerIdentity(unittest.TestCase):
     def test_comment_like_run_bytes_are_not_discarded(self):
         self.assertTrue(drops(scan({P: wf(run="echo '# old'")}, {P: wf("verify", "echo '# new'")})))
 
+    def test_script_filename_is_not_a_job_key_reference(self):
+        self.assertEqual(drops(scan({P: wf(run="python verify.py")}, {P: wf("verify", "python verify.py")})), [])
+
+    def test_direct_dependency_and_context_references_prevent_rekey(self):
+        dependent = b"  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+        self.assertTrue(drops(scan({P: wf() + dependent}, {P: wf("verify") + dependent})))
+        for run in ("echo ${{ needs.gate.result }}", "echo ${{ needs['gate'].result }}",
+                    "echo ${{ (needs).gate.result }}", "echo ${{ jobs [ 'gate' ].result }}"):
+            with self.subTest(run=run):
+                self.assertTrue(drops(scan({P: wf(run=run)}, {P: wf("verify", run)})))
+
     def test_indexed_context_and_whitespace_prevent_rekey(self):
         for run in ("echo ${{ github['job'] }}", 'echo ${{ github [ "job" ] }}',
                     "echo ${{ github['workflow_ref'] }}", "echo ${{ github . job }}",

@@ -422,15 +422,18 @@ class HookCommandPairing(unittest.TestCase):
                     if order == "before":
                         base_cmds.reverse()
                     head_cmds = [c for c in base_cmds if c.get("command") != self.T]
+                    cursor = isinstance(sibling, dict)  # Claude ignores disabled.
+                    path = ".cursor/hooks.json" if cursor else ".claude/settings.json"
+                    event = "stop" if cursor else "Stop"
                     payload = _pair(
-                        {".claude/settings.json": _hooks("Stop", base_cmds),
+                        {path: _hooks(event, base_cmds),
                          self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
-                        {".claude/settings.json": _hooks("Stop", head_cmds),
+                        {path: _hooks(event, head_cmds),
                          self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
                     )
                     self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
                     finding = payload["findings"][0]
-                    self.assertEqual(finding["message"], "hook event Stop keeps no live command")
+                    self.assertEqual(finding["message"], f"hook event {event} keeps no live command")
                     self.assertEqual(finding["before"], self.T)
 
     def test_reordering_beside_placeholders_is_silent(self) -> None:

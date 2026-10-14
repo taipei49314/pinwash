@@ -116,7 +116,8 @@ class Severity(unittest.TestCase):
         """Q4: hooks as written are judged as before; the row marks them."""
         payload = scan({CS: doc([A], pre=[G], dah=True)}, {CS: doc(pre=[G], dah=True)})
         self.assertEqual([(f["rule"], f["severity"]) for f in payload["findings"]], [("HOOK_REMOVED", "critical")])
-        self.assertEqual([u["reason"] for u in payload["unknown_coverage"]], [DAH])
+        self.assertEqual([u["reason"] for u in payload["unknown_coverage"]],
+                         sorted([DAH, "hook event keys changed (host validity not evaluated)"]))
 
 
 class NotABoolean(unittest.TestCase):

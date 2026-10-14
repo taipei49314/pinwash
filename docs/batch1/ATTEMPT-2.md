@@ -28,6 +28,28 @@ conservative refusal cases. `tests.test_alpha2_entry_cleanup.OwnedCleanup` and
 expired budget, no later process launch and failure receipt retention using
 mocks. They do not operate or terminate an unrelated process.
 
+Candidate 1 completed on Windows with 628 tests, 26 failures, 9 errors and
+10 skips; neither suite nor doctor timed out. Receipt
+`301f53f178669b17d4ae8c0486d409d0ed8bd197` retains the actual FAIL. Its rekey
+positive exposed a source defect: the key-reference regex mistook `verify.py`
+for a reference to job key `verify`. Candidate 2 keeps that positive and uses
+parsed direct needs plus closed needs/jobs property/index references. New
+fixtures keep real dependency references rejected; no filename fixture is
+renamed to evade the defect.
+
+Remaining observed platform issues include POSIX marker scripts, a Linux
+`/proc/self/mem` fixture, symbolic links without Windows privileges, read-only
+Git object deletion, fixture newline translation, and Git date/alternate-store
+behavior. They remain separate unaccepted boundaries. The second existing
+Windows pool run is expected to remain FAIL while these limits remain; it can
+verify first-batch regression corrections and cleanup mocks but cannot establish
+the complete zero-skip acceptance. No skips are removed or counted as PASS.
+
+Current primary EC workflow selects Windows/X64/profile-ec-integrity, and its
+registered pool runner inventory contains no Linux runner. Full POSIX acceptance
+needs a separately reviewed/approved pool execution path; no host privileges,
+runner labels or infrastructure are changed by this batch.
+
 Expected acceptance remains the complete nonzero suite, zero failures/errors/
 skips, top-level doctor with the same count and exact SPEC hash, clean exact
 source, and identical same-tree JSON across the two seeds. A mock proving
