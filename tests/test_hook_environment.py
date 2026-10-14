@@ -38,3 +38,11 @@ class HookEnvironment(unittest.TestCase):
         h = {P: doc({"CLAUDE_CODE_SHELL_PREFIX": "true"}), L: b[L]}
         self.assertEqual(scan(b, h)["findings"], [])
         self.assertEqual(scan(h, h)["unknown_coverage"], [])
+
+    def test_same_command_nonbash_occurrence_remains_live(self):
+        base = json.loads(doc())
+        base["hooks"]["Stop"][0]["hooks"].append({"type": "command", "command": "python hooks/judge.py", "shell": "powershell"})
+        head = json.loads(json.dumps(base))
+        head["env"] = {"CLAUDE_CODE_SHELL_PREFIX": "true"}
+        r = scan({P: json.dumps(base).encode()}, {P: json.dumps(head).encode()})
+        self.assertIn(("HOOK_BYPASSED", "warn"), [(f["rule"], f["severity"]) for f in r["findings"]])

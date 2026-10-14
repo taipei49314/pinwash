@@ -207,15 +207,15 @@ class ReviewRows(unittest.TestCase):
                 self.assertEqual((payload["findings"], payload["unknown_coverage"]),
                                  ([], [{"path": CS, "reason": DAH}]))
 
-    def test_a_flagged_only_stop_judge_is_booked_not_detected(self) -> None:
+    def test_a_flagged_only_stop_judge_remains_active(self) -> None:
         # Claude Code ignores the §5.1 skip keys (executed, #42), so the
         # switch turns off a judge §3.3 counts as inactive: the row (R06).
         flagged = json.dumps({"hooks": {"Stop": [{"hooks": [
             {"type": "command", "command": A, "disabled": True}]}]}})
         on = json.dumps({"disableAllHooks": True, **json.loads(flagged)})
         payload = scan({CS: flagged}, {CS: on})
-        self.assertEqual((payload["findings"], payload["unknown_coverage"]),
-                         ([], [{"path": CS, "reason": DAH}]))
+        self.assertEqual(switch(payload), [("critical", CS)])
+        self.assertEqual(payload["unknown_coverage"], [])
 
     def test_a_proto_switch_is_the_row(self) -> None:
         # Claude Code 2.1.42 reads a root `__proto__` object's members as

@@ -322,7 +322,7 @@ class SelectorRow(unittest.TestCase):
     def test_commands_not_live_on_both_sides_add_no_row(self) -> None:
         def flagged(m: str) -> dict[str, Any]:
             return self._pre(m, _cmd(GUARD, disabled=True))
-        self._silent(flagged("Bash"), flagged("NoSuchTool"))
+        self._row_only(flagged("Bash"), flagged("NoSuchTool"))
 
         def stub(m: str) -> dict[str, Any]:
             return {CS: json.dumps({"hooks": {"Stop": [{"matcher": m, "hooks": [_cmd("true")]}]}})}
@@ -527,16 +527,19 @@ class LoneCrShellBody(unittest.TestCase):
         self.assertEqual(_scan(py_base, py_cr)["findings"], [])
 
 
+def _cursor_settings(*cmds: Any, **kwargs: Any) -> str:
+    return _settings(*cmds, event="stop", **kwargs)
+
 class FlagRow(unittest.TestCase):
     """R-18b: non-boolean §5.1 flag values, counted as a multiset of (event,
     command, key, value) occurrences, plus the finding-coupled row."""
 
     def test_non_boolean_flag_added_or_changed(self) -> None:
-        base = {CS: _settings(T), "hooks/judge.py": REAL}
+        base = {CH: _cursor_settings(T), "hooks/judge.py": REAL}
         for flags in ({"disabled": "true"}, {"disabled": 1}, {"hookEnabled": 0},
                       {"continueOnError": "yes"}, {"failOpen": None}, {"disabled": [[[True]]]}):
             with self.subTest(flags=flags):
-                payload = _scan(base, dict(base, **{CS: _settings(_cmd(T, **flags))}))
+                payload = _scan(base, dict(base, **{CH: _cursor_settings(_cmd(T, **flags))}))
                 self.assertEqual(_reasons(payload), [FLAG])
                 self.assertEqual((payload["findings"], payload["verdict"]), ([], "pass"))
 
@@ -545,26 +548,26 @@ class FlagRow(unittest.TestCase):
             return json.dumps({"hooks": {"Stop": [{"hooks": [_cmd(T)]}], "PreToolUse": [
                 dict(matcher=m, hooks=h) for m, h in zip(("Bash", "Edit"), groups)]}})
         files = {"hooks/guard.py": REAL, "hooks/judge.py": REAL}
-        base = dict(files, **{CS: doc([_cmd(GUARD, disabled="true")], [_cmd(GUARD)])})
-        head = dict(files, **{CS: doc([_cmd(GUARD, disabled="true")], [_cmd(GUARD, disabled="true")])})
+        base = dict(files, **{CH: doc([_cmd(GUARD, disabled="true")], [_cmd(GUARD)])})
+        head = dict(files, **{CH: doc([_cmd(GUARD, disabled="true")], [_cmd(GUARD, disabled="true")])})
         self.assertEqual(_reasons(_scan(base, head)), [FLAG])
         # The occurrence counts are equal, so moving the value between
         # entries is no row (the tuple carries no matcher).
-        swapped = dict(files, **{CS: doc([_cmd(GUARD)], [_cmd(GUARD, disabled="true")])})
+        swapped = dict(files, **{CH: doc([_cmd(GUARD)], [_cmd(GUARD, disabled="true")])})
         self.assertEqual(_reasons(_scan(base, swapped)), [])
 
     def test_unchanged_or_removed_value_without_a_hook_finding_is_silent(self) -> None:
         cmd = _cmd(T, disabled="false")
-        base = {CS: _settings(cmd), "hooks/judge.py": REAL, "README.md": b"a\n"}
+        base = {CH: _cursor_settings(cmd), "hooks/judge.py": REAL, "README.md": b"a\n"}
         self.assertEqual(_reasons(_scan(base, dict(base, **{"README.md": b"b\n"}))), [])
-        self.assertEqual(_reasons(_scan(base, dict(base, **{CS: _settings(T)}))), [])
+        self.assertEqual(_reasons(_scan(base, dict(base, **{CH: _cursor_settings(T)}))), [])
 
     def test_a_hook_finding_beside_an_unread_value_reports_the_row(self) -> None:
         # F07: the unread "true" sibling counts live and keeps the finding at
         # warn; the boolean control blocks.
         for value, severity in (("true", "warn"), (True, "critical")):
             with self.subTest(value=value):
-                base = {CS: _settings(T, _cmd("bash hooks/notify.sh", disabled=value)),
+                base = {CH: _cursor_settings(T, _cmd("bash hooks/notify.sh", disabled=value)),
                         "hooks/judge.py": REAL, "hooks/notify.sh": FMT}
                 head = dict(base, **{"hooks/judge.py": GUT})
                 payload = _scan(base, head)

@@ -198,6 +198,9 @@ class WorkflowValueResiduals(unittest.TestCase):
 
 
 def _hooks(event: str, entries: list[dict[str, Any]]) -> str:
+    # Specs 29+: Claude fixtures use actual direct handlers; Cursor stays flat.
+    if event == "Stop" or event == "PreToolUse":
+        entries = [{"hooks": [e]} if "command" in e and "hooks" not in e else e for e in entries]
     return json.dumps({"hooks": {event: entries}})
 
 
@@ -205,7 +208,6 @@ class CommandLocalSkipFlags(unittest.TestCase):
     """#5 / spec 10 §5.1: skip flags are judged per command, not per event."""
 
     CASES = (
-        (".claude/settings.json", "Stop"),
         (".cursor/hooks.json", "stop"),
     )
     FLAGS = (

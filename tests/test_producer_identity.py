@@ -25,3 +25,13 @@ class ProducerIdentity(unittest.TestCase):
         self.assertTrue(drops(scan({P: wf()}, {N: wf(), ".github/workflows/also.yml": wf()})))
     def test_comment_like_run_bytes_are_not_discarded(self):
         self.assertTrue(drops(scan({P: wf(run="echo '# old'")}, {P: wf("verify", "echo '# new'")})))
+
+    def test_indexed_context_and_whitespace_prevent_rekey(self):
+        for run in ("echo ${{ github['job'] }}", 'echo ${{ github [ "job" ] }}', "echo ${{ github['workflow_ref'] }}"):
+            self.assertTrue(drops(scan({P: wf(run=run)}, {P: wf("verify", run)})))
+
+    def test_unadmitted_job_stays_deleted_beside_admitted_move(self):
+        rs = json.dumps({"rules": [{"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "tripwire"}, {"context": "dependent"}]}}]}).encode()
+        body = wf() + b"  next:\n    name: dependent\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+        r = scan_pair({R: rs, P: body}, {R: rs, N: body}, base_label="b", head_label="h", env={"PINWASH_TODAY": "2026-10-14"})
+        self.assertEqual([f["before"] for f in drops(r)], ["dependent"])
