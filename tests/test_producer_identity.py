@@ -27,7 +27,10 @@ class ProducerIdentity(unittest.TestCase):
         self.assertTrue(drops(scan({P: wf(run="echo '# old'")}, {P: wf("verify", "echo '# new'")})))
 
     def test_indexed_context_and_whitespace_prevent_rekey(self):
-        for run in ("echo ${{ github['job'] }}", 'echo ${{ github [ "job" ] }}', "echo ${{ github['workflow_ref'] }}"):
+        for run in ("echo ${{ github['job'] }}", 'echo ${{ github [ "job" ] }}',
+                    "echo ${{ github['workflow_ref'] }}", "echo ${{ github . job }}",
+                    "echo ${{ (github).job }}", "echo ${{ (( github )).workflow_ref }}",
+                    "echo ${{ github.repository }}"):
             self.assertTrue(drops(scan({P: wf(run=run)}, {P: wf("verify", run)})))
 
     def test_unadmitted_job_stays_deleted_beside_admitted_move(self):

@@ -4,7 +4,9 @@ import re
 from pinwash.parse.gha import parse_workflow
 from pinwash.surfaces import is_gha_workflow
 
-_DYNAMIC = re.compile(r"github\s*(?:\[|\.(?:job|workflow_ref|workflow))|GITHUB_(?:JOB|WORKFLOW|WORKFLOW_REF)", re.I)
+# A closed syntactic match cannot prove context-property independence. Reject
+# the context name itself, including grouped/indexed/whitespace property forms.
+_DYNAMIC = re.compile(r"\bgithub\b|GITHUB_(?:JOB|WORKFLOW|WORKFLOW_REF)", re.I)
 
 def text(data):
     if data is None:
