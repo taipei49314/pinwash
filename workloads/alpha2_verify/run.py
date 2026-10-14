@@ -208,7 +208,7 @@ def main() -> int:
         "doctor": doctor_payload, "raw_json_equal": deterministic,
         "passed": not problems, "problems": problems,
         "limitations": [
-            "one EC Windows pool runtime; no cross-OS or Python matrix claim",
+            "one execution runtime; external execution receipt identifies provenance; no OS/Python matrix claim",
             "determinism probe compares a same-tree scan across hash seeds",
             "seeded regressions; no independent held-out agent accuracy claim",
         ],
@@ -222,7 +222,7 @@ def main() -> int:
         "Commands, exits, log hashes and test-source hashes: `result.json`.", "",
     ]
     lines.extend(f"- {problem}" for problem in problems)
-    lines.extend(["", "Coverage is one EC Windows runtime and seeded regression cases.",
+    lines.extend(["", "Coverage is one runtime and seeded regression cases; see the external execution receipt for provenance.",
                   "Cross-platform determinism and held-out agent accuracy are not assessed.", ""])
     (out / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
     return 1 if problems else 0
