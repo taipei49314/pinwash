@@ -97,6 +97,7 @@ def detect(
             for info in events.values()
             for command, flags in info["command_states"]
         )
+        active = active or any(info.get("non_commands") for info in events.values())
         live_stop = live_stop or live_stop_events(events, CLAUDE_STOP_EVENTS, body_base) >= 1
     if not active:
         return None

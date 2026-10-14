@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 from pinwash.allow import apply_allow, detect_allow
+from pinwash.textutil import canonical_text
 from pinwash.findings import envelope, make_finding
 from pinwash.parse.gha import parse_workflow
 from pinwash.parse.hookcmd import command_body_map, resolver, root_form_guard
@@ -324,6 +325,12 @@ def scan_pair(
 
             n_before = len(findings)
             claude_kind = is_claude_settings(path)
+            if claude_kind:
+                for event in sorted(set(base_ev) | set(head_ev)):
+                    before_handlers = base_ev.get(event, {}).get("non_commands", [])
+                    after_handlers = head_ev.get(event, {}).get("non_commands", [])
+                    if after_handlers and canonical_text(before_handlers) != canonical_text(after_handlers):
+                        note("non-command hook handler changed (not evaluated)")
             body_base, body_head = kind_bodies[claude_kind]
             res_base, res_head = kind_resolvers[claude_kind]
             hook_rules.detect(

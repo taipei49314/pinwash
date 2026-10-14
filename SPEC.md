@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite. On 2026-10-09 the maintainer extended that delegation to every ruling, including one that reverses SPEC text or turns a passing result into a block, on the condition that each ruling the maintaining agent makes is marked **AI-assisted** in its §16 row, its commit message and its issue; rulings the maintainer makes are marked as the maintainer's.
 
-Spec version: **29** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **30** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -202,6 +202,8 @@ No other rule IDs exist in this spec version. Internal helper names must not app
 
 ### 5.1 HOOK_BYPASSED key table
 
+Spec 30 (AI-assisted, #45): the empty-command removal requires that the base had a command; a command-free event unchanged on both sides never invents a removal. Direct Claude `prompt`/`agent` handlers with a nonempty string `prompt` are active modeled judges, not commands. Removing all such handlers is `HOOK_REMOVED` (`<event>:handlers`); disabling them through `disableAllHooks` is read by the switch. A handler type present at both sides keeps the Stop escalator off; a same-diff new type does not automatically certify a replacement judge. Changed/new handler content reports `non-command hook handler changed (not evaluated)`, visibility only. Actual model refusal, handler schema outside this shape, and prompt semantics remain R13/R24; an honest command-to-prompt migration can block and needs explicit review. No model is called.
+
 Spec 29 (AI-assisted, #44 command holders): on `claude_settings`, only direct `hooks[]` handler items under an event's matcher group contribute commands. A string `command` requires handler `type` absent or exactly `command`; the absent-type compatibility reading remains a host-schema residual (R24). A matcher-group command, a nested group, root list form, or a prompt/agent item's `command` is not an executable command. Cursor's extraction stays unchanged. Body resolution, holder guards and selector observation use this same boundary. Moving a base command to a group leaves the event's command list empty and is `HOOK_REMOVED`; an already command-free event on both sides is addressed by the following handler ruling, not invented as a command.
 
 Exact keys, case-sensitive:
@@ -384,6 +386,7 @@ Each finding:
 | `hook skip flag value not boolean` | `claude_settings`, `cursor_hooks` | §5.1 (R06) |
 | `hook settings root disableAllHooks` | `claude_settings` | §5.1 (R06) |
 | `hook command environment changed` | `claude_settings` | §3.3 (R07) |
+| `non-command hook handler changed (not evaluated)` | `claude_settings` | §5.1 (R13/R24) |
 | `new surface file unparseable`, `surface unparseable at base` | every surface but `checkwash_config` (spec 19) | §3 (R19) |
 | `checkwash config checkwash cannot load (not compared)` | `checkwash_config` | §3.2 (R22) |
 | `permission mode changed (not evaluated)`, `tool-wide edit grant added (not evaluated)` | `claude_settings` | §5.3 (R17) |
@@ -522,6 +525,8 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 - Auto-fixing the diff.
 
 ## 16. Spec changelog
+
+- **30** — AI-assisted. Non-command handler and empty-list ruling (#45), tests.test_noncommand_hooks.NonCommandHooks. Unchanged prompt/agent-only events do not invent removal; switch-off and actual handler removal retain protection. Changed handler content is a visibility row; new-type replacements are not certified. Model refusal and schema remain R13/R24. NOT_RUN locally; pool pending.
 
 - **29** — AI-assisted. Claude command-holder boundary (#44): only direct hooks-array command handlers feed commands, body targets, holder guards and selectors. tests.test_claude_command_holders.ClaudeCommandHolders names the fixtures. Group and nested commands are not live; absent handler type remains R24 compatibility. NOT_RUN locally; EC pool validation pending.
 

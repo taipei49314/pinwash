@@ -93,6 +93,11 @@ def _stop_count(
         info = events.get(name)
         if not info:
             continue
+        handler_types = {h["type"] for h in info.get("non_commands", [])}
+        base_types = {h["type"] for h in (base_ev or {}).get(name, {}).get("non_commands", [])}
+        if handler_types and (base_ev is None or handler_types & base_types):
+            n += 1
+            continue
         gone = retargeted.get(name, set())
         identity = None
         if base_ev is not None:
@@ -254,8 +259,15 @@ def detect(
                 locator=event,
             )
             continue
+        base_handlers = info.get("non_commands", [])
+        head_handlers = head_info.get("non_commands", [])
+        if base_handlers and not head_handlers:
+            sev = escalate_stop("HOOK_REMOVED", event, "warn")
+            add(rule="HOOK_REMOVED", severity=sev,
+                message=f"hook event {event} non-command handlers removed", path=path,
+                before="prompt/agent", after="", locator=f"{event}:handlers")
         if head_info["array_len"] == 0 or not head_info["commands"]:
-            if head_info["array_len"] == 0:
+            if info["array_len"] > 0 and head_info["array_len"] == 0:
                 sev = escalate_stop("HOOK_BYPASSED", event, "warn")
                 add(
                     rule="HOOK_BYPASSED",
@@ -264,7 +276,7 @@ def detect(
                     path=path,
                     locator=event,
                 )
-            if not head_info["commands"]:
+            if info["commands"] and not head_info["commands"]:
                 sev = escalate_stop("HOOK_REMOVED", event, "warn")
                 add(
                     rule="HOOK_REMOVED",

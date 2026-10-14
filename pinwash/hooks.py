@@ -120,6 +120,7 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
             commands: list[str] = []
             command_states: list[tuple[str, dict[str, bool]]] = []
             matchers: list[str] = []
+            non_commands: list[dict[str, Any]] = []
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
@@ -131,6 +132,9 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
                     live_commands = [h for h in handlers if isinstance(h, dict)
                                      and h.get("type", "command") == "command"
                                      and isinstance(h.get("command"), str)]
+                    non_commands.extend(h for h in handlers if isinstance(h, dict)
+                                        and h.get("type") in ("prompt", "agent")
+                                        and isinstance(h.get("prompt"), str) and h["prompt"].strip())
                     commands.extend(h["command"] for h in live_commands)
                     states = [(h["command"], {k: False for k in _direct_flags_from_obj(h)})
                               for h in live_commands]
@@ -143,6 +147,7 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
                 "commands": commands,
                 "command_states": command_states,
                 "matchers": matchers,
+                "non_commands": non_commands,
             }
         return out
     if isinstance(hooks, list) and not claude:
