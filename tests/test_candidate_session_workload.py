@@ -2,8 +2,10 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
+import stat
 import tempfile
 import unittest
 from unittest import mock
@@ -107,6 +109,68 @@ class CandidateWorkload(unittest.TestCase):
             self.assertEqual(second["state"], "NOT_RUN")
             self.assertEqual(spawn.call_count, 1)
             cleanup.assert_called_once()
+
+    def test_owned_readonly_git_file_is_removed(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(tempfile.mkdtemp(prefix="pinwash-candidate-", dir=parent))
+            target = root / ".git/objects/aa/object"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"owned fixture object")
+            os.chmod(target, stat.S_IREAD)
+            actual = target.lstat()
+            linked = mock.Mock(st_mode=actual.st_mode, st_nlink=2,
+                               st_file_attributes=getattr(actual, "st_file_attributes", 0))
+            original_lstat = Path.lstat
+            with mock.patch.object(Path, "lstat", autospec=True,
+                                   side_effect=lambda p, *a, **kw: linked if p == target else original_lstat(p, *a, **kw)):
+                with self.assertRaises(ValueError):
+                    entry.remove_owned_tree(root, Path(parent))
+            self.assertTrue(target.exists())
+            entry.remove_owned_tree(root, Path(parent))
+            self.assertFalse(root.exists())
+
+    def test_cleanup_cannot_escape_its_named_parent(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(tempfile.mkdtemp(prefix="pinwash-candidate-", dir=parent))
+            marker = root / "keep"
+            marker.write_text("preserve", encoding="utf-8")
+            try:
+                with self.assertRaises(ValueError):
+                    entry.remove_owned_tree(root, Path(parent) / "other")
+                self.assertEqual(marker.read_text(), "preserve")
+            finally:
+                entry.remove_owned_tree(root, Path(parent))
+
+    def test_cleanup_rejects_a_reparse_point_before_deletion(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(tempfile.mkdtemp(prefix="pinwash-candidate-", dir=parent))
+            info = mock.Mock(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+            original_lstat = Path.lstat
+            for redirected in (root, root.parent):
+                with self.subTest(redirected=redirected), mock.patch.object(
+                        Path, "lstat", autospec=True,
+                        side_effect=lambda p, *a, **kw: info if p == redirected else original_lstat(p, *a, **kw)):
+                    with self.assertRaises(ValueError):
+                        entry.owned_tree_files(root, Path(parent))
+            self.assertTrue(root.exists())
+            entry.remove_owned_tree(root, Path(parent))
+
+    def test_previous_recovery_preserves_changed_user_file(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(tempfile.mkdtemp(prefix="pinwash-candidate-", dir=parent))
+            recovery = {"host": "NAMED", "path": str(root), "receipt_commit": "fixture", "fixture_files": {}}
+            unexpected = root / "unexpected-empty-directory"
+            unexpected.mkdir()
+            with mock.patch.object(entry.platform, "node", return_value="NAMED"), mock.patch.object(entry.tempfile, "gettempdir", return_value=parent):
+                with self.assertRaises(ValueError):
+                    entry.recover_previous(recovery)
+                self.assertTrue(unexpected.is_dir())
+                (root / "unexpected.txt").write_text("preserve", encoding="utf-8")
+                unexpected.rmdir()
+                with self.assertRaises(ValueError):
+                    entry.recover_previous(recovery)
+            self.assertTrue((root / "unexpected.txt").exists())
+            entry.remove_owned_tree(root, Path(parent))
 
 
 if __name__ == "__main__":

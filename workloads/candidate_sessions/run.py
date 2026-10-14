@@ -9,6 +9,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ MANIFEST_SHA256 = "0532ad3347d7563e1f29a3fda3515ca412bcc6cbb677f0aa62922907b0702
 CASE_COUNT = 27
 SEEDS = ["1", "17"]
 RANGES = ["BASE..HEAD", "BASE..WORKTREE", "HEAD..WORKTREE"]
+RECOVERY_SHA256 = "278af37c6e0033a552fc38664478c127f48d42a03cd1d9a89c4e44617e9e7178"
 
 
 def digest(data: bytes) -> str:
@@ -156,6 +158,119 @@ def aggregate_seed_state(pair: list[tuple[dict, dict | None]]) -> str:
     return "COMPLETED"
 
 
+def reject_redirected_ancestors(path: Path) -> None:
+    if not path.is_absolute():
+        raise ValueError("scratch path must be absolute")
+    for ancestor in reversed([path, *path.parents]):
+        try:
+            info = ancestor.lstat()
+        except FileNotFoundError:
+            if ancestor == path:
+                continue
+            raise
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+            raise ValueError("scratch ancestor is a symlink/reparse point")
+
+
+def owned_tree_files(root: Path, parent: Path, *, directories: list[Path] | None = None) -> list[Path]:
+    # Validate the absolute deletion target and every entry before removing
+    # anything. Only a direct, real, named scratch directory is admitted.
+    reject_redirected_ancestors(parent)
+    reject_redirected_ancestors(root)
+    if (root.is_symlink() or root.resolve() != root or parent.resolve() != parent
+            or root.resolve().parent != parent.resolve()
+            or not root.name.startswith("pinwash-candidate-") or not root.is_dir()):
+        raise ValueError("scratch ownership/path check failed")
+    found, stack = [], [root]
+    while stack:
+        path = stack.pop()
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+            raise ValueError("scratch contains a symlink/reparse point")
+        if stat.S_ISDIR(info.st_mode):
+            if directories is not None and path != root:
+                directories.append(path)
+            stack.extend(path.iterdir())
+        elif stat.S_ISREG(info.st_mode):
+            if info.st_nlink != 1:
+                raise ValueError("scratch contains a hardlinked file")
+            found.append(path)
+        else:
+            raise ValueError("scratch contains a nonregular entry")
+    return found
+
+
+def remove_owned_tree(root: Path, parent: Path) -> None:
+    owned_tree_files(root, parent)
+    absolute = root.resolve()
+
+    def clear_readonly(operation, target, error):
+        exc = error[1] if isinstance(error, tuple) else error
+        path = Path(target)
+        reject_redirected_ancestors(path.parent)
+        info = path.lstat()
+        if (not isinstance(exc, PermissionError) or operation is not os.unlink
+                or absolute not in path.resolve().parents
+                or not stat.S_ISREG(info.st_mode)
+                or info.st_nlink != 1
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or path.is_symlink()
+                or (info.st_mode & stat.S_IWRITE and not getattr(info, "st_file_attributes", 0) & 1)):
+            raise exc
+        # Clear only the read-only bit on this owned ordinary file. ACLs,
+        # directories, security settings and unrelated user files are untouched.
+        os.chmod(path, info.st_mode | stat.S_IWRITE)
+        operation(path)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(absolute, onexc=clear_readonly)
+    else:
+        shutil.rmtree(absolute, onerror=clear_readonly)
+    if os.path.lexists(absolute):
+        raise OSError("owned scratch still exists after cleanup")
+
+
+def recover_previous(plan: dict) -> dict:
+    # This fixed previous-run target needs its own human approval in the
+    # updated declaration. It never enumerates or chooses other temp roots.
+    if platform.node().upper() != plan["host"]:
+        raise ValueError("previous scratch recovery requires the named 8K host")
+    root = Path(plan["path"])
+    reject_redirected_ancestors(root)
+    if root.resolve() != root:
+        raise ValueError("previous scratch physical path differs from its fixed absolute path")
+    if root.parent.resolve() != Path(tempfile.gettempdir()).resolve():
+        raise ValueError("previous scratch parent does not match this host's temp directory")
+    if not os.path.lexists(root):
+        return {"state": "ALREADY_ABSENT", "path": str(root), "receipt_commit": plan["receipt_commit"]}
+    directories = []
+    files = owned_tree_files(root, root.parent, directories=directories)
+    allowed_dirs = {"empty-templates"}
+    for case, recorded in plan["fixture_files"].items():
+        allowed_dirs.add(case)
+        for filename in recorded:
+            relative = Path(case) / filename
+            allowed_dirs.update(p.as_posix() for p in relative.parents if p.as_posix() != ".")
+    for path in directories:
+        rel = path.relative_to(root).as_posix()
+        parts = rel.split("/")
+        git_directory = (parts[0] in plan["fixture_files"] and len(parts) > 1 and parts[1] == ".git")
+        if rel not in allowed_dirs and not git_directory:
+            raise ValueError("previous scratch has an unexpected directory; preserve it")
+    for path in files:
+        rel = path.relative_to(root).as_posix()
+        parts = rel.split("/")
+        if parts[0] not in plan["fixture_files"]:
+            raise ValueError("previous scratch has an unexpected fixture/file")
+        if len(parts) > 1 and parts[1] == ".git":
+            continue  # verified real Git metadata under this exact owned fixture
+        expected = plan["fixture_files"][parts[0]].get("/".join(parts[1:]))
+        if expected is None or digest(path.read_bytes()) != expected:
+            raise ValueError("previous scratch has changed non-Git files; preserve it")
+    remove_owned_tree(root, root.parent)
+    return {"state": "REMOVED", "path": str(root), "receipt_commit": plan["receipt_commit"]}
+
+
 class Commands:
     def __init__(self, out: Path, env: dict, stop_owned):
         self.out, self.env, self.stop_owned = out, env, stop_owned
@@ -241,6 +356,11 @@ def run_verified(out: Path, expected: str) -> int:
     plan = json.loads(raw_manifest)
     validate_manifest(plan)
     (out / "cases.json").write_bytes(raw_manifest)
+    recovery_raw = Path(__file__).with_name("recovery.json").read_bytes()
+    if digest(recovery_raw) != RECOVERY_SHA256:
+        raise RuntimeError("previous scratch recovery plan hash mismatch")
+    recovery_plan = json.loads(recovery_raw)
+    (out / "recovery.json").write_bytes(recovery_raw)
     helper = ROOT / "workloads/alpha2_verify/run.py"
     spec = importlib.util.spec_from_file_location("trusted_cleanup", helper)
     module = importlib.util.module_from_spec(spec)
@@ -260,6 +380,13 @@ def run_verified(out: Path, expected: str) -> int:
     problems, reports, identities = [], [], {}
     scratch = None
     scratch_cleanup = {"state": "NOT_CREATED"}
+    previous_cleanup = {"state": "NOT_RUN", "path": recovery_plan["path"]}
+    work = Path(os.environ["EC_WORKLOAD_WORK"])
+    reject_redirected_ancestors(work)
+    if work.resolve() != work or not work.is_dir():
+        raise RuntimeError("work must be an existing real absolute directory")
+    if work == ROOT or ROOT in work.parents or work in ROOT.parents:
+        raise RuntimeError("work and source must be separate")
     git = ["git", "-c", "core.hooksPath=" + os.devnull, "-c", "core.autocrlf=false",
            "-c", "core.eol=lf", "-c", "core.fsmonitor=false", "-c", "core.attributesFile=" + os.devnull,
            "-c", "credential.helper=", "-c", "commit.gpgsign=false",
@@ -293,10 +420,11 @@ def run_verified(out: Path, expected: str) -> int:
         require("harness-tests", python + ["-m", "unittest", "tests.test_candidate_session_workload", "-v"])
         stderr = (out / "harness-tests.stderr").read_text(encoding="utf-8", errors="replace")
         counts = re.findall(r"(?m)^Ran (\d+) tests? in ", stderr)
-        if not counts or int(counts[-1]) == 0 or not re.search(r"(?m)^OK$", stderr):
+        if not counts or int(counts[-1]) != 16 or not re.search(r"(?m)^OK$", stderr):
             raise RuntimeError("harness tests missing, skipped or not successful")
         try:
-            scratch = Path(tempfile.mkdtemp(prefix="pinwash-candidate-")).resolve()
+            scratch = Path(tempfile.mkdtemp(prefix="pinwash-candidate-", dir=work)).resolve()
+            scratch_cleanup = {"state": "CREATED", "path": str(scratch)}
             templates = scratch / "empty-templates"
             templates.mkdir()
             for case in plan["cases"]:
@@ -383,12 +511,22 @@ def run_verified(out: Path, expected: str) -> int:
                 if uncertain:
                     scratch_cleanup = {"state": "RETAINED", "path": str(scratch), "reason": "owned command cleanup unconfirmed"}
                     problems.append("scratch retained because owned command cleanup was unconfirmed")
-                elif scratch.parent == Path(tempfile.gettempdir()).resolve() and scratch.name.startswith("pinwash-candidate-"):
-                    shutil.rmtree(scratch)
-                    scratch_cleanup = {"state": "REMOVED", "path": str(scratch)}
+                elif scratch.parent == work and scratch.name.startswith("pinwash-candidate-"):
+                    try:
+                        remove_owned_tree(scratch, work)
+                        scratch_cleanup = {"state": "REMOVED", "path": str(scratch)}
+                    except (OSError, ValueError) as exc:
+                        scratch_cleanup = {"state": "FAILED", "path": str(scratch), "error": str(exc)}
+                        problems.append("owned scratch cleanup failed; residual path retained in receipt")
                 else:
                     scratch_cleanup = {"state": "RETAINED", "path": str(scratch), "reason": "scratch ownership/path check failed"}
                     problems.append("scratch ownership/path check failed")
+        if not problems and all(not r["problems"] for r in reports) and not commands.blocked:
+            try:
+                previous_cleanup = recover_previous(recovery_plan)
+            except (OSError, ValueError) as exc:
+                previous_cleanup = {"state": "FAILED", "path": recovery_plan["path"], "error": str(exc)}
+                problems.append("previous named scratch recovery failed; preserve target")
         if require("final-source", git + ["rev-parse", "HEAD"]) != expected:
             problems.append("source changed")
         if require("final-source-status", git + ["status", "--porcelain", "-z"]):
@@ -413,6 +551,8 @@ def run_verified(out: Path, expected: str) -> int:
                   "cases_expected": CASE_COUNT, "cases_completed": completed, "cases_matched": matched,
                   "cases": reports, "steps": commands.steps, "problems": problems,
                   "scratch_cleanup": scratch_cleanup,
+                  "previous_scratch_cleanup": previous_cleanup,
+                  "recovery_plan_sha256": digest(recovery_raw),
                   "limitations": ["seeded candidate CLI integration, not held-out agent accuracy",
                                   "one native runtime; no OS/Python matrix or host hook execution",
                                   "full suite and top-level doctor are NOT_RUN by this workload",

@@ -1,0 +1,206 @@
+{
+  "fixture_files": {
+    "agent-switch": {
+      ".claude/settings.json": "b0409288450d919cff056057c7163d02e2c6343bca2b11d96303b6df912646e6",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "async-group-control": {
+      ".claude/settings.json": "91bafe310a221350657f56d32a5c0cc8c7c10ca0f39f554e5beb72e66c76676a",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "async-live-sibling": {
+      ".claude/settings.json": "f09e794c30a8a26ced5bb32a127be1735121828667c69e568c7093489e797702",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "hooks/other.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "async-nonboolean": {
+      ".claude/settings.json": "20160acc6deaf6e885708d9e3fd1f9d059bf9621a961d9d6ffd867868963c7c1",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "base-exemption-control": {
+      ".claude/settings.json": "2caa02c09946ea197fb9d159f013de70c358ed321143388f8a02524c09de7b45",
+      ".pinwash/allow.toml": "d11c93c73653e599d3497f03ce09023adb07bcfe2b8237cf29842f55abbf1a40",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "bash-source-becomes-exit-zero": {
+      ".claude/settings.json": "430835810ef20d8d508f4970ebcf573fc0969066477d032250f790a2b8df3bea",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/environment.sh": "b7d51fbc0fbb15b439620499f105b7a12de57f339ee63f81ebba5cd50b54dd28",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "claude-flags-do-not-hide-switch": {
+      ".claude/settings.json": "0440ec940e523920781aa69ff67ea0bee2811029b0c72e029d0a163100d92ea3",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "claude-neutral-flags": {
+      ".claude/settings.json": "577e7f0db195984d2074f2774392d9f8743ecd46b723ec5d0a473ac7ab558171",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "command-reorder-control": {
+      ".claude/settings.json": "6ec3a4041b8c101376a24733abbd93bb074d789594cfec8d1c1ba84639bec919",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "hooks/other.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "cross-settings-path-visibility": {
+      ".claude/settings.json": "06266773da5c779b7a1d700ed1f833a6ca9160026b298798e665f1e4a2fc5e6d",
+      ".claude/settings.local.json": "9cf98bbeccebc3beaf10c5dbf58564ec83083ddfe674b4a74dc8ca8584844adf",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "cursor-disabled-control": {
+      ".cursor/hooks.json": "529568401cbc6a31a168b97145a28e2d026cc19b50cd99a5640706d6671c819c",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "event-key-visibility": {
+      ".claude/settings.json": "7ebb6c3282e05270e5da7a25aadee16d4d1a45e3742b7bd1b5c7a7e824ecb41a",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "group-command-is-not-live": {
+      ".claude/settings.json": "38986bf297012853f794da17e2e324937c0455cba21d69570fe5e6d7e2703e25",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "outside-closed-prefix-control": {
+      ".claude/settings.json": "d53adab2c0393af37a431ba916cd4f9bcb0eafe3d27b20c6035b96a7a0a698ef",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "producer-gutted-decoy": {
+      ".github/rulesets/main.json": "5247909b160d815a25acb59f0c85bd31f625dbd3d741db110d45fe31ae35e792",
+      ".github/workflows/ci.yml": "605c62a24643bdef576328e793beeaa0c746f70d79d6017e61eefb06f58df12e",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "producer-linkage-rekey": {
+      ".github/rulesets/main.json": "5247909b160d815a25acb59f0c85bd31f625dbd3d741db110d45fe31ae35e792",
+      ".github/workflows/ci.yml": "b5f0e9ec83ead75b6eac87ca553fc50cabc7a69df07e063bebb3601036209f13",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "producer-move-control": {
+      ".github/rulesets/main.json": "5247909b160d815a25acb59f0c85bd31f625dbd3d741db110d45fe31ae35e792",
+      ".github/workflows/moved.yml": "1c399582b7dfecc2a38c259a588f31182284b355b84e9014f6c4ae7c563ddc4a",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "producer-rekey-control": {
+      ".github/rulesets/main.json": "5247909b160d815a25acb59f0c85bd31f625dbd3d741db110d45fe31ae35e792",
+      ".github/workflows/ci.yml": "6479d35e7bac4f58da360b5d93f1cc92f0a80d817065a19ec5bfe1d24e52c451",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "prompt-docs-control": {
+      ".claude/settings.json": "5d9a4110388fa44c28846a0d03154c5ff611420035496e38d90078661c8930be",
+      "README.md": "42d0bc9c6ac3154fc407e4795ecb7ba83b03c3bc7f14b68ce50fa16e2f6a3eed",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "prompt-removal": {
+      ".claude/settings.json": "40522a097e1f5f8dbb0b59601f998106bd27e1d2afdadd0b8743b3d8f9686ba7",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "retarget-gutted-judge": {
+      ".claude/settings.json": "5c51929900aad230658b78a311d615de66c07af859a3ffcd39206f993976a44c",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "hooks/new.py": "b6e99d5c81c5380d45a3cca26ec1b52c0991e072135175109fa51f5a4a52316d",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "session-exemption-held": {
+      ".claude/settings.json": "9cf98bbeccebc3beaf10c5dbf58564ec83083ddfe674b4a74dc8ca8584844adf",
+      ".pinwash/allow.toml": "d11c93c73653e599d3497f03ce09023adb07bcfe2b8237cf29842f55abbf1a40",
+      "README.md": "1346345853cc39879ff2922e902609d7caaa7bd5a0e1268c979ea43a93e55a05",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "session-exemption-plant": {
+      ".claude/settings.json": "2caa02c09946ea197fb9d159f013de70c358ed321143388f8a02524c09de7b45",
+      ".pinwash/allow.toml": "d11c93c73653e599d3497f03ce09023adb07bcfe2b8237cf29842f55abbf1a40",
+      "README.md": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "session-renamed-then-gutted": {
+      ".claude/settings.json": "5c51929900aad230658b78a311d615de66c07af859a3ffcd39206f993976a44c",
+      "README.md": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac",
+      "hooks/new.py": "b6e99d5c81c5380d45a3cca26ec1b52c0991e072135175109fa51f5a4a52316d",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "session-ruleset-producer-split": {
+      ".github/rulesets/main.json": "5a2794cd5244b271a677757a7b35f317b5df3f3418f2ebd1e304272c1de1a726",
+      ".github/workflows/ci.yml": "f52a259dea70d256c348cc0e7440d510633f66060e7f46fce844119350df2a82",
+      "README.md": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "stop-async": {
+      ".claude/settings.json": "841c0636a1b5fef0feda3bbc16fa3505bbb731ed79538331fc3d4d3a13dde229",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    },
+    "true-shell-prefix": {
+      ".claude/settings.json": "c3f195d2743f62e963ef21903eb717b541cc9048095cf47c75edc4a91a5b6029",
+      "README.md": "d41e57cdb8b01d06711e4a08761ec665e770812693c627dd8f078e25630d19ce",
+      "hooks/judge.py": "56dfe675ba73c4703e9d984630e3ab71a81c59a54778df71e0cdc9e35704e3f8",
+      "importlib.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab",
+      "pinwash/__init__.py": "b27f55604d3bbd64777fc8f195f2d02b76b7b1436b34825ae0c863776057b8ab"
+    }
+  },
+  "host": "LAPTOP-8KGL8EFS",
+  "path": "C:/Users/S3452MA/AppData/Local/Temp/pinwash-candidate-hubxl1c3",
+  "prior_result_sha256": "b0c44c392d43d40dda10891df2a97294d56f9e5eef81998487b3e697765d8317",
+  "prior_source": "6706815e36ced670630fb2ae51219f6cd1bb5767",
+  "receipt_commit": "feae654459d5a8b1cb4ed7ad30a77e0f362ebd6e",
+  "run_attempt": "1",
+  "run_id": "38510675237",
+  "schema_version": 1
+}
