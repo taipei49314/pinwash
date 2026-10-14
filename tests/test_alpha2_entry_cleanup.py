@@ -61,6 +61,7 @@ class EntryFailClosed(unittest.TestCase):
             root = Path(directory).resolve()
             with patch.dict("os.environ", self.fixture(root)), \
                  patch("workloads.alpha2_verify.run.ROOT", root), \
+                 patch("workloads.alpha2_verify.run.platform.platform", return_value="fixture-platform"), \
                  patch("time.monotonic", side_effect=[0, 1141, 1141, 1141, 1141]), \
                  patch("subprocess.Popen") as launch:
                 self.assertEqual(main(), 1)
@@ -79,6 +80,7 @@ class EntryFailClosed(unittest.TestCase):
             root = Path(directory).resolve()
             with patch.dict("os.environ", self.fixture(root)), \
                  patch("workloads.alpha2_verify.run.ROOT", root), \
+                 patch("workloads.alpha2_verify.run.platform.platform", return_value="fixture-platform"), \
                  patch("time.monotonic", return_value=0), \
                  patch("subprocess.Popen", side_effect=[source, clean, suite]) as launch, \
                  patch("workloads.alpha2_verify.run.stop_owned", return_value=(b"", b"partial", {"confirmed": False})):
