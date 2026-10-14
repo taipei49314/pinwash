@@ -16,6 +16,14 @@
       "timeout_minutes": 60,
       "cache": false,
       "parameters": {}
+    },
+    "candidate-sessions": {
+      "description": "Offline preregistered candidate session CLI integration for spec36 engine tree 8f3dd1e10dc590d0bc0d3335817d81648b36b4e4 from a5af21c166b1522a4e0d9d4074ff9bdd299a5ef5. Require the fixed SPEC hash and cases.json SHA-256 0532ad3347d7563e1f29a3fda3515ca412bcc6cbb677f0aa62922907b0702292. Assemble 27 literal disposable Git fixtures, run trusted harness tests and all three README session scans in independent processes with PYTHONHASHSEED 1 and 17 (162 scans). Require exact findings, unknown rows, exit codes, held/block/pass recipe outcomes, SPEC fingerprints, raw JSON equality and unchanged source/subject files. Use only stdlib Python and Git with hooks disabled; no subject execution, dependency installation, network requests, host hook probes, models, cache or publication. Record exact dispatcher and candidate identities, runtime, raw logs, commands, cleanup and every failed/NOT_RUN case. This workload does not run the full product suite or doctor, replay historical cells, measure held-out accuracy or claim an OS/Python matrix. Current fixture scratch is created only in EC_WORKLOAD_WORK and removed with bounded ownership/reparse/read-only-file checks. After all cases match and current scratch cleanup succeeds, recover only the failed run38510675237/1 scratch C:/Users/S3452MA/AppData/Local/Temp/pinwash-candidate-hubxl1c3 on named LAPTOP-8KGL8EFS, pinned by recovery.json SHA-256 278af37c6e0033a552fc38664478c127f48d42a03cd1d9a89c4e44617e9e7178 and immutable receipt feae654459d5a8b1cb4ed7ad30a77e0f362ebd6e. Verify every remaining non-Git file against its recorded hash, reject unexpected files and symlinks/reparse points, clear only an actual read-only bit on an owned ordinary file if deletion is denied, and read back absence. No other temporary root or user data is selected; failure retains the exact residual path and stays FAIL.",
+      "entry": "workloads/candidate_sessions/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 20,
+      "cache": false,
+      "parameters": {}
     }
   }
 }
