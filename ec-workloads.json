@@ -24,6 +24,14 @@
       "timeout_minutes": 20,
       "cache": false,
       "parameters": {}
+    },
+    "candidate-history-replay": {
+      "description": "Offline two-version candidate history replay on named LAPTOP-8KGL8EFS using 91 preserved worktrees: 90 formal and one first-launch observational, whose original commit SHA is recorded but only rebuilt HEAD tree is proven. Require manifest.json SHA-256 f82ecf78fdfcca59684819a52f1f7c9112d792d1547df75c8454a759237a58cf; all 196 historical files, recorded worktree and patch hashes, fixture BASE 2354c96be0b9a390c7785ad3591d43c56278ada1, baseline.bundle SHA-256 5520b6357e55f4d75a06cccf1a84220a5524971365cf292c3340141271e6065f and fixed spec27/spec36 package trees/SPEC bytes. Export exact trusted Git blobs; run 24 new harness tests, then BASE..HEAD, BASE..WORKTREE and plain check with PYTHONHASHSEED 1 and 17 separately for both engines (1092 scans, 546 seed pairs). Preserve full raw outputs/finding fields/fingerprints, exact argv/stdin/environment overrides, runtime Git executable/version, parameters-file and pool generation identities; permit only preregistered spec_version and six formal cells' exact hook-event-key unknown additions. Fold sessions conservatively: block first, unknown or exemption held, otherwise pass; missing/invalid output is not judged. Require source/subject/export immutability, complete/equal seed evidence, all formal semantic predictions and bounded removal of only this run's owned pinwash-candidate-history-* scratch in EC_WORKLOAD_WORK. Refuse redirected/nonregular/hardlinked paths; if owned process termination is unconfirmed retain scratch and fail. Execution and semantic status are separate; both required for overall PASS. Stop new commands at 50 minutes, child cap 60 seconds, reserve cleanup/readback inside 60-minute outer limit. No automatic retry, previous Temp recovery, subject execution, dependency installation, network requests, cache, models, full suite/doctor, held-out quality claims or publication. Existing historical judgements are provenance only; engine/SPEC/frozen gates and previous workload declarations remain unchanged.",
+      "entry": "workloads/candidate_history_replay/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 60,
+      "cache": false,
+      "parameters": {}
     }
   }
 }
