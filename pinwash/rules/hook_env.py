@@ -30,18 +30,20 @@ def environment(doc: Any) -> dict[str, Any]:
 
 def bash_events(doc: Any):
     events = extract_event_hooks(doc, claude=True)
-    admitted: dict[str, set[str]] = {}
+    admitted: dict[str, list[tuple[str, dict[str, bool]]]] = {}
+    retained: dict[str, list[tuple[str, dict[str, bool]]]] = {}
     for event, item in handlers(doc):
         c = item.get("command")
-        if (item.get("type", "command") == "command" and isinstance(c, str)
-                and "args" not in item and item.get("shell", "bash") == "bash"
-                and not (event == "Stop" and item.get("async") is True)):
-            admitted.setdefault(event, set()).add(c)
+        if item.get("type", "command") != "command" or not isinstance(c, str):
+            continue
+        flags = {"async": event == "Stop" and item.get("async") is True}
+        is_bash = "args" not in item and item.get("shell", "bash") == "bash" and not flags["async"]
+        bucket = admitted if is_bash else retained
+        bucket.setdefault(event, []).append((c, flags))
     selected, remaining = {}, {}
     for event, info in events.items():
-        wanted = admitted.get(event, set())
-        selected[event] = {**info, "non_commands": [], "command_states": [(c, f) for c, f in info["command_states"] if c in wanted]}
-        remaining[event] = {**info, "command_states": [(c, f) for c, f in info["command_states"] if c not in wanted]}
+        selected[event] = {**info, "non_commands": [], "command_states": admitted.get(event, [])}
+        remaining[event] = {**info, "command_states": retained.get(event, [])}
     return selected, remaining
 
 def source_path(value: Any) -> str | None:

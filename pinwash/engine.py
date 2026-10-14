@@ -465,6 +465,7 @@ def scan_pair(
                 calls_of=calls_of, head_contexts=head_folded,
                 head_reporting=head_reporting, base_folded=base_folded,
                 job_matches=producer_moves.get(path, (path, head_g, {}))[2],
+                moved_workflow=producer_moves.get(path, (path, head_g, {}))[0] != path,
             )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))

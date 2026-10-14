@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import time
+import signal
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,20 +48,35 @@ def main() -> int:
     env["PINWASH_TODAY"] = "2026-09-30"
     env.pop("PINWASH_DOCTOR_SELFTEST", None)
     steps: list[dict[str, object]] = []
+    deadline = time.monotonic() + 1170  # still inside the declared 20 minutes
 
-    def run(name: str, command: list[str], *, seed: str = "1") -> tuple[int, bytes, bytes]:
+    def run(name: str, command: list[str], *, seed: str = "1", depth: str | None = None) -> tuple[int, bytes, bytes]:
         started = time.monotonic()
         step_env = dict(env, PYTHONHASHSEED=seed)
+        if depth is not None:
+            step_env["PINWASH_DOCTOR_SELFTEST"] = depth
         timed_out = False
         try:
-            process = subprocess.run(
-                command, cwd=ROOT, env=step_env, capture_output=True,
-                timeout=300, check=False,
-            )
-            code, stdout, stderr = process.returncode, process.stdout, process.stderr
+            process = subprocess.Popen(command, cwd=ROOT, env=step_env,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       start_new_session=os.name != "nt")
+            bound = 570 if name in ("suite", "doctor") else 30
+            stdout, stderr = process.communicate(timeout=max(1, min(bound, deadline - time.monotonic())))
+            code = process.returncode
         except subprocess.TimeoutExpired as exc:
             code, timed_out = 2, True
-            stdout, stderr = exc.stdout or b"", exc.stderr or b""
+            # Kill only this owned command's process tree before starting
+            # the next step; a timed-out doctor must not keep testing.
+            if os.name == "nt":
+                killer = Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"
+                subprocess.run([str(killer), "/PID", str(process.pid), "/T", "/F"],
+                               capture_output=True, timeout=15, check=False)
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+            try:
+                stdout, stderr = process.communicate(timeout=15)
+            except subprocess.TimeoutExpired:
+                stdout, stderr = exc.stdout or b"", exc.stderr or b""
         except OSError as exc:
             code, stdout, stderr = 2, b"", str(exc).encode("utf-8")
         (out / f"{name}.stdout").write_bytes(stdout)
@@ -69,6 +85,7 @@ def main() -> int:
             "name": name, "command": command, "exit_code": code,
             "elapsed_seconds": round(time.monotonic() - started, 3),
             "timed_out": timed_out, "pythonhashseed": seed,
+            "doctor_selftest_depth": depth,
             "stdout_sha256": sha256(stdout), "stderr_sha256": sha256(stderr),
         })
         return code, stdout, stderr
@@ -88,7 +105,7 @@ def main() -> int:
     if not problems:
         python = [sys.executable, "-X", "utf8", "-B"]
         code, _, stderr = run(
-            "suite", python + ["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
+            "suite", python + ["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], depth="1",
         )
         text = stderr.decode("utf-8", "replace")
         counts = re.findall(r"(?m)^Ran (\d+) tests? in ", text)
@@ -105,6 +122,7 @@ def main() -> int:
                 and tests["tests_run"] == count and count > 0
                 and tests["failures"] == 0 and tests["errors"] == 0
                 and tests["skipped_count"] == 0
+                and tests["nested_depth"] == 0
                 and "skipped" not in tests
                 and not re.search(r"(?m)^OK \(.*skipped=", doctor_stderr.decode("utf-8", "replace"))
                 and doctor_payload["spec_sha256"] == sha256((ROOT / "SPEC.md").read_bytes())
