@@ -307,7 +307,7 @@ def command_body_map(
         obj, st = json_load(files.get(path))
         if st != "ok":
             continue
-        for info in extract_event_hooks(obj).values():
+        for info in extract_event_hooks(obj, claude=claude).values():
             for cmd in info["commands"]:
                 if cmd in bodies:
                     continue

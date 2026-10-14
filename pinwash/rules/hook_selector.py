@@ -69,13 +69,23 @@ def _names(raw: Any) -> frozenset[str] | None:
     return frozenset(names)
 
 
-def _entry_commands(entry: dict[str, Any], event: str | None) -> list[dict[str, Any]]:
+def _entry_commands(entry: dict[str, Any], event: str | None, *, claude: bool = False) -> list[dict[str, Any]]:
     """Commands under one entry, depth-first on an explicit stack (§9).
 
     `event` is the event name when the entry comes from the list form, where
     a `type` equal to it names the event rather than a handler type.
     """
     out: list[dict[str, Any]] = []
+    if claude:
+        items = entry.get("hooks")
+        for node in items if isinstance(items, list) else []:
+            if not isinstance(node, dict) or node.get("type", "command") != "command" or not isinstance(node.get("command"), str):
+                continue
+            out.append({"command": node["command"], "flagged": False,
+                        "if": canonical_text(node["if"]) if "if" in node else _ABSENT,
+                        "type": _COMMAND_TYPE,
+                        "nested": canonical_text(node["matcher"]) if "matcher" in node else ""})
+        return out
     nested: list[str] = []
     stack: list[tuple[dict[str, Any], bool, bool]] = [(entry, _flagged(entry), True)]
     while stack:
@@ -108,7 +118,7 @@ def _entry_commands(entry: dict[str, Any], event: str | None) -> list[dict[str, 
     return out
 
 
-def _events(doc: Any) -> dict[str, list[dict[str, Any]]]:
+def _events(doc: Any, *, claude: bool = False) -> dict[str, list[dict[str, Any]]]:
     """event -> command records, for the dict and list forms hooks.py reads."""
     if not isinstance(doc, dict):
         return {}
@@ -119,7 +129,7 @@ def _events(doc: Any) -> dict[str, list[dict[str, Any]]]:
         for event, entries in hooks.items():
             if isinstance(event, str) and isinstance(entries, list):
                 grouped[event] = [e for e in entries if isinstance(e, dict)]
-    elif isinstance(hooks, list):
+    elif isinstance(hooks, list) and not claude:
         list_form = True
         for entry in hooks:
             if not isinstance(entry, dict):
@@ -136,7 +146,7 @@ def _events(doc: Any) -> dict[str, list[dict[str, Any]]]:
                 raw_key = _MATCH_ALL
             else:
                 raw_key = canonical_text(raw)
-            for rec in _entry_commands(entry, event if list_form else None):
+            for rec in _entry_commands(entry, event if list_form else None, claude=claude):
                 rec["matcher"] = raw_key
                 rec["names"] = None if raw_key == _MATCH_ALL else _names(raw)
                 recs.append(rec)
@@ -203,8 +213,8 @@ def selector_changed(
     judged on its own (a narrowing of one command cannot hide behind a
     sibling's widening when both run the same script); commands whose
     string changed pair by their §3.3 target set."""
-    base_ev = _events(base_doc)
-    head_ev = _events(head_doc)
+    base_ev = _events(base_doc, claude=claude)
+    head_ev = _events(head_doc, claude=claude)
     if claude:
         for events in (base_ev, head_ev):
             for records in events.values():

@@ -125,10 +125,18 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
                     continue
                 if isinstance(entry.get("matcher"), str):
                     matchers.append(entry["matcher"])
-                commands.extend(_commands_from_hook_object(entry))
-                states = _command_states_from_hook_object(entry)
                 if claude:
-                    states = [(c, {k: False for k in f}) for c, f in states]
+                    handlers = entry.get("hooks")
+                    handlers = handlers if isinstance(handlers, list) else []
+                    live_commands = [h for h in handlers if isinstance(h, dict)
+                                     and h.get("type", "command") == "command"
+                                     and isinstance(h.get("command"), str)]
+                    commands.extend(h["command"] for h in live_commands)
+                    states = [(h["command"], {k: False for k in _direct_flags_from_obj(h)})
+                              for h in live_commands]
+                else:
+                    commands.extend(_commands_from_hook_object(entry))
+                    states = _command_states_from_hook_object(entry)
                 command_states.extend(states)
             out[event] = {
                 "array_len": len(entries),
@@ -137,7 +145,7 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
                 "matchers": matchers,
             }
         return out
-    if isinstance(hooks, list):
+    if isinstance(hooks, list) and not claude:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for entry in hooks:
             if not isinstance(entry, dict):
@@ -212,7 +220,10 @@ def command_holders(doc: Any) -> tuple[set[str], set[str]]:
             if isinstance(e, dict) and isinstance(e.get("event") or e.get("type") or "unknown", str):
                 entries.append(e)
     for entry in entries:
-        for node in _command_objects(entry):
+        items = entry.get("hooks")
+        for node in items if isinstance(items, list) else []:
+            if not isinstance(node, dict) or node.get("type", "command") != "command" or not isinstance(node.get("command"), str):
+                continue
             if "args" in node or ("shell" in node and node["shell"] != "bash"):
                 guarded.add(node["command"])
             else:

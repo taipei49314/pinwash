@@ -6,7 +6,7 @@
 
 This file is the single source of truth for rule IDs, pin identity, surfaces, severity, exit codes, and determinism. Changing anything here requires a spec-version bump and a fixture re-run. Authority: the human maintainer owns `tests/gates/**`; on 2026-09-27 the maintainer delegated spec rulings and edits to the maintaining agent, under the discipline that every change bumps the spec version, lands as its own commit, and re-runs the fixture suite. On 2026-10-09 the maintainer extended that delegation to every ruling, including one that reverses SPEC text or turns a passing result into a block, on the condition that each ruling the maintaining agent makes is marked **AI-assisted** in its §16 row, its commit message and its issue; rulings the maintainer makes are marked as the maintainer's.
 
-Spec version: **28** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
+Spec version: **29** (draft spec 0 was frozen by the first commit of this file; the findings envelope is `pinwash_findings_version: 1`). A local engine exists (`pinwash` 0.0.0, stdlib only, zero runtime dependencies); it is not a Release, not on PyPI, and not a 1.0 claim. This document began as the preregistration: acceptance in §12 was frozen before implementation. Detectors must not be patched to fit a fixture; fixtures that are out of spec stay residuals.
 
 ## 0. What it is / is not
 
@@ -201,6 +201,8 @@ Base severity of every finding is `warn`, except the producer-side disjuncts of 
 No other rule IDs exist in this spec version. Internal helper names must not appear in JSON `rule` fields.
 
 ### 5.1 HOOK_BYPASSED key table
+
+Spec 29 (AI-assisted, #44 command holders): on `claude_settings`, only direct `hooks[]` handler items under an event's matcher group contribute commands. A string `command` requires handler `type` absent or exactly `command`; the absent-type compatibility reading remains a host-schema residual (R24). A matcher-group command, a nested group, root list form, or a prompt/agent item's `command` is not an executable command. Cursor's extraction stays unchanged. Body resolution, holder guards and selector observation use this same boundary. Moving a base command to a group leaves the event's command list empty and is `HOOK_REMOVED`; an already command-free event on both sides is addressed by the following handler ruling, not invented as a command.
 
 Exact keys, case-sensitive:
 
@@ -520,6 +522,8 @@ pinwash doctor             # own tests / spec hash; does not judge the subject
 - Auto-fixing the diff.
 
 ## 16. Spec changelog
+
+- **29** — AI-assisted. Claude command-holder boundary (#44): only direct hooks-array command handlers feed commands, body targets, holder guards and selectors. tests.test_claude_command_holders.ClaudeCommandHolders names the fixtures. Group and nested commands are not live; absent handler type remains R24 compatibility. NOT_RUN locally; EC pool validation pending.
 
 - **28** — AI-assisted. Retire Claude host-neutral skip flags (#42); active/live, switch and visibility use host semantics, Cursor flags unchanged. Named cases: tests.test_claude_host_flags.ClaudeHostFlags. Executed host evidence is the existing issue record; this candidate has NOT_RUN local tests and awaits EC pool.
 
