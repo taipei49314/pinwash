@@ -8,9 +8,12 @@ the exemption channel in pinwash/allow.
 from __future__ import annotations
 
 import os
+from collections import Counter
 from typing import Any
 
 from pinwash.allow import apply_allow, detect_allow
+from pinwash.textutil import canonical_text
+from pinwash.producer_identity import matches as producer_identity_matches
 from pinwash.findings import envelope, make_finding
 from pinwash.parse.gha import parse_workflow
 from pinwash.parse.hookcmd import command_body_map, resolver, root_form_guard
@@ -28,6 +31,7 @@ from pinwash.hooks import CLAUDE_STOP_EVENTS, CURSOR_STOP_EVENTS, extract_event_
 from pinwash.rules import (
     config_rule,
     hook_coverage,
+    hook_env,
     hook_rules,
     hook_switch,
     hook_selector,
@@ -60,6 +64,9 @@ from pinwash.surfaces import (
 # findings.
 NEW_UNPARSEABLE = "new surface file unparseable"
 BASE_UNPARSEABLE = "surface unparseable at base"
+NONCOMMAND_HANDLER = "non-command hook handler changed (not evaluated)"
+ASYNC_UNKNOWN = "hook async value not boolean"
+EVENT_KEYS = "hook event keys changed (host validity not evaluated)"
 # SPEC §2 / §7 (spec 16, AI-assisted ruling on #17, R21): working-tree
 # entries at surface paths that the worktree read does not open.
 IGNORED_SURFACE = "untracked surface file matched by an ignore rule, not read"
@@ -259,6 +266,7 @@ def scan_pair(
         [text_load(head_files.get(path)) for path in paths if is_gha_workflow(path)]
         if base_contexts else []
     )
+    producer_moves = producer_identity_matches(base_files, head_files) if base_contexts else {}
     base_folded = required_check.fold_contexts(base_contexts)
     head_folded = required_check.fold_contexts(head_contexts)
 
@@ -292,6 +300,7 @@ def scan_pair(
         for key, (path, b_obj, b_st, h_obj, h_st) in mode_files.items()
     }
     switch_path = hook_switch.detect(switch_files, kind_bodies[True][0], hook_rules.live_stop_events, add)
+    hook_env.detect(switch_files, base_files, head_files, kind_bodies[True][0], add, note_unknown)
     if switch_path is None:
         # No command was active at base, yet the value in effect became
         # `true` (a local `false` removed under a shared `true`): the row.
@@ -314,8 +323,8 @@ def scan_pair(
             stop_names = (
                 CLAUDE_STOP_EVENTS if is_claude_settings(path) else CURSOR_STOP_EVENTS
             )
-            base_ev = extract_event_hooks(b_obj) if b_st == "ok" else {}
-            head_ev = extract_event_hooks(h_obj) if h_st == "ok" else {}
+            base_ev = extract_event_hooks(b_obj, claude=is_claude_settings(path)) if b_st == "ok" else {}
+            head_ev = extract_event_hooks(h_obj, claude=is_claude_settings(path)) if h_st == "ok" else {}
             base_doc = b_obj if b_st == "ok" else None
             head_doc = h_obj if h_st == "ok" else None
 
@@ -324,6 +333,26 @@ def scan_pair(
 
             n_before = len(findings)
             claude_kind = is_claude_settings(path)
+            if claude_kind:
+                for event in sorted(set(base_ev) | set(head_ev)):
+                    before_handlers = base_ev.get(event, {}).get("non_commands", [])
+                    after_handlers = head_ev.get(event, {}).get("non_commands", [])
+                    if after_handlers and canonical_text(before_handlers) != canonical_text(after_handlers):
+                        note(NONCOMMAND_HANDLER)
+                b_hooks = base_doc.get("hooks") if isinstance(base_doc, dict) else None
+                h_hooks = head_doc.get("hooks") if isinstance(head_doc, dict) else None
+                b_keys = {k for k in b_hooks if isinstance(k, str)} if isinstance(b_hooks, dict) else set()
+                h_keys = {k for k in h_hooks if isinstance(k, str)} if isinstance(h_hooks, dict) else set()
+                if h_keys != b_keys:
+                    note(EVENT_KEYS)
+                def opaque_async(doc: Any) -> Counter:
+                    return Counter((e, h.get("command"), canonical_text(h["async"]))
+                                   for e, h in hook_env.handlers(doc)
+                                   if e == "Stop" and h.get("type", "command") == "command"
+                                   and isinstance(h.get("command"), str) and "async" in h
+                                   and not isinstance(h["async"], bool))
+                if opaque_async(head_doc) - opaque_async(base_doc):
+                    note(ASYNC_UNKNOWN)
             body_base, body_head = kind_bodies[claude_kind]
             res_base, res_head = kind_resolvers[claude_kind]
             hook_rules.detect(
@@ -431,10 +460,12 @@ def scan_pair(
             # SPEC §5 findings and the §5.5 producer rows (spec 14); a row
             # never adds, drops or changes a finding, so never the verdict.
             required_check.detect_jobs(
-                path, base_g, head_g, base_contexts, add,
+                path, base_g, producer_moves.get(path, (path, head_g, {}))[1], base_contexts, add,
                 note=note_gha, changed=lambda p: p in changed_set(),
                 calls_of=calls_of, head_contexts=head_folded,
                 head_reporting=head_reporting, base_folded=base_folded,
+                job_matches=producer_moves.get(path, (path, head_g, {}))[2],
+                moved_workflow=producer_moves.get(path, (path, head_g, {}))[0] != path,
             )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))

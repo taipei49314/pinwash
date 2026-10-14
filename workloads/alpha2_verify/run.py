@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import time
+import signal
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +25,44 @@ def write_json(path: Path, value: object) -> None:
     with path.open("x", encoding="utf-8", newline="\n") as handle:
         json.dump(value, handle, sort_keys=True, ensure_ascii=False, indent=2)
         handle.write("\n")
+
+
+def stop_owned(process, expired, *, windows: bool) -> tuple[bytes, bytes, dict[str, object]]:
+    """Bound cleanup and retain evidence; uncertainty prevents further steps."""
+    cleanup: dict[str, object] = {"confirmed": False, "errors": []}
+    errors = cleanup["errors"]
+    killed = False
+    try:
+        if windows:
+            killer = Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"
+            result = subprocess.run([str(killer), "/PID", str(process.pid), "/T", "/F"],
+                                    capture_output=True, timeout=15, check=False)
+            cleanup.update(exit_code=result.returncode,
+                           stdout=result.stdout.decode("utf-8", "replace"),
+                           stderr=result.stderr.decode("utf-8", "replace"))
+            killed = result.returncode == 0
+            if not killed:
+                errors.append("owned-tree termination returned nonzero")
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass  # group already gone; pipe drainage must still complete
+            killed = True
+    except (OSError, KeyError, subprocess.TimeoutExpired) as exc:
+        errors.append(f"owned-tree termination failed: {type(exc).__name__}: {exc}")
+    try:
+        stdout, stderr = process.communicate(timeout=15)
+        reaped = process.returncode is not None
+        if not reaped:
+            errors.append("owned parent has no terminal return code")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        stdout = getattr(exc, "stdout", None) or getattr(expired, "stdout", None) or b""
+        stderr = getattr(exc, "stderr", None) or getattr(expired, "stderr", None) or b""
+        reaped = False
+        errors.append(f"owned pipe drainage failed: {type(exc).__name__}: {exc}")
+    cleanup["confirmed"] = killed and reaped
+    return stdout, stderr, cleanup
 
 
 def main() -> int:
@@ -47,28 +86,57 @@ def main() -> int:
     env["PINWASH_TODAY"] = "2026-09-30"
     env.pop("PINWASH_DOCTOR_SELFTEST", None)
     steps: list[dict[str, object]] = []
+    # Reserve 30 seconds for owned-tree cleanup plus 30 for receipt writing.
+    # The declaration stays at 20 minutes; expired budgets never launch work.
+    deadline = time.monotonic() + 1140
+    blocked: str | None = None
 
-    def run(name: str, command: list[str], *, seed: str = "1") -> tuple[int, bytes, bytes]:
+    def run(name: str, command: list[str], *, seed: str = "1", depth: str | None = None) -> tuple[int, bytes, bytes]:
+        nonlocal blocked
         started = time.monotonic()
         step_env = dict(env, PYTHONHASHSEED=seed)
+        if depth is not None:
+            step_env["PINWASH_DOCTOR_SELFTEST"] = depth
         timed_out = False
-        try:
-            process = subprocess.run(
-                command, cwd=ROOT, env=step_env, capture_output=True,
-                timeout=300, check=False,
-            )
-            code, stdout, stderr = process.returncode, process.stdout, process.stderr
-        except subprocess.TimeoutExpired as exc:
-            code, timed_out = 2, True
-            stdout, stderr = exc.stdout or b"", exc.stderr or b""
-        except OSError as exc:
-            code, stdout, stderr = 2, b"", str(exc).encode("utf-8")
+        cleanup = None
+        remaining = deadline - started
+        if remaining <= 0 and blocked is None:
+            blocked = "command budget expired; cleanup and receipt reserve retained"
+        if blocked is not None:
+            code, stdout, stderr = 2, b"", blocked.encode("utf-8")
+            state = "NOT_RUN"
+        else:
+            state = "COMPLETED"
+            process = None
+            try:
+                process = subprocess.Popen(command, cwd=ROOT, env=step_env,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                           start_new_session=os.name != "nt")
+                bound = 570 if name in ("suite", "doctor") else 30
+                stdout, stderr = process.communicate(timeout=min(bound, remaining))
+                code = process.returncode
+            except subprocess.TimeoutExpired as exc:
+                code, timed_out, state = 2, True, "TIMED_OUT"
+                stdout, stderr, cleanup = stop_owned(process, exc, windows=os.name == "nt")
+                if not cleanup["confirmed"]:
+                    blocked = "owned command cleanup unconfirmed; further commands NOT_RUN"
+            except OSError as exc:
+                code, stdout, stderr = 2, b"", str(exc).encode("utf-8")
+                state = "START_FAILED"
+                if process is not None:
+                    stdout, stderr, cleanup = stop_owned(process, exc, windows=os.name == "nt")
+                    stderr += str(exc).encode("utf-8")
+                    state = "IO_FAILED"
+                    if not cleanup["confirmed"]:
+                        blocked = "owned command cleanup unconfirmed; further commands NOT_RUN"
         (out / f"{name}.stdout").write_bytes(stdout)
         (out / f"{name}.stderr").write_bytes(stderr)
         steps.append({
             "name": name, "command": command, "exit_code": code,
             "elapsed_seconds": round(time.monotonic() - started, 3),
             "timed_out": timed_out, "pythonhashseed": seed,
+            "state": state, "cleanup": cleanup,
+            "doctor_selftest_depth": depth,
             "stdout_sha256": sha256(stdout), "stderr_sha256": sha256(stderr),
         })
         return code, stdout, stderr
@@ -88,7 +156,7 @@ def main() -> int:
     if not problems:
         python = [sys.executable, "-X", "utf8", "-B"]
         code, _, stderr = run(
-            "suite", python + ["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
+            "suite", python + ["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], depth="1",
         )
         text = stderr.decode("utf-8", "replace")
         counts = re.findall(r"(?m)^Ran (\d+) tests? in ", text)
@@ -105,6 +173,7 @@ def main() -> int:
                 and tests["tests_run"] == count and count > 0
                 and tests["failures"] == 0 and tests["errors"] == 0
                 and tests["skipped_count"] == 0
+                and tests["nested_depth"] == 0
                 and "skipped" not in tests
                 and not re.search(r"(?m)^OK \(.*skipped=", doctor_stderr.decode("utf-8", "replace"))
                 and doctor_payload["spec_sha256"] == sha256((ROOT / "SPEC.md").read_bytes())
@@ -139,7 +208,7 @@ def main() -> int:
         "doctor": doctor_payload, "raw_json_equal": deterministic,
         "passed": not problems, "problems": problems,
         "limitations": [
-            "one EC Windows pool runtime; no cross-OS or Python matrix claim",
+            "one execution runtime; external execution receipt identifies provenance; no OS/Python matrix claim",
             "determinism probe compares a same-tree scan across hash seeds",
             "seeded regressions; no independent held-out agent accuracy claim",
         ],
@@ -153,7 +222,7 @@ def main() -> int:
         "Commands, exits, log hashes and test-source hashes: `result.json`.", "",
     ]
     lines.extend(f"- {problem}" for problem in problems)
-    lines.extend(["", "Coverage is one EC Windows runtime and seeded regression cases.",
+    lines.extend(["", "Coverage is one runtime and seeded regression cases; see the external execution receipt for provenance.",
                   "Cross-platform determinism and held-out agent accuracy are not assessed.", ""])
     (out / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
     return 1 if problems else 0

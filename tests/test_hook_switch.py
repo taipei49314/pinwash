@@ -116,7 +116,8 @@ class Severity(unittest.TestCase):
         """Q4: hooks as written are judged as before; the row marks them."""
         payload = scan({CS: doc([A], pre=[G], dah=True)}, {CS: doc(pre=[G], dah=True)})
         self.assertEqual([(f["rule"], f["severity"]) for f in payload["findings"]], [("HOOK_REMOVED", "critical")])
-        self.assertEqual([u["reason"] for u in payload["unknown_coverage"]], [DAH])
+        self.assertEqual([u["reason"] for u in payload["unknown_coverage"]],
+                         sorted([DAH, "hook event keys changed (host validity not evaluated)"]))
 
 
 class NotABoolean(unittest.TestCase):
@@ -207,15 +208,15 @@ class ReviewRows(unittest.TestCase):
                 self.assertEqual((payload["findings"], payload["unknown_coverage"]),
                                  ([], [{"path": CS, "reason": DAH}]))
 
-    def test_a_flagged_only_stop_judge_is_booked_not_detected(self) -> None:
+    def test_a_flagged_only_stop_judge_remains_active(self) -> None:
         # Claude Code ignores the §5.1 skip keys (executed, #42), so the
         # switch turns off a judge §3.3 counts as inactive: the row (R06).
         flagged = json.dumps({"hooks": {"Stop": [{"hooks": [
             {"type": "command", "command": A, "disabled": True}]}]}})
         on = json.dumps({"disableAllHooks": True, **json.loads(flagged)})
         payload = scan({CS: flagged}, {CS: on})
-        self.assertEqual((payload["findings"], payload["unknown_coverage"]),
-                         ([], [{"path": CS, "reason": DAH}]))
+        self.assertEqual(switch(payload), [("critical", CS)])
+        self.assertEqual(payload["unknown_coverage"], [])
 
     def test_a_proto_switch_is_the_row(self) -> None:
         # Claude Code 2.1.42 reads a root `__proto__` object's members as

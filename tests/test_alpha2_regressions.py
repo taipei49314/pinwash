@@ -29,6 +29,9 @@ def _rules(payload: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def _hooks(event: str, entries: list[dict[str, Any]]) -> str:
+    # Specs 29+: Claude fixtures use actual direct handlers; Cursor stays flat.
+    if event == "Stop" or event == "PreToolUse":
+        entries = [{"hooks": [e]} if "command" in e and "hooks" not in e else e for e in entries]
     return json.dumps({"hooks": {event: entries}})
 
 
@@ -72,14 +75,14 @@ class MarkdownParseStatus(unittest.TestCase):
 class LastStopSkipFlags(unittest.TestCase):
     """SPEC §5.1 / §6.1: only a remaining command that can gate is live."""
 
-    PATH = ".claude/settings.json"
+    PATH = ".cursor/hooks.json"
 
     def test_each_exact_skip_flag_on_last_stop_is_critical(self) -> None:
         cases = (
             (".cursor/hooks.json", "stop", "disabled", True),
             (".cursor/hooks.json", "stop", "hookEnabled", False),
-            (self.PATH, "Stop", "continueOnError", True),
-            (self.PATH, "Stop", "failOpen", True),
+            (self.PATH, "stop", "continueOnError", True),
+            (self.PATH, "stop", "failOpen", True),
         )
         for path, event, flag, value in cases:
             with self.subTest(path=path, flag=flag):
@@ -90,10 +93,10 @@ class LastStopSkipFlags(unittest.TestCase):
                 self.assertEqual(payload["verdict"], "block")
 
     def test_skipping_one_nested_sibling_keeps_other_command_live(self) -> None:
-        base = _hooks("Stop", [{"hooks": [
+        base = _hooks("stop", [{"hooks": [
             {"command": "judge-a"}, {"command": "judge-b"},
         ]}])
-        head = _hooks("Stop", [{"hooks": [
+        head = _hooks("stop", [{"hooks": [
             {"command": "judge-a", "failOpen": True}, {"command": "judge-b"},
         ]}])
         payload = _pair({self.PATH: base}, {self.PATH: head})
@@ -101,10 +104,10 @@ class LastStopSkipFlags(unittest.TestCase):
         self.assertEqual(payload["verdict"], "pass")
 
     def test_preexisting_skipped_sibling_does_not_hide_last_live_skip(self) -> None:
-        base = _hooks("Stop", [{"hooks": [
+        base = _hooks("stop", [{"hooks": [
             {"command": "judge-a", "failOpen": True}, {"command": "judge-b"},
         ]}])
-        head = _hooks("Stop", [{"hooks": [
+        head = _hooks("stop", [{"hooks": [
             {"command": "judge-a", "failOpen": True},
             {"command": "judge-b", "failOpen": True},
         ]}])
@@ -114,18 +117,18 @@ class LastStopSkipFlags(unittest.TestCase):
 
     def test_parent_skip_applies_to_all_nested_commands(self) -> None:
         children = [{"command": "judge-a"}, {"command": "judge-b"}]
-        base = _hooks("Stop", [{"hooks": children}])
-        head = _hooks("Stop", [{"hooks": children, "continueOnError": True}])
+        base = _hooks("stop", [{"hooks": children}])
+        head = _hooks("stop", [{"hooks": children, "continueOnError": True}])
         payload = _pair({self.PATH: base}, {self.PATH: head})
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
         self.assertEqual(payload["verdict"], "block")
 
     def test_removing_skipped_sibling_cannot_hide_surviving_command_skip(self) -> None:
-        base = _hooks("Stop", [{"hooks": [
+        base = _hooks("stop", [{"hooks": [
             {"command": "judge-old", "failOpen": True},
             {"command": "judge-live"},
         ]}])
-        head = _hooks("Stop", [{"hooks": [
+        head = _hooks("stop", [{"hooks": [
             {"command": "judge-live", "failOpen": True},
         ]}])
         payload = _pair({self.PATH: base}, {self.PATH: head})
@@ -175,8 +178,8 @@ class LastStopSkipFlags(unittest.TestCase):
         self.assertEqual(payload["verdict"], "block")
 
     def test_unchanged_or_removed_skip_is_not_a_new_bypass(self) -> None:
-        skipped = _hooks("Stop", [{"command": "judge", "failOpen": True}])
-        for head in (skipped, _hooks("Stop", [{"command": "judge"}])):
+        skipped = _hooks("stop", [{"command": "judge", "failOpen": True}])
+        for head in (skipped, _hooks("stop", [{"command": "judge"}])):
             with self.subTest(head=head):
                 payload = _pair({self.PATH: skipped}, {self.PATH: head})
                 self.assertEqual(payload["findings"], [])
@@ -189,8 +192,8 @@ class LastStopSkipFlags(unittest.TestCase):
                     {"command": "judge-a", "failOpen": True},
                     {"command": other_command},
                 ]
-                base = _hooks("Stop", [{"hooks": entries}])
-                head = _hooks("Stop", [{"hooks": list(reversed(entries))}])
+                base = _hooks("stop", [{"hooks": entries}])
+                head = _hooks("stop", [{"hooks": list(reversed(entries))}])
                 payload = _pair({self.PATH: base}, {self.PATH: head})
                 self.assertEqual(payload["findings"], [])
                 self.assertEqual(payload["verdict"], "pass")
@@ -224,11 +227,11 @@ class LastStopSkipFlags(unittest.TestCase):
         self.assertEqual(payload["verdict"], "pass")
 
     def test_redistributed_flags_can_disable_last_duplicate_command(self) -> None:
-        base = _hooks("Stop", [{"hooks": [
+        base = _hooks("stop", [{"hooks": [
             {"command": "judge", "failOpen": True, "continueOnError": True},
             {"command": "judge"},
         ]}])
-        head = _hooks("Stop", [{"hooks": [
+        head = _hooks("stop", [{"hooks": [
             {"command": "judge", "failOpen": True},
             {"command": "judge", "continueOnError": True},
         ]}])
@@ -237,8 +240,8 @@ class LastStopSkipFlags(unittest.TestCase):
         self.assertEqual(payload["verdict"], "block")
 
     def test_unknown_skip_key_remains_outside_closed_table(self) -> None:
-        base = _hooks("Stop", [{"command": "judge"}])
-        head = _hooks("Stop", [{"command": "judge", "skipJudge": True}])
+        base = _hooks("stop", [{"command": "judge"}])
+        head = _hooks("stop", [{"command": "judge", "skipJudge": True}])
         payload = _pair({self.PATH: base}, {self.PATH: head})
         self.assertEqual(payload["findings"], [])
 

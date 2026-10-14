@@ -34,9 +34,9 @@ applies to a hook surface file; the engine reports each (path, reason) once.
   root `env` key the diff adds, changes or removes is expanded (`$K`,
   `${K...`) by an active hook command of the same file on either side.
 
-"Active" means no §5.1 skip flag (own or inherited), not a §5.2 stub string
-and not starting with `#`: flagged, stub and commented-out commands are
-judged by findings and run nothing pinwash would need to read.
+"Active" means no host-effective §5.1 skip flag (Cursor only), not a §5.2
+stub string and not starting with `#`. Claude host-neutral flags retain
+activity; async retains observation activity but cannot refuse a Stop.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ _IDENT_REST = _IDENT_START | frozenset("0123456789")
 
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 
@@ -407,7 +407,7 @@ def detect(
         note_unknown(TARGET_NO_LONGER_RESOLVED)
     if names_changed_file(base_ev, head_ev, base_files, head_files, changed(), targets):
         note_unknown(NAMES_CHANGED_FILE)
-    if flag_not_boolean(base_doc, head_doc, hook_finding):
+    if not claude_settings and flag_not_boolean(base_doc, head_doc, hook_finding):
         note_unknown(FLAG_NOT_BOOLEAN)
     if claude_settings and disable_all_hooks(base_doc, head_doc, hook_finding, switch_finding, switch_anywhere):
         note_unknown(DISABLE_ALL_HOOKS)

@@ -56,7 +56,7 @@ def flipped_in_effect(files: dict[str, tuple[str, Any, Any]]) -> str | None:
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
     """SPEC §3.3: no §5.1 skip flag, not a §5.2 stub string, no leading `#`."""
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 
@@ -91,12 +91,13 @@ def detect(
         b_doc = files[key][1]
         if not isinstance(b_doc, dict):
             continue
-        events = extract_event_hooks(b_doc)
+        events = extract_event_hooks(b_doc, claude=True)
         active = active or any(
             _active(command, flags)
             for info in events.values()
             for command, flags in info["command_states"]
         )
+        active = active or any(info.get("non_commands") for info in events.values())
         live_stop = live_stop or live_stop_events(events, CLAUDE_STOP_EVENTS, body_base) >= 1
     if not active:
         return None

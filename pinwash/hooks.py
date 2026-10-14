@@ -100,7 +100,7 @@ def _command_states_from_hook_object(
     return found
 
 
-def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
+def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str, Any]]:
     """Map event name -> commands, command states, matchers, array_len.
 
     Skip flags live only in the command-local states (SPEC §5.1, spec 10);
@@ -120,21 +120,40 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
             commands: list[str] = []
             command_states: list[tuple[str, dict[str, bool]]] = []
             matchers: list[str] = []
+            non_commands: list[dict[str, Any]] = []
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
                 if isinstance(entry.get("matcher"), str):
                     matchers.append(entry["matcher"])
-                commands.extend(_commands_from_hook_object(entry))
-                command_states.extend(_command_states_from_hook_object(entry))
+                if claude:
+                    handlers = entry.get("hooks")
+                    handlers = handlers if isinstance(handlers, list) else []
+                    live_commands = [h for h in handlers if isinstance(h, dict)
+                                     and h.get("type", "command") == "command"
+                                     and isinstance(h.get("command"), str)]
+                    non_commands.extend(h for h in handlers if isinstance(h, dict)
+                                        and h.get("type") in ("prompt", "agent")
+                                        and isinstance(h.get("prompt"), str) and h["prompt"].strip())
+                    commands.extend(h["command"] for h in live_commands)
+                    states = [(h["command"], {k: False for k in _direct_flags_from_obj(h)})
+                              for h in live_commands]
+                    if event == "Stop":
+                        states = [(c, {**f, "async": h.get("async") is True})
+                                  for (c, f), h in zip(states, live_commands)]
+                else:
+                    commands.extend(_commands_from_hook_object(entry))
+                    states = _command_states_from_hook_object(entry)
+                command_states.extend(states)
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,
                 "command_states": command_states,
                 "matchers": matchers,
+                "non_commands": non_commands,
             }
         return out
-    if isinstance(hooks, list):
+    if isinstance(hooks, list) and not claude:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for entry in hooks:
             if not isinstance(entry, dict):
@@ -204,12 +223,11 @@ def command_holders(doc: Any) -> tuple[set[str], set[str]]:
         for event, lst in hooks.items():
             if isinstance(event, str) and isinstance(lst, list):
                 entries.extend(e for e in lst if isinstance(e, dict))
-    elif isinstance(hooks, list):
-        for e in hooks:
-            if isinstance(e, dict) and isinstance(e.get("event") or e.get("type") or "unknown", str):
-                entries.append(e)
     for entry in entries:
-        for node in _command_objects(entry):
+        items = entry.get("hooks")
+        for node in items if isinstance(items, list) else []:
+            if not isinstance(node, dict) or node.get("type", "command") != "command" or not isinstance(node.get("command"), str):
+                continue
             if "args" in node or ("shell" in node and node["shell"] != "bash"):
                 guarded.add(node["command"])
             else:
