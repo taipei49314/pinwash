@@ -12,6 +12,10 @@ from pinwash.session import review, start
 from pinwash.textutil import dump_json
 
 
+def _text(text: str) -> None:
+    sys.stdout.buffer.write(text.encode("utf-8"))
+
+
 def _seconds(value: str) -> float:
     number = float(value)
     if not math.isfinite(number) or not 0 < number <= 3600:
@@ -52,13 +56,13 @@ def main(args: list[str]) -> int:
             if options.json:
                 sys.stdout.buffer.write(dump_json(state))
             else:
-                print(f"Session started at {state['base']}\nRepository: {safe(state['repo'])}\n"
+                _text(f"Session started at {state['base']}\nRepository: {safe(state['repo'])}\n"
                       f"State: {safe(state['state_path'])}\n"
                       "After the agent and all its writers stop, run: pinwash session review\n"
                       "Keep this installation and state outside the agent's writable scope.\n"
-                      "Local state alone does not protect against same-user tampering.")
+                      "Local state alone does not protect against same-user tampering.\n")
                 if options.state_dir:
-                    print(f"Use the same --state-dir for review: {safe(str(Path(options.state_dir).expanduser().resolve()))}")
+                    _text(f"Use the same --state-dir for review: {safe(str(Path(options.state_dir).expanduser().resolve()))}\n")
             return 0
         else:
             stopped = options.stopped
@@ -69,12 +73,12 @@ def main(args: list[str]) -> int:
         if options.json:
             sys.stdout.buffer.write(dump_json(report))
         else:
-            sys.stdout.write(render(report))
+            _text(render(report))
         return report["exit_code"]
     except (ConsumerError, OSError) as exc:
         report = summarize([], [str(exc)])
         if options.json:
             sys.stdout.buffer.write(dump_json(report))
         else:
-            sys.stdout.write(render(report))
+            _text(render(report))
         return 2

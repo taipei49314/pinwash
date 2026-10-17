@@ -71,15 +71,21 @@ def invoke(repo: Path, operation: str, argument: str | None, timeout: float,
     # -I ignores PYTHONPATH and the subject's implicit cwd. Only this installation
     # is inserted, before changing directory. The child cannot select a judge
     # from the subject. Git redirection env vars are not consumer input.
-    bootstrap = (
-        "import os,sys,json; sys.path.insert(0,sys.argv[1]); "
-        "from pinwash.consumer import _inspect; from pinwash.cli import main; "
-        "repo,op,arg=sys.argv[2:5]; "
-        "os.chdir(repo); "
-        "result=_inspect(repo) if op=='inspect' else None; "
-        "print(json.dumps(result,ensure_ascii=True)) if op=='inspect' else None; "
-        "sys.exit(0 if op=='inspect' else main(['check']+([arg] if arg else [])))"
-    )
+    bootstrap = """import os, sys, json
+sys.path.insert(0, sys.argv[1])
+from pinwash.consumer import _inspect
+from pinwash.cli import main
+repo, op, arg = sys.argv[2:5]
+try:
+    os.chdir(repo)
+    if op == 'inspect':
+        print(json.dumps(_inspect(repo), ensure_ascii=True))
+    else:
+        sys.exit(main(['check'] + ([arg] if arg else [])))
+except Exception as exc:
+    sys.stderr.write(str(exc) + '\\n')
+    sys.exit(2)
+"""
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
     if today is not None:
         env["PINWASH_TODAY"] = today
