@@ -31,11 +31,20 @@ semantics and the approved alpha2 workload entry remain unchanged.
 `alpha2-verify` is the existing approved source-suite/doctor/determinism lane.
 Each dispatch must be recorded by EC at the exact reviewed source SHA.
 
-`package-verify` is a proposed separate lane in `ec-workloads.json`. Its exact
-declaration, source and dependency pin need human approval and EC registry
-admission before execution. It creates only temporary environments, downloads
+`package-verify` is a separate lane in `ec-workloads.json`. The human approved
+its declaration at `75c92df141fe70bd58294d239f2388c7bbc9ce38` and reviewed
+corrections under the unchanged declaration on 2026-10-18 Asia/Taipei. EC task
+T-556 records that decision; [EC PR #192](https://github.com/taipei49314/estate-consolidation/pull/192)
+provides the required registry admission before execution. It creates only temporary environments, downloads
 one hash-verified build backend, builds/installs the artifacts and runs the
 installed checks; it performs no publication or host configuration change.
+
+The first source-only run, [39054948949](https://github.com/taipei49314/estate-consolidation/actions/runs/39054948949),
+used `75c92df141fe70bd58294d239f2388c7bbc9ce38` on DESKTOP-D127QSP. Its suite and
+doctor each reached the existing 300-second timeout, so that attempt failed
+without a final test count or doctor payload. Raw JSON equality and source
+integrity checks passed on that SHA only. EC T-555 preserves the original
+receipt; the timeout is not package acceptance or evidence about a later SHA.
 
 Local execution: **NOT_RUN：工作機規則（POLICY work-machine-local），本機僅編輯及唯讀審查；產品測試、建置、安裝驗收走已核可 pool 工作負載。**
 

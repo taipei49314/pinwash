@@ -50,9 +50,9 @@ in an isolated child process. It preserves nested-doctor recursion protection.
 Missing resources, zero tests and skipped tests remain failures. Running doctor
 is a workload, not a lightweight environment/version check.
 
-Package acceptance is separate from core source-suite acceptance. The proposed
+Package acceptance is separate from core source-suite acceptance. The
 `package-verify` workload builds wheel and sdist, rebuilds from sdist, installs
 both wheels in fresh temporary venvs, compares installed package bytes, checks
 the console command away from the checkout, exercises the session/report flow
 and runs installed doctor. It records exact source, commands, outputs and hashes.
-It requires separate EC workload approval before execution; it does not publish.
+Execution uses a separately approved EC workload declaration; it does not publish.
