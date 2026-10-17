@@ -13,6 +13,10 @@ from pinwash.textutil import dump_json, sha256_bytes
 
 HELP = """pinwash — flag harness-weakening git diffs
 
+  pinwash session start              # record the starting commit
+  pinwash session review             # explain the whole session
+  pinwash review [RANGE]              # explain one diff
+  pinwash session --help
   python -m pinwash check [RANGE]
   python -m pinwash check              # HEAD vs worktree
   python -m pinwash --version
@@ -137,6 +141,9 @@ def _self_tests() -> dict[str, Any]:
 def doctor() -> int:
     root = Path(__file__).resolve().parent.parent
     spec = root / "SPEC.md"
+    if (root / "pinwash" / "_verification").is_dir():
+        from pinwash.verification import installed_doctor
+        return installed_doctor(root / "pinwash")
     if not spec.is_file():
         sys.stderr.write("pinwash doctor: SPEC.md missing\n")
         return 2
@@ -168,6 +175,9 @@ def _dispatch(args: list[str]) -> int:
     if args[0] in {"-V", "--version", "version"}:
         sys.stdout.write(f"pinwash {__version__} spec {SPEC_VERSION}\n")
         return 0
+    if args[0] in {"review", "session"}:
+        from pinwash.human_cli import main as human_main
+        return human_main(args)
     if args[0] == "doctor":
         return doctor()
     if args[0] != "check":

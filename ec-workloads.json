@@ -1,6 +1,14 @@
 {
   "schema_version": 1,
   "workloads": {
+    "package-verify": {
+      "description": "PROPOSED, requires separate human approval and EC registry admission. At one fixed reviewed PinWash SHA on the EC pool (never either work machine), create temporary build/runtime venvs with the pool Python and its bundled pip. Download only setuptools-83.0.0-py3-none-any.whl from https://files.pythonhosted.org/packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl and require SHA-256 29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3. Install it without dependencies or index into the temporary builder. Build wheel and sdist from a temporary exact source copy, rebuild a wheel from the sdist, compare their file contents, verify bundled tests/contracts and exact source bytes. Install both wheels offline in separate clean temporary venvs, verify console entry/metadata, run trusted Git fixtures through session start/review and JSON reporting outside the checkout, and run each installed doctor's full self-tests. No subject execution, models, global installation, host changes, cache or publication. Record source/runtime, every command, exit, stdout/stderr hashes, artifacts and SHA-256 in EC_WORKLOAD_OUT. Suite/doctor failures are failures; no cross-platform or release claim.",
+      "entry": "workloads/package_verify/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 60,
+      "cache": false,
+      "parameters": {}
+    },
     "alpha2-verify": {
       "description": "Verify one reviewed pinwash commit on the EC pool: run the complete stdlib unittest suite, require nonzero tests and no skips, require doctor to run the same tests successfully, and compare raw findings JSON from two independent processes with different PYTHONHASHSEED values. Record the exact source SHA, runtime, commands, exit codes, test counts, and output hashes. No dependency installation, subject execution, network requests, cache, or publication from the workload.",
       "entry": "workloads/alpha2_verify/run.py",

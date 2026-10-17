@@ -808,6 +808,20 @@ def _merge_bases(store: _Store, one: str, two: str) -> list[str]:
     return best
 
 
+def repository_root(repo: Path) -> Path:
+    """Validated worktree root for consumers that always review the whole repo."""
+    _fmt, prefix = _layout(repo)
+    return repo.resolve().joinpath(*([".."] * prefix.count(b"/"))).resolve()
+
+
+def resolve_commit(repo: Path, ref: str = "HEAD") -> str:
+    """Freeze a ref to a rehashed commit, without replacements or lazy fetch."""
+    fmt, _prefix = _layout(repo)
+    oid = _rev(repo, fmt, ref)
+    with _Store(repo, fmt) as store:
+        return store.peel(oid, b"commit")
+
+
 def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str]:
     """Return (base_spec, head_spec, base_label, head_label).
 

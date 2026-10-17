@@ -1,0 +1,6 @@
+include SPEC.md THREATMODEL.md README.md pyproject.toml setup.py
+recursive-include tests *.py
+recursive-include docs *.md
+exclude ec-workloads.json
+global-exclude *.py[cod]
+global-exclude __pycache__
