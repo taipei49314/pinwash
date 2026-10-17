@@ -13,6 +13,8 @@ commit or stash your own changes first. PinWash never stashes, commits or
 rewrites them. Readiness compares bytes without running Git clean filters;
 UTF-8 LF/CRLF-only differences are accepted for normal Windows checkouts, and
 symlink text is compared to its committed target. It is not a Git status claim.
+Directory and dangling symlink nodes are also checked by their link text;
+this readiness check does not extend the scanner's supported surfaces.
 Other custom-filter transformations may need a checkout without those filters.
 Ignored content retains the scanner's documented coverage limits.
 
@@ -32,6 +34,7 @@ or an approval of a new exemption. Original records stay in `sessions/`.
 Run `pinwash session review` after stopping all agent writers. Interactive use
 asks for confirmation. Noninteractive use requires `--stopped`, an assertion
 by the trusted caller, not evidence that PinWash stopped or inspected processes.
+The interactive prompt goes to stderr so `--json` keeps stdout as valid JSON.
 
 The consumer freezes the current HEAD and runs:
 

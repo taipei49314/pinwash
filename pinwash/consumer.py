@@ -40,10 +40,12 @@ def _inspect(repo_path: str) -> dict[str, Any]:
     """Runs in a bounded child; no subject programs, filters or hooks run."""
     from pinwash.gitrepo import (
         ignored_surface_paths, ls_tree, ls_worktree, repository_root, resolve_commit,
+        worktree_link_targets,
     )
     repo = repository_root(Path(repo_path))
     head = resolve_commit(repo)
     files, unread = ls_worktree(repo)
+    links = worktree_link_targets(repo)
     ignored = ignored_surface_paths(repo)
     digest = hashlib.sha256()
     for name, data in sorted(files.items()):
@@ -51,18 +53,22 @@ def _inspect(repo_path: str) -> dict[str, Any]:
         digest.update(len(encoded).to_bytes(8, "big") + encoded)
         digest.update(len(data).to_bytes(8, "big") + data)
     digest.update(json.dumps([unread, ignored], ensure_ascii=True, sort_keys=True).encode())
+    for name, target in sorted(links.items()):
+        encoded = os.fsencode(name)
+        digest.update(b"link" + len(encoded).to_bytes(8, "big") + encoded)
+        digest.update(len(target).to_bytes(8, "big") + target)
     baseline = ls_tree(repo, head)
     def same(path: str, data: bytes) -> bool:
-        target = repo.joinpath(*path.split("/"))
-        if target.is_symlink():
-            return os.fsencode(os.readlink(target)) == baseline[path]
+        if path in links:
+            return data == baseline[path]
         if data == baseline[path]:
             return True
         try:
             return data.decode("utf-8").replace("\r\n", "\n") == baseline[path].decode("utf-8").replace("\r\n", "\n")
         except UnicodeError:
             return False
-    clean = not unread and files.keys() == baseline.keys() and all(same(p, d) for p, d in files.items())
+    readiness = files | links
+    clean = not unread and readiness.keys() == baseline.keys() and all(same(p, d) for p, d in readiness.items())
     return {"repo": str(repo), "head": head, "tree_digest": digest.hexdigest(), "clean": clean}
 
 

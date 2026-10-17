@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import io
 import subprocess
 import sys
 import tempfile
@@ -9,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pinwash.consumer import ConsumerError, collect, invoke, summarize, validate_result
+from pinwash.consumer import ConsumerError, _inspect, collect, invoke, summarize, validate_result
 from pinwash.findings import envelope, make_finding
 from pinwash.report import render
 from pinwash.session import _read, _write
@@ -261,6 +262,52 @@ class InstalledDoctorRouting(unittest.TestCase):
             with patch("pinwash.verification.subprocess.run") as child:
                 self.assertEqual(installed_doctor(package), 2)
                 child.assert_not_called()
+
+
+class ConsumerReadinessAndStreams(unittest.TestCase):
+    def test_link_nodes_not_followed_for_readiness_or_custody(self):
+        root = Path.cwd()
+        links = {"directory-link": b"some-directory", "dangling-link": b"absent"}
+        with patch("pinwash.gitrepo.repository_root", return_value=root), \
+                patch("pinwash.gitrepo.resolve_commit", return_value="a" * 40), \
+                patch("pinwash.gitrepo.ls_tree", return_value=links), \
+                patch("pinwash.gitrepo.ls_worktree", return_value=({}, [])), \
+                patch("pinwash.gitrepo.ignored_surface_paths", return_value=([], [], [])), \
+                patch("pinwash.gitrepo.worktree_link_targets", return_value=links) as observed:
+            first = _inspect(str(root))
+            self.assertTrue(first["clean"])
+            observed.return_value = dict(links, **{"dangling-link": b"other-absent"})
+            second = _inspect(str(root))
+            self.assertFalse(second["clean"])
+            self.assertNotEqual(first["tree_digest"], second["tree_digest"])
+            observed.return_value = dict(links, **{"untracked-link": b"absent"})
+            self.assertFalse(_inspect(str(root))["clean"])
+
+    def test_link_listing_reads_link_text_without_opening_target(self):
+        from pinwash.gitrepo import worktree_link_targets
+        listing = subprocess.CompletedProcess([], 0, b"directory-link/\0dangling-link\0regular\0", b"")
+        with patch("pinwash.gitrepo._run", return_value=listing), \
+                patch.object(Path, "is_symlink", side_effect=[True, True, False]), \
+                patch("pinwash.gitrepo.os.readlink", side_effect=["directory", "absent"]), \
+                patch.object(Path, "read_bytes", side_effect=AssertionError("must not follow target")):
+            self.assertEqual(worktree_link_targets(Path.cwd()),
+                             {"directory-link": b"directory", "dangling-link": b"absent"})
+
+    def test_interactive_json_prompt_never_pollutes_stdout(self):
+        from pinwash import human_cli
+        output = io.BytesIO()
+        stdout = io.TextIOWrapper(output, encoding="utf-8")
+        report = summarize([])
+        with patch("pinwash.human_cli.sys.stdout", stdout), \
+                patch("pinwash.human_cli.sys.stderr", new_callable=io.StringIO) as stderr, \
+                patch("pinwash.human_cli.sys.stdin.isatty", return_value=True), \
+                patch("builtins.input", return_value="yes") as answer, \
+                patch("pinwash.human_cli.review", return_value=report) as review:
+            self.assertEqual(human_cli.main(["session", "review", "--json"]), 0)
+            self.assertEqual(json.loads(output.getvalue()), report)
+            self.assertIn("stopped writing", stderr.getvalue())
+            answer.assert_called_once_with()
+            self.assertTrue(review.call_args.kwargs["stopped"])
 
 
 if __name__ == "__main__":
