@@ -4,3 +4,6 @@ __pycache__/
 venv/
 .pytest_cache/
 .pinwash/allow.local.toml
+build/
+dist/
+*.egg-info/

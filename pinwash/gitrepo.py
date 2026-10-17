@@ -808,6 +808,20 @@ def _merge_bases(store: _Store, one: str, two: str) -> list[str]:
     return best
 
 
+def repository_root(repo: Path) -> Path:
+    """Validated worktree root for consumers that always review the whole repo."""
+    _fmt, prefix = _layout(repo)
+    return repo.resolve().joinpath(*([".."] * prefix.count(b"/"))).resolve()
+
+
+def resolve_commit(repo: Path, ref: str = "HEAD") -> str:
+    """Freeze a ref to a rehashed commit, without replacements or lazy fetch."""
+    fmt, _prefix = _layout(repo)
+    oid = _rev(repo, fmt, ref)
+    with _Store(repo, fmt) as store:
+        return store.peel(oid, b"commit")
+
+
 def resolve_range(repo: Path, range_arg: str | None) -> tuple[str, str, str, str]:
     """Return (base_spec, head_spec, base_label, head_label).
 
@@ -917,6 +931,25 @@ def _index_paths(repo: Path) -> frozenset[str]:
 
 # SPEC §3.2 (spec 19 review): the paths config_rule.CONFIG_ORDER names.
 _CHECKWASH_CONFIGS = frozenset({".checkwash/config.toml", ".greenwash/config.toml"})
+
+
+def worktree_link_targets(repo: Path) -> dict[str, bytes]:
+    """Link nodes for consumer readiness/custody; do not follow their targets.
+
+    This does not extend the scanner's supported surfaces or change ls_worktree.
+    """
+    proc = _run(repo, ["ls-files", "-z", "-co", "--exclude-standard"])
+    if proc.returncode != 0:
+        raise GitError(_UNREADABLE_GIT)
+    links = {}
+    for name in proc.stdout.split(b"\0"):
+        if not name:
+            continue
+        path = name.decode("utf-8", "surrogateescape").rstrip("/")
+        full = repo.joinpath(*path.split("/"))
+        if full.is_symlink():
+            links[path] = os.fsencode(os.readlink(full))
+    return links
 
 
 def ls_worktree(repo: Path) -> tuple[dict[str, bytes], list[str]]:
