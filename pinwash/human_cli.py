@@ -69,7 +69,10 @@ def main(args: list[str]) -> int:
             if not stopped and sys.stdin.isatty():
                 sys.stderr.write("Have the agent and ALL processes it started stopped writing? [y/N] ")
                 sys.stderr.flush()
-                answer = input()
+                try:
+                    answer = input()
+                except EOFError:
+                    answer = ""
                 stopped = answer.strip().lower() in ("y", "yes")
             report = review(repo, stopped=stopped, state_dir=options.state_dir, timeout=options.timeout)
         if options.json:

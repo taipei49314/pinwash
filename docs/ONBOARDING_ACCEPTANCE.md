@@ -46,6 +46,26 @@ without a final test count or doctor payload. Raw JSON equality and source
 integrity checks passed on that SHA only. EC T-555 preserves the original
 receipt; the timeout is not package acceptance or evidence about a later SHA.
 
+The first installed-package attempt, [39064722278](https://github.com/taipei49314/estate-consolidation/actions/runs/39064722278),
+ran source `79564e86ebc05f8bf8f49dfceeb719361f0f5a9b` on DESKTOP-D127QSP after
+EC PR #192 merged. Wheel/sdist/rebuild content checks, the first installation,
+and real session text/JSON fixtures succeeded. Installed doctor completed with
+620 tests, 13 failures, 9 errors and 10 skips (exit 2); this was not a timeout.
+The second wheel's installation/doctor was not reached. All artifacts remain
+unaccepted. The immutable receipt is EC commit
+`51ecae01921e79ec89eb74d05458e90312997080`.
+
+That run exposed a new consumer EOF defect: an apparently interactive stdin can
+close before the stopped-writer answer. The consumer now treats EOF as no
+attestation, preserves JSON output and exits 2 before accessing session state;
+a focused regression test covers this path. This correction needs pool validation.
+The unchanged suite also contains explicit POSIX/Linux-only tests, Windows
+symlink privilege errors and older portability failures. The existing doctor
+rejects skips, so the original full-suite, zero-skip acceptance cannot succeed
+on native Windows as currently specified. No skip has been relabeled as success;
+SPEC, frozen gates and the approved workload remain unchanged. A qualified Linux
+lane or a separately reviewed portability scope is needed for full acceptance.
+
 Local execution: **NOT_RUN：工作機規則（POLICY work-machine-local），本機僅編輯及唯讀審查；產品測試、建置、安裝驗收走已核可 pool 工作負載。**
 
 Pool results and exact source/run links are recorded with the PR. Source-suite

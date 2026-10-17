@@ -309,6 +309,24 @@ class ConsumerReadinessAndStreams(unittest.TestCase):
             answer.assert_called_once_with()
             self.assertTrue(review.call_args.kwargs["stopped"])
 
+    def test_interactive_eof_returns_json_without_attesting_or_reading_state(self):
+        from pinwash import human_cli
+        output = io.BytesIO()
+        stdout = io.TextIOWrapper(output, encoding="utf-8")
+        with patch("pinwash.human_cli.sys.stdout", stdout), \
+                patch("pinwash.human_cli.sys.stderr", new_callable=io.StringIO) as stderr, \
+                patch("pinwash.human_cli.sys.stdin.isatty", return_value=True), \
+                patch("builtins.input", side_effect=EOFError), \
+                patch("pinwash.session.inspect") as inspect, \
+                patch("pinwash.session._read") as read:
+            self.assertEqual(human_cli.main(["session", "review", "--json"]), 2)
+            report = json.loads(output.getvalue())
+            self.assertEqual(report["exit_code"], 2)
+            self.assertIn("Stop the agent", str(report["errors"]))
+            self.assertIn("stopped writing", stderr.getvalue())
+            inspect.assert_not_called()
+            read.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
