@@ -52,6 +52,8 @@ def main():
         except subprocess.TimeoutExpired as exc:
             code, stdout, stderr = 2, exc.stdout or b"", exc.stderr or b""
             stderr += b"\nPACKAGE STEP TIMEOUT\n"
+        except OSError as exc:
+            code, stdout, stderr = 2, b"", str(exc).encode("utf-8", "replace")
         (out / f"{name}.stdout").write_bytes(stdout)
         (out / f"{name}.stderr").write_bytes(stderr)
         steps.append({"name": name, "command": args, "cwd": str(cwd), "exit_code": code,
@@ -150,12 +152,20 @@ def main():
                 for source_py in (ROOT / "pinwash").rglob("*.py"):
                     if (installed / source_py.relative_to(ROOT / "pinwash")).read_bytes() != source_py.read_bytes():
                         raise RuntimeError("Installed code differs from exact source")
+                installed_bundle = installed / "_verification"
+                if {p.relative_to(installed_bundle).as_posix(): p.read_bytes()
+                    for p in installed_bundle.rglob("*") if p.is_file()
+                    and "__pycache__" not in p.parts and p.suffix != ".pyc"} != expected_bundle:
+                    raise RuntimeError("Installed verification resources differ from exact source")
                 fixture = scratch / f"subject-{number}"
                 fixture.mkdir()
                 (fixture / ".claude").mkdir()
                 (fixture / ".claude" / "settings.json").write_text('{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"python hooks/judge.py"}]}]}}')
                 (fixture / "hooks").mkdir()
-                (fixture / "hooks" / "judge.py").write_text('raise RuntimeError("subject must not execute")\n')
+                executed = scratch / f"subject-executed-{number}"
+                sentinel = ("from pathlib import Path\nPath(" + repr(str(executed))
+                            + ").write_text('executed')\nraise RuntimeError('subject must not execute')\n")
+                (fixture / "hooks" / "judge.py").write_text(sentinel, encoding="utf-8")
                 git = ["git", "-c", "user.name=PinWash acceptance", "-c", "user.email=pinwash@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=" + os.devnull]
                 run(f"{label}-git-init", git + ["init", "-b", "main"], fixture)
                 run(f"{label}-git-add", git + ["add", "."], fixture)
@@ -163,17 +173,23 @@ def main():
                 state = str(scratch / f"state-{number}")
                 run(f"{label}-start", [command, "session", "start", "--state-dir", state], fixture)
                 (fixture / ".claude" / "settings.json").write_text('{"hooks":{}}')
-                (fixture / "json.py").write_text('raise RuntimeError("subject import")\n')
+                (fixture / "json.py").write_text(sentinel, encoding="utf-8")
                 report_text = run(f"{label}-review", [command, "session", "review", "--state-dir", state, "--stopped"], fixture, accepted=(1,))
                 if b"Next:" not in report_text or b"HOOK_REMOVED" not in report_text:
                     raise RuntimeError("Human report missing explanation or next step")
                 result = json.loads(run(f"{label}-json", [command, "session", "review", "--state-dir", state, "--stopped", "--json"], fixture, accepted=(1,)))
                 if result["status"] != "block" or not result["execution_complete"] or len(result["runs"]) != 3:
                     raise RuntimeError("Installed session did not judge all three comparisons")
+                if executed.exists():
+                    raise RuntimeError("Installed consumer executed subject code")
                 doctor = json.loads(run(f"{label}-doctor", [command, "doctor"], scratch, timeout=1200))
                 tests = doctor["self_tests"]
                 if doctor["subject_judged"] is not False or not tests["ok"] or tests["tests_run"] < 1 or tests["skipped_count"] or tests.get("nested_depth") != 0:
                     raise RuntimeError("Installed doctor did not run the full passing suite")
+                if (doctor["spec_sha256"] != digest(ROOT / "SPEC.md")
+                        or doctor["spec_version"] != result["judge"]["spec_version"]
+                        or doctor["pinwash_version"] != metadata["version"]):
+                    raise RuntimeError("Installed doctor reported a different contract or version")
     except Exception as exc:
         problems.append(str(exc))
     result = {"source_sha": expected, "host": platform.node(), "python": sys.version,
