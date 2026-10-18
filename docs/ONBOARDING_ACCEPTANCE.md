@@ -76,12 +76,42 @@ regression is included. Overall status remains FAIL. The second installation
 was not reached. Receipt commit: `d5492098828dc8aa44636910e6204d5669e7f603`.
 Both attempts remain preserved; no additional unchanged Windows rerun is planned.
 
-The human selected Linux full acceptance on 2026-10-18 Asia/Taipei. EC T-535
-continues HOST50 qualification and the concrete dispatch proposal. This choice
-does not activate the Linux lane or authorize unlisted host changes. Qualified
-execution and Linux package-workload admission remain outstanding.
+The human selected Linux full acceptance, then explicitly approved one bounded
+PJU local Docker run and conditional acceptance after the work-machine conflict
+was explained: "核可本輪 PJU 執行及結果接受". EC T-559 recorded the decision and
+the named one-time grant before execution. Both prior HOST50 metadata grants
+remain consumed; the second returned INCOMPLETE because the fixed Docker path
+was absent. HOST50 is not qualified by the local result.
 
-Local execution: **NOT_RUN：工作機規則（POLICY work-machine-local），本機僅編輯及唯讀審查；產品測試、建置、安裝驗收走已核可 pool 工作負載。**
+The approved run at `ee332f6a6858badef36b428bb6655da25808c23c` passed on
+2026-10-18. The original wheel and the wheel rebuilt from sdist each installed
+in a separate environment and passed the full installed doctor: **621 tests,
+0 failures, 0 errors, 0 skips**, nested_depth=0, subject_judged=false. Both
+session fixtures completed all three comparisons, preserved text/JSON reports
+and did not execute subject code. Package contents, installed resources, SPEC27
+and version0.0.0 matched. Source HEAD and cleanliness were checked before and
+after the run.
+
+This is **HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL**, on LAPTOP-01AGNPJU,
+Linux/amd64 with Python3.11.16 and Git2.55.0. The fixed existing image ran once
+with network disabled and offline hash-pinned setuptools83. Product payload
+took 158.402 seconds; preflight through exact-CID cleanup took about508 seconds,
+within the approved60-minute total. No retry or product publication occurred.
+
+The operator initially misclassified the cleanup response because Docker's
+`error: no such object` text was lowercase. The original report is preserved.
+Readback of the same raw remove exit0/exact CID and subsequent inspect
+exit1/empty array/exact absence response confirmed completed cleanup; an
+independent read-only review verified the hashes and result. No Docker action
+was repeated and no acceptance condition was waived.
+
+The human's prior conditional acceptance is satisfied for this exact source and
+runtime. EC result evidence is under request
+`c2aac623-0cda-457d-ad3c-68d9796f1926` (`result.md`, `acceptance.json`,
+`raw-proof.json`, `output-manifest.json`). The original wheel SHA256 is
+`d57233f12bc6e31907288b1aa90a82566c0eca5e91d96753e0d9c48705ee147d`.
+The evidence update after the run changes documentation only; it does not
+claim a separate execution at that later documentation commit.
 
 Pool results and exact source/run links are recorded with the PR. Source-suite
 success is not package acceptance, and one Windows result is not a cross-platform
