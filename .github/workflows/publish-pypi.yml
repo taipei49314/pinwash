@@ -1,0 +1,70 @@
+name: Publish verified PinWash 0.1.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact accepted source commit tagged v0.1.0
+        required: true
+        type: string
+      wheel_sha256:
+        description: Accepted original wheel SHA-256
+        required: true
+        type: string
+      sdist_sha256:
+        description: Accepted source distribution SHA-256
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pinwash-pypi-0.1.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'taipei49314/pinwash' &&
+      github.ref == 'refs/tags/v0.1.0' &&
+      github.sha == inputs.source_sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/pinwash/0.1.0/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download only the accepted release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: taipei49314/pinwash
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          WHEEL_SHA: ${{ inputs.wheel_sha256 }}
+          SDIST_SHA: ${{ inputs.sdist_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$WHEEL_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$SDIST_SHA" =~ ^[0-9a-f]{64}$ ]]
+          gh api repos/taipei49314/pinwash/releases/tags/v0.1.0 > release.json
+          jq -e --arg source "$SOURCE_SHA" \
+            '.tag_name == "v0.1.0" and .target_commitish == $source and .draft == false' release.json
+          mkdir dist
+          gh release download v0.1.0 --dir dist \
+            --pattern pinwash-0.1.0-py3-none-any.whl --pattern pinwash-0.1.0.tar.gz
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
+          printf '%s  %s\n' "$WHEEL_SHA" dist/pinwash-0.1.0-py3-none-any.whl | sha256sum --check --strict -
+          printf '%s  %s\n' "$SDIST_SHA" dist/pinwash-0.1.0.tar.gz | sha256sum --check --strict -
+      - name: Publish unchanged artifacts using PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          packages-dir: dist/
+          verify-metadata: true
+          skip-existing: false
+          print-hash: true
+          attestations: true

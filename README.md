@@ -6,30 +6,27 @@
 
 Local-first. Deterministic. No LLM. No network. Does not execute the subject. Does not enforce anything.
 
-This repository has a local **v0 engine**. There is no Release, no PyPI package, and no 1.0 claim. Read [SPEC.md](SPEC.md) (contract) and [ARCHITECTURE.md](ARCHITECTURE.md) (layers; SPEC wins on conflict). Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
+PinWash **0.1.0 is Alpha**, licensed under MIT. The local v0 engine follows SPEC 27; this is not a 1.0 stability claim. Read [SPEC.md](https://github.com/taipei49314/pinwash/blob/v0.1.0/SPEC.md) (contract) and [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/v0.1.0/ARCHITECTURE.md) (layers; SPEC wins on conflict). Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
 
-**New here? Follow the [five-minute quickstart](docs/QUICKSTART.md): install an
-isolated candidate, try a small example, then use the same two steps in your
+**New here? Follow the [five-minute quickstart](https://github.com/taipei49314/pinwash/blob/v0.1.0/docs/QUICKSTART.md): install an
+isolated installation, try a small example, then use the same two steps in your
 project.** Installation needs Python 3.11+, Git and download access. The guide
 also explains status, exit codes and recovery. The time is a walkthrough target,
 not a measured first-user success claim.
 
 ## Install
 
-Requires Python 3.11+ and Git. This is a **source installation candidate**;
-there is no published PyPI package or release yet. Install a reviewed checkout
-outside the project your agent will edit, using [pipx](https://pipx.pypa.io/)
-to keep the application in its own environment:
+Requires Python 3.11+ and Git. Install outside the project your agent will edit,
+using [pipx](https://pipx.pypa.io/) to keep PinWash in its own environment:
 
 ```text
-pipx install /absolute/path/to/trusted/pinwash-checkout
+pipx install pinwash==0.1.0
 ```
 
-On Windows, use the full Windows path instead. An accepted wheel can be installed
-the same way (`pipx install /path/to/pinwash-0.0.0-py3-none-any.whl`). Source
-installation downloads the pinned build backend; installed scans use no network
-and have no runtime dependencies. See [installation and packaging](docs/INSTALL.md)
-for a venv alternative and the separate package acceptance procedure.
+Linux is the package acceptance target; Windows/macOS are not yet validated.
+Installed scans use no network and have no runtime dependencies. See
+[installation](https://github.com/taipei49314/pinwash/blob/v0.1.0/docs/INSTALL.md) for a venv alternative and a local wheel install.
+Keep this installation fixed until the current session has been reviewed.
 
 ## Review an AI coding session
 
@@ -79,7 +76,7 @@ when no session exists or the historical review blocked; exit `2` needs attentio
 Starting never overwrites an existing session by default. After reviewing the
 previous work and choosing the next committed baseline, use
 `pinwash session start --replace`. Previous baseline records and reports remain.
-For details and common errors, see [the session guide](docs/SESSIONS.md).
+For details and common errors, see [the session guide](https://github.com/taipei49314/pinwash/blob/v0.1.0/docs/SESSIONS.md).
 
 **Trust boundary:** keep both PinWash and its state outside the agent's writable
 scope. State is local convenience data, not signed evidence; placing it outside
@@ -142,26 +139,26 @@ pinwash is not checkwash (product tests), not tripwire (hooks that run judges), 
 
 ## Status
 
-The [second alpha-strengthening round](docs/ALPHA2.md) repaired contract fidelity
+The [second alpha-strengthening round](https://github.com/taipei49314/pinwash/blob/v0.1.0/docs/ALPHA2.md) repaired contract fidelity
 and added real Git/CLI regressions. It is an engineering milestone, not version
 `2.0.0`. Its approved EC pool verification passed 96 tests and doctor on the
 implementation commit `8e0688c` and, separately, on the merged review head
 `e89f05a`; the acceptance document links both receipts and lists what review
 after the merge found (issues #3–#6). A commit's `ec / alpha2-verify` check
 covers that commit only. New onboarding guidance has its own
-[validation record](docs/GUIDANCE_ACCEPTANCE.md); earlier results do not validate
+[validation record](https://github.com/taipei49314/pinwash/blob/v0.1.0/docs/GUIDANCE_ACCEPTANCE.md); earlier results do not validate
 new code.
 
 | Claim | Status |
 |---|---|
-| Frozen rule IDs and pin lattice | yes, [SPEC.md](SPEC.md) |
-| North star layers | yes, [ARCHITECTURE.md](ARCHITECTURE.md); not a 1.0 claim |
-| Engine `python -m pinwash check` | yes, local v0.0.0 |
+| Frozen rule IDs and pin lattice | yes, [SPEC.md](https://github.com/taipei49314/pinwash/blob/v0.1.0/SPEC.md) |
+| North star layers | yes, [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/v0.1.0/ARCHITECTURE.md); not a 1.0 claim |
+| Engine `python -m pinwash check` | yes, v0.1.0 (Alpha) |
 | Fixtures A1–A11 | yes, `tests/gates/test_v0_acceptance.py` (A11 = SPEC file not edited for the engine) |
-| Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — this repository has no CI workflow; A10 compares LF and CRLF subject files in one run on one host. Local evidence, Linux only: on `f849b8a`, `pinwash check` stdout bytes and exit codes were identical across CPython 3.11.17, 3.12.3 and 3.13.16, each with `PYTHONHASHSEED` 1 and 17, on 58 cells (22 fixture shapes in 40 real git repos, run as `base..head`, `side...head` and worktree; 348 runs), with empty stderr. The shapes include CRLF files, non-ASCII and non-UTF-8 paths, JSON nested 1500 and 20000 deep, a 5000-digit integer, a submodule gitlink and worktree files that cannot be read. At `c71c468` the 6 cells nested 1500 deep exited 2 on 3.11 only (3.12 and 3.13 printed the bytes `f849b8a` prints on all three), and the 3 long-integer, 2 non-UTF-8-path, 3 nested-20000, 3 gitlink and 2 unreadable-file cells exited 2 on all three. Windows and macOS untested |
-| Live-fire validated | records published, not re-judged — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records are in [`live-fire/`](live-fire/) (PREREG, report, per-cell patch and pinned-judge output for rounds 0–4); the fixtures derived from them are in `tests/test_unit.py`. |
+| Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — no cross-platform CI matrix is configured; A10 compares LF and CRLF subject files in one run on one host. Local evidence, Linux only: on `f849b8a`, `pinwash check` stdout bytes and exit codes were identical across CPython 3.11.17, 3.12.3 and 3.13.16, each with `PYTHONHASHSEED` 1 and 17, on 58 cells (22 fixture shapes in 40 real git repos, run as `base..head`, `side...head` and worktree; 348 runs), with empty stderr. The shapes include CRLF files, non-ASCII and non-UTF-8 paths, JSON nested 1500 and 20000 deep, a 5000-digit integer, a submodule gitlink and worktree files that cannot be read. At `c71c468` the 6 cells nested 1500 deep exited 2 on 3.11 only (3.12 and 3.13 printed the bytes `f849b8a` prints on all three), and the 3 long-integer, 2 non-UTF-8-path, 3 nested-20000, 3 gitlink and 2 unreadable-file cells exited 2 on all three. Windows and macOS untested |
+| Live-fire validated | records published, not re-judged — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records are in [`live-fire/`](https://github.com/taipei49314/pinwash/tree/v0.1.0/live-fire/) (PREREG, report, per-cell patch and pinned-judge output for rounds 0–4); the fixtures derived from them are in `tests/test_unit.py`. |
 | 1.0 | no |
 
 ## License
 
-Not chosen yet. The repository is public on GitHub and has no LICENSE file; choosing a license is a human decision. SPEC is the contract.
+[MIT](https://github.com/taipei49314/pinwash/blob/v0.1.0/LICENSE).

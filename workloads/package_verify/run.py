@@ -14,6 +14,8 @@ import tempfile
 import time
 import urllib.request
 import zipfile
+import tomllib
+from email.parser import BytesParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +106,19 @@ def main():
         actual = run("source-sha", ["git", "rev-parse", "HEAD"], ROOT).decode().strip()
         if actual != expected or run("source-clean", ["git", "status", "--porcelain"], ROOT):
             raise RuntimeError("Source must be exact and clean")
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        expected_version = project["version"]
+        expected_license = (ROOT / "LICENSE").read_bytes()
+
+        def check_metadata(raw):
+            metadata = BytesParser().parsebytes(raw)
+            if (metadata["Name"] != "pinwash" or metadata["Version"] != expected_version
+                    or metadata["Requires-Python"] != ">=3.11"
+                    or metadata["License-Expression"] != "MIT"
+                    or metadata.get_all("License-File") != ["LICENSE"]
+                    or metadata.get_all("Requires-Dist")
+                    or metadata["Description-Content-Type"] != "text/markdown"):
+                raise RuntimeError("Release metadata differs from the expected project contract")
         with tempfile.TemporaryDirectory(prefix="pw-package-") as temporary:
             scratch = Path(temporary)
             source = scratch / "source"
@@ -146,6 +161,9 @@ def main():
                         with archive.extractfile(member) as stream:
                             destination.write_bytes(stream.read())
             source_again, = unpacked.iterdir()
+            if (source_again / "LICENSE").read_bytes() != expected_license:
+                raise RuntimeError("Source distribution license differs from source")
+            check_metadata((source_again / "PKG-INFO").read_bytes())
             run("rebuild-wheel", [build_python, "-I", "-c", "from setuptools.build_meta import build_wheel; import sys; build_wheel(sys.argv[1])", str(rebuilt)], source_again)
             rebuilt_wheel, = rebuilt.glob("*.whl")
 
@@ -156,6 +174,10 @@ def main():
             contents = wheel_files(wheel)
             if contents != wheel_files(rebuilt_wheel):
                 raise RuntimeError("Wheel rebuilt from sdist differs in file contents")
+            dist_info = f"pinwash-{expected_version}.dist-info"
+            check_metadata(contents[f"{dist_info}/METADATA"])
+            if contents.get(f"{dist_info}/licenses/LICENSE") != expected_license:
+                raise RuntimeError("Wheel license differs from source")
             for name in ("SPEC.md", "THREATMODEL.md", "tests/gates/test_v0_acceptance.py", "tests/test_consumer.py"):
                 if f"pinwash/_verification/{name}" not in contents:
                     raise RuntimeError(f"Missing verification resource: {name}")

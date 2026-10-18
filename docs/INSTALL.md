@@ -1,45 +1,49 @@
-# Installation candidate
+# Install PinWash 0.1.0
 
 For a complete source download, isolated installation and first review, start
 with the [five-minute quickstart](QUICKSTART.md). This page covers alternatives
 and packaging details.
 
-Python 3.11+ and Git are required. PinWash has zero runtime dependencies. There
-is no PyPI publication or GitHub release for this work, and the license remains
-undecided by the human maintainer. Candidate archives retain version 0.0.0 and
-must be identified by source SHA and artifact SHA-256, not version alone.
+Python 3.11+ and Git are required. PinWash 0.1.0 is Alpha, licensed under MIT,
+and has zero runtime dependencies. Linux is the package acceptance target;
+Windows/macOS acceptance is not claimed. Keep the judge outside the project
+that the agent edits and fixed throughout each session.
 
 ## Install in an isolated environment
 
-Recommended when pipx is already available:
+If pipx is already available:
+
+```text
+pipx install pinwash==0.1.0
+```
+
+Otherwise use a new, separate environment (POSIX shell):
+
+```sh
+python3 -m venv /absolute/path/to/pinwash-env &&
+/absolute/path/to/pinwash-env/bin/python -m pip install 'pinwash==0.1.0'
+```
+
+Use that environment's `bin/pinwash`, or activate it for the short command.
+Never overwrite an installation used by an active session.
+
+For an accepted wheel whose source and SHA-256 you have checked:
+
+```text
+pipx install /absolute/path/to/pinwash-0.1.0-py3-none-any.whl
+```
+
+For a reviewed source checkout at a fixed SHA:
 
 ```text
 pipx install /absolute/path/to/trusted/pinwash-checkout
 ```
 
-The checkout must be reviewed and outside the project the agent edits. This
-downloads the pinned setuptools build backend during installation. Installing
-an accepted wheel instead does not require the build backend:
-
-```text
-pipx install /absolute/path/to/pinwash-0.0.0-py3-none-any.whl
-```
-
-Alternatively create a dedicated venv outside the project with your existing
-Python, then use that venv's Python to install the trusted checkout or wheel:
-
-```text
-python -m venv /absolute/path/to/pinwash-env
-/absolute/path/to/pinwash-env/bin/python -m pip install /absolute/path/to/trusted/pinwash-checkout
-```
-
-On Windows use `C:\path\to\pinwash-env\Scripts\python.exe` and run
-`C:\path\to\pinwash-env\Scripts\pinwash.exe`. On macOS/Linux use
-`/absolute/path/to/pinwash-env/bin/pinwash`. Activate the venv if you prefer the
-short `pinwash` command. Never install the judge into the agent's subject repo.
-
-See the README for `session start` and `session review`. Installation is not a
-claim of package acceptance; check the exact candidate's validation record.
+Source installation downloads pinned setuptools 83.0.0. Installing the wheel
+requires no build backend. Installed scans use no network. Read the
+[quickstart](QUICKSTART.md) for the first session and [release procedure](RELEASE.md)
+for how artifact hashes and publication are verified. Historical candidate
+acceptance documents cover only their recorded source, not this version.
 
 ## Build and verify
 
