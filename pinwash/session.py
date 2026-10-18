@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from pinwash.consumer import ConsumerError, collect, identity, inspect, summarize
+from pinwash.consumer import ConsumerError, collect, identity, inspect, record_error, summarize
 
 
 def _now() -> str:
@@ -127,7 +127,7 @@ def review(repo: Path, *, stopped: bool, state_dir: str | None = None,
             errors.append("Repository changed during review. Stop all writers and review again.")
         if identity() != judge or _read(active) != state:
             errors.append("Judge or session state changed during review.")
-    except ConsumerError as exc:
+    except (ConsumerError, OSError) as exc:
         errors.append(str(exc))
     report = summarize(runs, errors)
     report.update(session_id=state["id"], repo=str(root), base=base, head=head,
@@ -135,7 +135,11 @@ def review(repo: Path, *, stopped: bool, state_dir: str | None = None,
                   custody="local state; not protected against same-user modification")
     report_path = directory / "reports" / f"{state['id']}-{uuid.uuid4().hex}.json"
     report["report_path"] = str(report_path)
-    _write(report_path, report)
+    try:
+        _write(report_path, report)
+    except (ConsumerError, OSError) as exc:
+        report.pop("report_path")
+        record_error(report, f"Could not save report: {exc}")
     # Review never changes the baseline or accepts exemptions. Repeated reviews
     # are allowed; a new session requires an explicit start --replace.
     return report

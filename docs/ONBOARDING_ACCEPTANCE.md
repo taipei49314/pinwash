@@ -9,6 +9,25 @@ This branch implements packaging, plain-text/JSON consumer reports and
 of draft detector changes #50–52. SPEC, frozen acceptance gates, engine finding
 semantics and the approved alpha2 workload entry remain unchanged.
 
+## Merge-review correction awaiting verification
+
+The human requested review and merge of PR53 without publication on2026-10-18.
+Read-only review found that a late inspection/read failure in single-diff review,
+or a session report-save failure, could discard already collected blocking
+findings and raw runs. These failures already exited2; they were not false
+passes, but violated the evidence-retention contract.
+
+The correction retains the existing report and adds the late error, preserves
+blocking findings with exit2/incomplete, and removes report_path when saving
+fails. Three regression tests cover late inspection, failed save and judge-read
+failure while keeping an earlier comparison error. Independent static review
+found no remaining blocking issue in the correction. SPEC/engine/frozen gates
+and the package harness are unchanged.
+
+The earlier621-test accepted result below remains evidence only for ee332f6a;
+it does not verify this correction. Revalidation at the corrected source is
+pending. NOT_RUN：工作機規則（POLICY work-machine-local），先前單次PJU授權已consumed；本輪僅讀檔審查與修正。
+
 ## Acceptance criteria
 
 - A wheel contains the console entry, installed judge, original verification

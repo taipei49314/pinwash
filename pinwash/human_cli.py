@@ -6,7 +6,7 @@ import math
 import sys
 from pathlib import Path
 
-from pinwash.consumer import ConsumerError, collect, identity, inspect, summarize
+from pinwash.consumer import ConsumerError, collect, identity, inspect, record_error, summarize
 from pinwash.report import render, safe
 from pinwash.session import review, start
 from pinwash.textutil import dump_json
@@ -40,6 +40,7 @@ def main(args: list[str]) -> int:
     for command in (begin, end):
         command.add_argument("--state-dir", help="Trusted consumer state directory outside the subject repository")
     options = parser.parse_args(args)
+    report = None
     try:
         repo = Path.cwd()
         if options.command == "review":
@@ -47,10 +48,10 @@ def main(args: list[str]) -> int:
             judge = identity()
             root = Path(before["repo"])
             report = summarize(collect(root, [options.range], options.timeout))
+            report.update(judge=judge, repo=str(root), scope="single_diff")
             after = inspect(root, options.timeout)
             if before != after or judge != identity():
-                report = summarize(report["runs"], ["Repository or judge changed during review."])
-            report.update(judge=judge, repo=str(root), scope="single_diff")
+                record_error(report, "Repository or judge changed during review.")
         elif options.action == "start":
             state = start(repo, state_dir=options.state_dir, replace=options.replace, timeout=options.timeout)
             if options.json:
@@ -81,7 +82,9 @@ def main(args: list[str]) -> int:
             _text(render(report))
         return report["exit_code"]
     except (ConsumerError, OSError) as exc:
-        report = summarize([], [str(exc)])
+        if report is None:
+            report = summarize([])
+        record_error(report, str(exc))
         if options.json:
             sys.stdout.buffer.write(dump_json(report))
         else:

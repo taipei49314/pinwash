@@ -264,6 +264,72 @@ class InstalledDoctorRouting(unittest.TestCase):
                 child.assert_not_called()
 
 
+class LateConsumerFailures(unittest.TestCase):
+    def setUp(self):
+        self.root = Path.cwd().resolve()
+        self.judge = {"source_sha256": "a" * 64}
+        self.observation = {"repo": str(self.root), "head": "b" * 40, "tree_digest": "c" * 64}
+        self.finding = make_finding(rule="HOOK_REMOVED", severity="high", path=".claude/settings.json",
+                                    message="hook removed", before="run judge", after="")
+        payload = envelope(base_label="a", head_label="b", findings=[self.finding],
+                           config_errors=[], unknown_coverage=[])
+        self.runs = [{"range": "a..b", "exit_code": 1, "payload": payload}]
+        self.state = {"id": "d" * 32, "repo": str(self.root), "base": "e" * 40, "judge": self.judge}
+
+    def command(self, args):
+        from pinwash import human_cli
+        output = io.BytesIO()
+        stdout = io.TextIOWrapper(output, encoding="utf-8")
+        with patch("pinwash.human_cli.sys.stdout", stdout):
+            code = human_cli.main(args)
+            report = json.loads(output.getvalue())
+        self.assertEqual(code, 2)
+        self.assertEqual(report["exit_code"], 2)
+        self.assertEqual(report["status"], "block")
+        self.assertFalse(report["execution_complete"])
+        self.assertEqual(report["runs"], self.runs)
+        self.assertEqual(report["findings"][0]["fingerprint"], self.finding["fingerprint"])
+        return report
+
+    def test_single_diff_late_inspection_failure_keeps_completed_block(self):
+        for error in (ConsumerError("final inspection timed out"), OSError("final inspection unreadable")):
+            with self.subTest(error=type(error).__name__), \
+                    patch("pinwash.human_cli.inspect", side_effect=[self.observation, error]), \
+                    patch("pinwash.human_cli.identity", return_value=self.judge), \
+                    patch("pinwash.human_cli.collect", return_value=self.runs):
+                report = self.command(["review", "--json"])
+                self.assertEqual(report["judge"], self.judge)
+                self.assertIn(str(error), report["errors"])
+
+    def test_session_failed_save_keeps_completed_runs_without_saved_path(self):
+        self.runs = self.runs * 3
+        for error in (OSError("disk full"), ConsumerError("report publication failed")):
+            with self.subTest(error=type(error).__name__), \
+                    patch("pinwash.session.inspect", return_value=self.observation), \
+                    patch("pinwash.session.identity", return_value=self.judge), \
+                    patch("pinwash.session._paths", return_value=(self.root.parent / "state", self.root.parent / "active.json")), \
+                    patch("pinwash.session._read", return_value=self.state), \
+                    patch("pinwash.session.collect", return_value=self.runs), \
+                    patch("pinwash.session._write", side_effect=error):
+                report = self.command(["session", "review", "--stopped", "--json"])
+                self.assertNotIn("report_path", report)
+                self.assertIn("Could not save report", " ".join(report["errors"]))
+                self.assertNotIn("Saved report:", render(report))
+
+    def test_session_late_judge_read_error_retains_prior_comparison_error(self):
+        self.runs += [{"range": "a..WORKTREE", "exit_code": 2, "error": "comparison timed out"}]
+        with patch("pinwash.session.inspect", return_value=self.observation), \
+                patch("pinwash.session.identity", side_effect=[self.judge, OSError("judge file unreadable")]), \
+                patch("pinwash.session._paths", return_value=(self.root.parent / "state", self.root.parent / "active.json")), \
+                patch("pinwash.session._read", return_value=self.state), \
+                patch("pinwash.session.collect", return_value=self.runs), \
+                patch("pinwash.session._write") as write:
+            report = self.command(["session", "review", "--stopped", "--json"])
+            self.assertIn("judge file unreadable", report["errors"])
+            self.assertIn("a..WORKTREE: comparison timed out", report["errors"])
+            self.assertEqual(write.call_args.args[1], report)
+
+
 class ConsumerReadinessAndStreams(unittest.TestCase):
     def test_link_nodes_not_followed_for_readiness_or_custody(self):
         root = Path.cwd()

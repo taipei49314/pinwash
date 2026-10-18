@@ -202,3 +202,12 @@ def summarize(runs: list[dict[str, Any]], errors: list[str] | None = None) -> di
             "findings": sorted(findings.values(), key=lambda f: (f["path"], f["rule"], f["fingerprint"])),
             "unknown_coverage": [coverage[k] for k in sorted(coverage)],
             "config_errors": sorted(config_errors), "runs": runs}
+
+
+def record_error(report: dict[str, Any], message: str) -> None:
+    """Keep completed evidence when a later integrity or output step fails."""
+    report["errors"].append(message)
+    report["execution_complete"] = False
+    report["exit_code"] = 2
+    if report["status"] != "block":
+        report["status"] = "not_judged"
