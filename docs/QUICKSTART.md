@@ -7,9 +7,10 @@ It reads the diff; it does not run your application's tests.
 This is a **source candidate**, with no release or PyPI publication. The steps
 below use a fixed source revision and a separate Python environment. The
 five-minute target assumes Python 3.11+, Git, a POSIX shell and download access
-are already available; download time varies. Linux is the current package
-validation target. See the [candidate validation record](GUIDANCE_ACCEPTANCE.md)
-before treating this revision as accepted; Windows/macOS acceptance is separate.
+are already available; download time varies. This fixed revision passed Linux
+package validation in the
+[candidate validation record](GUIDANCE_ACCEPTANCE.md); Windows/macOS acceptance
+is separate.
 
 ## 1. Install outside the project
 
@@ -21,7 +22,7 @@ name rather than overwriting an existing installation or session.
 test ! -e "$HOME/.local/share/pinwash-quickstart-env" &&
 mkdir -p "$HOME/.local/share" &&
 git clone https://github.com/taipei49314/pinwash.git "$HOME/.local/share/pinwash-quickstart-source" &&
-git -C "$HOME/.local/share/pinwash-quickstart-source" checkout --detach 84a643b8352f0319628de6b8e6e19a47d4ff0e1e &&
+git -C "$HOME/.local/share/pinwash-quickstart-source" checkout --detach 7851de825545dcfe7ed8f2245be1abf7bac9b20e &&
 python3 -m venv "$HOME/.local/share/pinwash-quickstart-env" &&
 "$HOME/.local/share/pinwash-quickstart-env/bin/python" -m pip install "$HOME/.local/share/pinwash-quickstart-source" &&
 . "$HOME/.local/share/pinwash-quickstart-env/bin/activate"
