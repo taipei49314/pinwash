@@ -325,6 +325,7 @@ class UnknownCoverageReasons(unittest.TestCase):
             hook_coverage.FLAG_NOT_BOOLEAN,
             hook_coverage.DISABLE_ALL_HOOKS,
             hook_coverage.ENV_CHANGED,
+            hook_coverage.HANDLER_CHANGED,
         }
         gha = self._gha_reasons()
         # Spec 14: six grammar reasons (#23, #24, and the layout reason of

@@ -100,8 +100,37 @@ def _command_states_from_hook_object(
     return found
 
 
-def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
-    """Map event name -> commands, command states, matchers, array_len.
+# SPEC §5.1 (spec 28, AI-assisted ruling on #45): Claude handler types that
+# run a model, not a command. Claude Code 2.1.42 and 2.1.296 run them on Stop
+# and not under `disableAllHooks: true` (executed, #45); pinwash reads that
+# they are there, never what the model decides (R13).
+MODELED_HANDLER_TYPES = ("prompt", "agent")
+
+
+def _modeled_handlers(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """The prompt/agent handlers of one Claude matcher entry: items of the
+    entry's own `hooks` list, where Claude Code reads handlers, whose `type`
+    is in MODELED_HANDLER_TYPES and whose `prompt` is a string with
+    non-blank text. They are not commands: no §3.3 body is resolved for
+    them and no §5.1 skip key is read on them. An item that holds a string
+    `command` stays the command §5.1 reads (R24), never also a handler."""
+    items = entry.get("hooks")
+    if not isinstance(items, list):
+        return []
+    return [
+        item for item in items
+        if isinstance(item, dict)
+        and item.get("type") in MODELED_HANDLER_TYPES
+        and isinstance(item.get("prompt"), str)
+        and item["prompt"].strip()
+        and not isinstance(item.get("command"), str)
+    ]
+
+
+def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str, Any]]:
+    """Map event name -> commands, command states, matchers, array_len,
+    non_commands (the modeled prompt/agent handlers, spec 28: read only when
+    `claude`, and only in the object form, the one Claude Code reads).
 
     Skip flags live only in the command-local states (SPEC §5.1, spec 10);
     there is no per-event aggregate.
@@ -120,6 +149,7 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
             commands: list[str] = []
             command_states: list[tuple[str, dict[str, bool]]] = []
             matchers: list[str] = []
+            non_commands: list[dict[str, Any]] = []
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
@@ -127,11 +157,14 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
                     matchers.append(entry["matcher"])
                 commands.extend(_commands_from_hook_object(entry))
                 command_states.extend(_command_states_from_hook_object(entry))
+                if claude:
+                    non_commands.extend(_modeled_handlers(entry))
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,
                 "command_states": command_states,
                 "matchers": matchers,
+                "non_commands": non_commands,
             }
         return out
     if isinstance(hooks, list):
@@ -157,6 +190,7 @@ def extract_event_hooks(doc: Any) -> dict[str, dict[str, Any]]:
                 "commands": commands,
                 "command_states": command_states,
                 "matchers": matchers,
+                "non_commands": [],
             }
     return out
 

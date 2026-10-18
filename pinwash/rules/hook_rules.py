@@ -6,6 +6,10 @@ pairing); a Stop-like judge retargeted to a body that cannot refuse is
 `GATE_STUBBED`; an event that keeps commands but no live one after a live
 command left it is `HOOK_REMOVED`; and a command new to a Stop-like event
 keeps the §6.1 escalator off only when it resolves to a body that can refuse.
+
+Spec 28 (AI-assisted ruling on #45): the emptied clauses read what the event
+held at base, and a claude_settings prompt/agent handler is a hook a diff can
+remove, never a judge that keeps the §6.1 escalator off.
 """
 
 from __future__ import annotations
@@ -80,10 +84,13 @@ def _stop_count(
     resolved_only: bool = False,
     base_ev: dict[str, dict[str, Any]] | None = None,
     body_base: Bodies | None = None,
+    handlers: bool = False,
 ) -> int:
     """The Stop-like events of one file that keep a live command (§5.2).
 
-    With base_ev (the §6.1 escalator, spec 27), a command new to its
+    With handlers (the spec 24 switch only, spec 28), an event that holds a
+    modeled prompt/agent handler counts too. With base_ev (the §6.1
+    escalator, spec 27), a command new to its
     event counts only when it resolves to a target that can refuse. With
     resolved_only, a command §3.3 does not resolve does not count: the count
     the escalator would see if no unread judge body were credited (§3.3 row).
@@ -92,6 +99,14 @@ def _stop_count(
     for name in names:
         info = events.get(name)
         if not info:
+            continue
+        # SPEC §5.1 / §6.1 (spec 28, AI-assisted ruling on #45): a modeled
+        # prompt/agent handler is a Stop-like hook the switch turns off, so
+        # the switch's count credits it. No other count does: pinwash reads
+        # no decision of a model (R13), so a handler never keeps the
+        # escalator off and never stands in for a command in the §3.3 row.
+        if handlers and info.get("non_commands"):
+            n += 1
             continue
         gone = retargeted.get(name, set())
         identity = None
@@ -119,8 +134,9 @@ def live_stop_events(
     body_map: Bodies,
 ) -> int:
     """SPEC §6.1: the Stop-like events of one file that keep a live command
-    (§5.2), read on one side (the spec 24 `disableAllHooks` finding)."""
-    return _stop_count(events, names, body_map, {})
+    (§5.2) or a modeled prompt/agent handler (spec 28), read on one side
+    (the spec 24 `disableAllHooks` finding)."""
+    return _stop_count(events, names, body_map, {}, handlers=True)
 
 
 def _retargets(
@@ -254,8 +270,24 @@ def detect(
                 locator=event,
             )
             continue
+        # SPEC §5 HOOK_REMOVED (spec 28, AI-assisted ruling on #45): every
+        # modeled prompt/agent handler the event held at base is gone.
+        if info.get("non_commands") and not head_info.get("non_commands"):
+            sev = escalate_stop("HOOK_REMOVED", event, "warn")
+            add(
+                rule="HOOK_REMOVED",
+                severity=sev,
+                message=f"hook event {event} non-command handlers removed",
+                path=path,
+                before="prompt/agent",
+                after="",
+                locator=f"{event}:handlers",
+            )
+        # SPEC §5 / §5.1 (spec 28, #45): only what the event held at base can
+        # be emptied, so an event that never held a command (or an entry)
+        # reads the same on every diff and never empties.
         if head_info["array_len"] == 0 or not head_info["commands"]:
-            if head_info["array_len"] == 0:
+            if info["array_len"] > 0 and head_info["array_len"] == 0:
                 sev = escalate_stop("HOOK_BYPASSED", event, "warn")
                 add(
                     rule="HOOK_BYPASSED",
@@ -264,7 +296,7 @@ def detect(
                     path=path,
                     locator=event,
                 )
-            if not head_info["commands"]:
+            if info["commands"] and not head_info["commands"]:
                 sev = escalate_stop("HOOK_REMOVED", event, "warn")
                 add(
                     rule="HOOK_REMOVED",

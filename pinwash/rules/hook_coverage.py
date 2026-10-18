@@ -33,6 +33,9 @@ applies to a hook surface file; the engine reports each (path, reason) once.
 * "hook command environment changed" (§3.3, R07, #18; claude_settings): a
   root `env` key the diff adds, changes or removes is expanded (`$K`,
   `${K...`) by an active hook command of the same file on either side.
+* "non-command hook handler changed (not evaluated)" (§5.1, R13, #45;
+  claude_settings, spec 28): a modeled prompt/agent handler the event held
+  at base is gone or changed at head while the event keeps another.
 
 "Active" means no §5.1 skip flag (own or inherited), not a §5.2 stub string
 and not starting with `#`: flagged, stub and commented-out commands are
@@ -53,6 +56,7 @@ NAMES_CHANGED_FILE = "hook command names a changed file it does not resolve"
 FLAG_NOT_BOOLEAN = "hook skip flag value not boolean"
 DISABLE_ALL_HOOKS = "hook settings root disableAllHooks"
 ENV_CHANGED = "hook command environment changed"
+HANDLER_CHANGED = "non-command hook handler changed (not evaluated)"
 
 FLAG_KEYS = ("disabled", "hookEnabled", "continueOnError", "failOpen")
 _FALSE = canonical_text(False)
@@ -277,6 +281,25 @@ def environment_changed(
     return False
 
 
+def handler_changed(
+    base_ev: dict[str, dict[str, Any]], head_ev: dict[str, dict[str, Any]]
+) -> bool:
+    """SPEC §5.1 (spec 28, AI-assisted ruling on #45): an event lost a
+    modeled prompt/agent handler it held at base (the handler is gone or
+    its text changed, compared as a multiset of canonical texts, so key and
+    handler order are no change) and still holds one at head. An added
+    handler is no row, as an added command is none; a head event left with
+    no handler is HOOK_REMOVED's case, not this row."""
+    for event, h_info in head_ev.items():
+        after = h_info.get("non_commands", [])
+        if not after:
+            continue
+        before = (base_ev.get(event) or {}).get("non_commands", [])
+        if Counter(map(canonical_text, before)) - Counter(map(canonical_text, after)):
+            return True
+    return False
+
+
 def _flag_values(obj: dict[str, Any]) -> tuple[tuple[str, str], ...]:
     """(key, canonical text) for each §5.1 flag key on this object whose
     value is not a JSON boolean. Read, never interpreted."""
@@ -413,3 +436,5 @@ def detect(
         note_unknown(DISABLE_ALL_HOOKS)
     if claude_settings and environment_changed(base_doc, head_doc, base_ev, head_ev):
         note_unknown(ENV_CHANGED)
+    if claude_settings and handler_changed(base_ev, head_ev):
+        note_unknown(HANDLER_CHANGED)
