@@ -1,12 +1,27 @@
+[build-system]
+requires = ["setuptools==83.0.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "pinwash"
 version = "0.0.0"
 description = "Flag git diffs that weaken an agent verification harness."
 requires-python = ">=3.11"
 readme = "README.md"
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+Source = "https://github.com/taipei49314/pinwash"
+Issues = "https://github.com/taipei49314/pinwash/issues"
 
 [project.scripts]
 pinwash = "pinwash.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["pinwash*"]
+exclude = ["pinwash._verification*"]

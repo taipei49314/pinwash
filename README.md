@@ -16,17 +16,78 @@ implementation commit `8e0688c` and, separately, on the merged review head
 after the merge found (issues #3–#6). A commit's `ec / alpha2-verify` check
 covers that commit only.
 
-## Try it
+## Install
 
-Python 3.11+, Git. From this checkout:
+Requires Python 3.11+ and Git. This is a **source installation candidate**;
+there is no published PyPI package or release yet. Install a reviewed checkout
+outside the project your agent will edit, using [pipx](https://pipx.pypa.io/)
+to keep the application in its own environment:
 
-```powershell
-$env:PYTHONPATH = (Get-Location).Path
-python -m pinwash --version
-python -m pinwash doctor
-python -m unittest discover -s tests -t . -v
-python -m pinwash check HEAD~1..HEAD
+```text
+pipx install /absolute/path/to/trusted/pinwash-checkout
 ```
+
+On Windows, use the full Windows path instead. An accepted wheel can be installed
+the same way (`pipx install /path/to/pinwash-0.0.0-py3-none-any.whl`). Source
+installation downloads the pinned build backend; installed scans use no network
+and have no runtime dependencies. See [installation and packaging](docs/INSTALL.md)
+for a venv alternative and the separate package acceptance procedure.
+
+## Review an AI coding session
+
+In your project's **clean worktree**, before the agent starts:
+
+```text
+pinwash session start
+```
+
+Use your coding tool normally. Once the agent **and all processes it started**
+have stopped modifying files:
+
+```text
+pinwash session review
+```
+
+Answer the stopped-writers question. PinWash saves the original baseline and
+judge identity, performs all three comparisons described below, explains the
+findings, and saves a JSON report outside the project. It does not terminate
+processes or independently verify that they stopped. A trusted non-interactive
+controller supplies `--stopped` only after ensuring that condition itself.
+
+Each finding explains **what changed, why it matters, and what to review next**.
+The report separately lists execution failures and unassessed items. No findings
+does not prove that verification runs or that the product works.
+
+```text
+pinwash session review --json --stopped
+pinwash review HEAD~1..HEAD
+```
+
+`review` explains a single diff; without a range it compares HEAD to the worktree.
+It is not a whole-session review. `check` retains its original JSON output and
+exit codes for existing integrations. New consumer commands use exit `0` for
+no blocking finding, `1` for a block, `2` for an unfinished review, and `3` for
+an exemption awaiting human review. Coverage gaps remain visible even on exit 0.
+
+Starting never overwrites an existing session by default. After reviewing the
+previous work and choosing the next committed baseline, use
+`pinwash session start --replace`. Previous baseline records and reports remain.
+For details and common errors, see [the session guide](docs/SESSIONS.md).
+
+**Trust boundary:** keep both PinWash and its state outside the agent's writable
+scope. State is local convenience data, not signed evidence; placing it outside
+the repository does not protect it from an unrestricted process using your account.
+Run the consumer from your trusted terminal/controller, not from the agent being
+judged. Keep the subject out of `PYTHONPATH` and other Python startup customization.
+The consumer's isolated child judge prevents implicit repository-module shadowing;
+the initial launcher environment must still be trusted. It does not sandbox the agent.
+
+## Advanced: direct scanner and self-check
+
+`pinwash doctor` runs the full bundled self-test suite against the installed code;
+it can take several minutes and does not judge your project. It is deliberately
+separate from the two-step session flow. Source contributors can still run the
+suite from a trusted checkout with `python -m unittest discover -s tests -t . -v`.
 
 `check` with no range compares `HEAD` to the worktree. Exit 0 is not proof the harness works; it means no in-scope finding was at or above `fail_on` (default `high`).
 
