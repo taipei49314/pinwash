@@ -78,15 +78,19 @@ def invoke(repo: Path, operation: str, argument: str | None, timeout: float,
     # is inserted, before changing directory. The child cannot select a judge
     # from the subject. Git redirection env vars are not consumer input.
     bootstrap = """import os, sys, json
+from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from pinwash.consumer import _inspect
-from pinwash.cli import main
 repo, op, arg = sys.argv[2:5]
 try:
     os.chdir(repo)
     if op == 'inspect':
         print(json.dumps(_inspect(repo), ensure_ascii=True))
+    elif op == 'locate':
+        from pinwash.gitrepo import repository_root
+        print(json.dumps({'repo': str(repository_root(Path(repo)))}, ensure_ascii=True))
     else:
+        from pinwash.cli import main
         sys.exit(main(['check'] + ([arg] if arg else [])))
 except Exception as exc:
     sys.stderr.write(str(exc) + '\\n')
@@ -106,7 +110,7 @@ except Exception as exc:
         raise ConsumerError(f"Timed out after {timeout:g}s; this comparison was not judged.") from exc
     except OSError as exc:
         raise ConsumerError(f"Could not start the judge: {exc}") from exc
-    if proc.returncode not in (0, 1) or (operation == "inspect" and proc.returncode != 0):
+    if proc.returncode not in (0, 1) or (operation != "check" and proc.returncode != 0):
         message = proc.stderr.decode("utf-8", "replace").strip()
         raise ConsumerError(message or f"Judge exited {proc.returncode}; not judged.")
     try:
@@ -151,6 +155,15 @@ def inspect(repo: Path, timeout: float) -> dict[str, Any]:
     if PACKAGE.is_relative_to(root):
         raise ConsumerError("Install PinWash outside the repository being reviewed.")
     return result
+
+
+def locate(repo: Path, timeout: float) -> Path:
+    """Read Git's validated root metadata without inspecting worktree files."""
+    result, _ = invoke(repo.resolve(), "locate", None, timeout)
+    root = Path(result["repo"])
+    if PACKAGE.is_relative_to(root):
+        raise ConsumerError("Install PinWash outside the repository being reviewed.")
+    return root
 
 
 def collect(repo: Path, ranges: list[str | None], timeout: float) -> list[dict[str, Any]]:

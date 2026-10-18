@@ -1,5 +1,9 @@
 # Installation candidate
 
+For a complete source download, isolated installation and first review, start
+with the [five-minute quickstart](QUICKSTART.md). This page covers alternatives
+and packaging details.
+
 Python 3.11+ and Git are required. PinWash has zero runtime dependencies. There
 is no PyPI publication or GitHub release for this work, and the license remains
 undecided by the human maintainer. Candidate archives retain version 0.0.0 and

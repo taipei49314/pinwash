@@ -28,6 +28,37 @@ def safe(value: object, limit: int = 500) -> str:
     return rendered if len(rendered) <= limit else rendered[:limit] + "... [see JSON]"
 
 
+def _priority(report: dict[str, Any]) -> list[str]:
+    lines = ["", "Priority summary:"]
+    if not report["execution_complete"]:
+        lines.append("  1. Finish the review: resolve the Unfinished errors below. This result cannot be accepted as a pass.")
+        lines.append("     Findings already observed still need attention.")
+    if report["status"] == "block":
+        lines.append("  Blocking result: review the highest-severity changes first.")
+    ranks = {"critical": 0, "high": 1, "warn": 2, "info": 3}
+    ordered = sorted(report["findings"], key=lambda f: (ranks[f["severity"]], f["path"], f["rule"], f["fingerprint"]))
+    for finding in ordered[:3]:
+        _, action = EXPLANATIONS.get(finding["rule"], ("", "Review this change against the baseline."))
+        lines.append(f"  [{safe(finding['severity'])}] {safe(finding['path'])} ({safe(finding['rule'])}): {safe(action)}")
+    if len(ordered) > 3:
+        lines.append(f"  {len(ordered) - 3} more finding(s); see the full details below.")
+    exemptions = sum(f["rule"] == "EXEMPTION_ADDED" for f in ordered)
+    if exemptions:
+        lines.append(f"  Human decision: review {exemptions} new exemption(s), including scope, reason and expiry; none is automatically approved.")
+    if report["config_errors"]:
+        lines.append(f"  Configuration: inspect {len(report['config_errors'])} error(s) below before relying on this review.")
+    if report["unknown_coverage"]:
+        lines.append(f"  Coverage: manually assess {len(report['unknown_coverage'])} unassessed item(s) below; these are not passes.")
+    needs_attention = bool(ordered or report["errors"] or report["config_errors"] or report["unknown_coverage"])
+    if not needs_attention:
+        lines.append("  No in-scope issue was reported. Continue your normal code review and product checks.")
+    elif report.get("session_id"):
+        lines.append("  Next: address the items above, stop all writers, then run pinwash session review again with the same state directory and baseline.")
+    else:
+        lines.append("  Next: address the items above, stop all writers, then rerun the same review command and range.")
+    return lines
+
+
 def render(report: dict[str, Any]) -> str:
     headlines = {
         "pass": "No blocking in-scope weakening was found.",
@@ -35,13 +66,15 @@ def render(report: dict[str, Any]) -> str:
         "held": "Human review needed: an exemption was added.",
         "not_judged": "Review unfinished. This is not a pass.",
     }
-    lines = ["PinWash review", headlines[report["status"]],
+    headline = headlines[report["status"]] if report["execution_complete"] else headlines["not_judged"]
+    lines = ["PinWash review", headline,
              "Execution: " + ("all comparisons finished" if report["execution_complete"] else "unfinished"),
              f"Findings: {len(report['findings'])} | Unassessed items: {len(report['unknown_coverage'])}"]
     if "base" in report:
         lines.append(f"Baseline: {safe(report['base'])}")
     if report.get("quiescence"):
         lines.append("Stopped writers: confirmed by the caller, not verified by PinWash.")
+    lines += _priority(report)
     for f in report["findings"]:
         impact, next_step = EXPLANATIONS.get(f["rule"], (f["message"], "Review this change against the baseline."))
         lines += ["", f"[{safe(f['severity'])}] {safe(f['path'])}",

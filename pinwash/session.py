@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -36,18 +37,34 @@ def _paths(repo: Path, override: str | None) -> tuple[Path, Path]:
     return directory, directory / f"{key}.json"
 
 
+def _plain_file(path: Path) -> os.stat_result:
+    info = path.lstat()
+    if (not stat.S_ISREG(info.st_mode)
+            or getattr(info, "st_file_attributes", 0) & 0x400):  # Windows reparse point
+        raise ValueError("expected a regular file, not a link or special file")
+    return info
+
+
+def _read_json(path: Path, limit: int) -> Any:
+    if _plain_file(path).st_size > limit:
+        raise ValueError("oversized JSON file")
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+    with path.open("rb") as stream:
+        data = stream.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("oversized JSON file")
+    return json.loads(data.decode("utf-8"), object_pairs_hook=unique)
+
+
 def _read(path: Path) -> dict[str, Any]:
     try:
-        if path.is_symlink() or path.stat().st_size > 65536:
-            raise ValueError("unsafe or oversized state")
-        def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-            result: dict[str, Any] = {}
-            for key, value in pairs:
-                if key in result:
-                    raise ValueError("duplicate state key")
-                result[key] = value
-            return result
-        state = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+        state = _read_json(path, 65536)
         if not isinstance(state, dict) or state.get("schema_version") != 1:
             raise ValueError("unsupported state schema")
         if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", state.get("base", "")):
@@ -59,7 +76,7 @@ def _read(path: Path) -> dict[str, Any]:
         return state
     except FileNotFoundError as exc:
         raise ConsumerError("No session baseline. Run 'pinwash session start' before the agent edits.") from exc
-    except (OSError, ValueError, TypeError) as exc:
+    except (OSError, ValueError, TypeError, RecursionError) as exc:
         raise ConsumerError(f"Cannot read session state: {exc}. No fallback to HEAD.") from exc
 
 
