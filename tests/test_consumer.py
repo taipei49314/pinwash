@@ -178,6 +178,35 @@ class SessionIntegration(_CLIIntegration):
         self.assertEqual(report["runs"][0]["payload"], original)
         self.assertNotIn("consumer_schema_version", original)
 
+    def test_status_from_subdirectory_keeps_baseline_and_historical_result(self):
+        proc, state = self.command("start")
+        self.assertEqual(proc.returncode, 0, state)
+        _, saved = self.command("review", "--stopped")
+        self._write(self.repo, SETTINGS_PATH, EMPTY_SETTINGS)
+        directory = self.repo / "src"
+        directory.mkdir()
+        before = Path(state["state_path"]).read_bytes()
+        proc, result = self.command("status", repo=directory)
+        self.assertEqual(proc.returncode, 0, result)
+        self.assertEqual(result["repo"], str(self.repo.resolve()))
+        self.assertEqual(result["session"]["base"], state["base"])
+        self.assertEqual(result["latest_review"]["report_path"], saved["report_path"])
+        self.assertEqual(result["latest_review"]["status"], "pass")
+        self.assertEqual(result["current_changes"], "not_reviewed")
+        self.assertEqual(Path(state["state_path"]).read_bytes(), before)
+        proc, reviewed = self.command("review", "--stopped")
+        self.assertEqual(proc.returncode, 1, reviewed)
+        proc, result = self.command("status")
+        self.assertEqual(proc.returncode, 0, result)
+        self.assertEqual(result["latest_review"]["status"], "block")
+
+    def test_status_without_session_does_not_initialize_or_import_subject(self):
+        self._write(self.repo, "json.py", "raise RuntimeError('subject imported')\n")
+        proc, result = self.command("status")
+        self.assertEqual(proc.returncode, 0, result)
+        self.assertEqual(result["status"], "no_session")
+        self.assertFalse(self.state_dir.exists())
+
 
 class ReportContracts(unittest.TestCase):
     def result(self, findings=None, unknown=None):

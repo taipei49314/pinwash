@@ -14,6 +14,7 @@ from pinwash.textutil import dump_json, sha256_bytes
 HELP = """pinwash — flag harness-weakening git diffs
 
   pinwash session start              # record the starting commit
+  pinwash session status             # read saved state; does not scan
   pinwash session review             # explain the whole session
   pinwash review [RANGE]              # explain one diff
   pinwash session --help

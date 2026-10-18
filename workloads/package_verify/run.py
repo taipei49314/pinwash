@@ -212,14 +212,32 @@ def main():
                 run(f"{label}-git-commit", git + ["commit", "-m", "base"], fixture)
                 state = str(scratch / f"state-{number}")
                 run(f"{label}-start", [command, "session", "start", "--state-dir", state], fixture)
+                before_status = json.loads(run(f"{label}-status-before", [command, "session", "status", "--state-dir", state, "--json"], fixture))
+                if before_status["status"] != "active" or before_status["latest_review"] is not None:
+                    raise RuntimeError("New session status did not preserve an unreviewed baseline")
+                active_state = Path(before_status["state_path"])
+                state_bytes = active_state.read_bytes()
                 (fixture / ".claude" / "settings.json").write_text('{"hooks":{}}')
                 (fixture / "json.py").write_text(sentinel, encoding="utf-8")
                 report_text = run(f"{label}-review", [command, "session", "review", "--state-dir", state, "--stopped"], fixture, accepted=(1,))
-                if b"Next:" not in report_text or b"HOOK_REMOVED" not in report_text:
+                if b"Next:" not in report_text or b"HOOK_REMOVED" not in report_text or b"Priority summary:" not in report_text:
                     raise RuntimeError("Human report missing explanation or next step")
                 result = json.loads(run(f"{label}-json", [command, "session", "review", "--state-dir", state, "--stopped", "--json"], fixture, accepted=(1,)))
                 if result["status"] != "block" or not result["execution_complete"] or len(result["runs"]) != 3:
                     raise RuntimeError("Installed session did not judge all three comparisons")
+                after_status = json.loads(run(f"{label}-status-after", [command, "session", "status", "--state-dir", state, "--json"], fixture))
+                if (after_status["status"] != "active" or after_status["current_changes"] != "not_reviewed"
+                        or after_status["session"]["base"] != before_status["session"]["base"]
+                        or after_status["latest_review"]["status"] != "block"
+                        or active_state.read_bytes() != state_bytes):
+                    raise RuntimeError("Status changed state or misreported historical evidence")
+                status_text = run(f"{label}-status-text", [command, "session", "status", "--state-dir", state], fixture)
+                if b"NOT REVIEWED" not in status_text or b"historical" not in status_text:
+                    raise RuntimeError("Status text did not distinguish history from current changes")
+                run(f"{label}-restore-demo-hook", git + ["restore", "--", ".claude/settings.json"], fixture)
+                restored = json.loads(run(f"{label}-review-restored", [command, "session", "review", "--state-dir", state, "--stopped", "--json"], fixture))
+                if restored["status"] != "pass" or restored["base"] != before_status["session"]["base"]:
+                    raise RuntimeError("Restored demo did not pass against its original baseline")
                 if executed.exists():
                     raise RuntimeError("Installed consumer executed subject code")
                 doctor = json.loads(run(f"{label}-doctor", [command, "doctor"], scratch, timeout=1200))
