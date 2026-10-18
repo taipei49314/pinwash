@@ -19,7 +19,7 @@ Other custom-filter transformations may need a checkout without those filters.
 Ignored content retains the scanner's documented coverage limits.
 
 State defaults to `%LOCALAPPDATA%/pinwash` on Windows and
-`${XDG_STATE_HOME:-~/.local/state}/pinwash` elsewhere. Both commands accept
+`${XDG_STATE_HOME:-~/.local/state}/pinwash` elsewhere. All session commands accept
 `--state-dir PATH` to select a consumer-managed directory outside the project.
 The controller and agent must not share write access to authoritative state or
 the judge installation if tamper resistance is required. This implementation
@@ -58,9 +58,50 @@ timeout never falls back to a different baseline and never becomes a pass.
 Repository paths are bound to the recorded canonical root; moving a checkout
 requires deliberate handling of its previous records rather than guessing.
 
+## Status, without a new review
+
+Run `pinwash session status` from the repository or a subdirectory at any time.
+It reads Git root metadata, the active baseline, installed judge identity and
+saved reports; it does not read the current worktree contents, run comparisons,
+ask for stopped-writer confirmation, create state, or change the baseline.
+
+Text output shows the original full baseline SHA and start time, whether the
+installed judge still matches, and the latest saved review's time, historical
+status, counts and file path. **Current changes are always NOT REVIEWED by this
+command**, even if the last saved report passed. Run review after stopping
+writers to judge current changes. A missing saved report is not a pass.
+
+`--json` uses a separate `session_status_schema_version: 1` envelope. Its
+`status` is `no_session`, `active`, or `unavailable`; `current_changes` is always
+`not_reviewed`. `session` contains the saved ID, base, creation time and judge;
+`judge_matches` is true, false, or null when undetermined. `latest_review` is
+historical metadata or null. Exit 0 means status was read successfully
+(including `no_session`); exit 2 means state, judge or history needs attention.
+**These are not the review verdict's exit codes.**
+
+Only reports named for the active session are candidates. Content must match
+its ID, repository, baseline and saved judge, with valid timestamps and report
+structure. Selection uses the recorded review timestamp, then filename for an
+equal-timestamp tie, not file modification time or an embedded `report_path`.
+Damaged matching reports make history unavailable rather than allowing an old
+pass to appear current. Links and special files are rejected. Reads are bounded
+to 64 KiB for state, 4 MiB per report, 16 MiB total report data and 5,000 directory
+entries. Exceeding a bound means exit 2; preserve the records for manual review.
+These checks do not authenticate local files or provide an atomic snapshot
+while another process is writing reports. Status remains informational.
+
 ## Reading a report
 
-The text output shows findings, whether all comparisons finished, coverage gaps,
+The text output begins with a **priority summary**. An unfinished review comes
+first even when a completed comparison already blocked; its findings remain
+visible. Blocking results highlight the three highest-severity findings, then
+the summary calls out new exemptions, configuration errors and unassessed
+items. Additional findings stay in the full details below. The next step uses
+the same baseline; `start --replace` is never a shortcut to make a failure pass.
+The summary is presentation only: it changes no detector threshold, verdict,
+exit code, raw engine payload or exemption approval.
+
+The full text output shows findings, whether all comparisons finished, coverage gaps,
 configuration errors and a saved-report path. File-controlled terminal control
 characters are escaped. Long before/after snippets are truncated in text only.
 The JSON report preserves all three original payloads and exit codes.

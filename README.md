@@ -8,13 +8,11 @@ Local-first. Deterministic. No LLM. No network. Does not execute the subject. Do
 
 This repository has a local **v0 engine**. There is no Release, no PyPI package, and no 1.0 claim. Read [SPEC.md](SPEC.md) (contract) and [ARCHITECTURE.md](ARCHITECTURE.md) (layers; SPEC wins on conflict). Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
 
-The [second alpha-strengthening round](docs/ALPHA2.md) repaired contract fidelity
-and added real Git/CLI regressions. It is an engineering milestone, not version
-`2.0.0`. Its approved EC pool verification passed 96 tests and doctor on the
-implementation commit `8e0688c` and, separately, on the merged review head
-`e89f05a`; the acceptance document links both receipts and lists what review
-after the merge found (issues #3–#6). A commit's `ec / alpha2-verify` check
-covers that commit only.
+**New here? Follow the [five-minute quickstart](docs/QUICKSTART.md): install an
+isolated candidate, try a small example, then use the same two steps in your
+project.** Installation needs Python 3.11+, Git and download access. The guide
+also explains status, exit codes and recovery. The time is a walkthrough target,
+not a measured first-user success claim.
 
 ## Install
 
@@ -55,19 +53,28 @@ processes or independently verify that they stopped. A trusted non-interactive
 controller supplies `--stopped` only after ensuring that condition itself.
 
 Each finding explains **what changed, why it matters, and what to review next**.
-The report separately lists execution failures and unassessed items. No findings
+The report begins with a **priority summary**: unfinished checks, blocking
+changes, exemption decisions, and configuration/coverage gaps. Full findings
+and original JSON remain available. No findings
 does not prove that verification runs or that the product works.
 
 ```text
+pinwash session status
 pinwash session review --json --stopped
 pinwash review HEAD~1..HEAD
 ```
 
+`session status` reads the saved baseline, judge match and last saved report.
+It does not scan current changes, reset the baseline or approve a historical
+pass. Use the same `--state-dir` on start, status and review if you chose one.
+
 `review` explains a single diff; without a range it compares HEAD to the worktree.
 It is not a whole-session review. `check` retains its original JSON output and
-exit codes for existing integrations. New consumer commands use exit `0` for
+exit codes for existing integrations. `review` and `session review` use exit `0` for
 no blocking finding, `1` for a block, `2` for an unfinished review, and `3` for
 an exemption awaiting human review. Coverage gaps remain visible even on exit 0.
+`session status` exit `0` only means metadata was read successfully, including
+when no session exists or the historical review blocked; exit `2` needs attention.
 
 Starting never overwrites an existing session by default. After reviewing the
 previous work and choosing the next committed baseline, use
@@ -134,6 +141,16 @@ Exit codes: `0` no finding at or above `fail_on` · `1` verdict block · `2` eng
 pinwash is not checkwash (product tests), not tripwire (hooks that run judges), not walkaround (session admission). It only asks whether **this diff** weakened pins, hooks, permissions, required checks, or bypass instructions. (tripwire and walkaround are no longer on GitHub — removed 2026-09-26 — and are named only to bound scope.)
 
 ## Status
+
+The [second alpha-strengthening round](docs/ALPHA2.md) repaired contract fidelity
+and added real Git/CLI regressions. It is an engineering milestone, not version
+`2.0.0`. Its approved EC pool verification passed 96 tests and doctor on the
+implementation commit `8e0688c` and, separately, on the merged review head
+`e89f05a`; the acceptance document links both receipts and lists what review
+after the merge found (issues #3–#6). A commit's `ec / alpha2-verify` check
+covers that commit only. New onboarding guidance has its own
+[validation record](docs/GUIDANCE_ACCEPTANCE.md); earlier results do not validate
+new code.
 
 | Claim | Status |
 |---|---|
