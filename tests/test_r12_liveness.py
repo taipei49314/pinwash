@@ -155,10 +155,20 @@ class AddedSiblings(unittest.TestCase):
         self.assertEqual(_rules(payload), [("GATE_STUBBED", "warn")])
 
     def test_disable_and_replace_with_a_judge_that_can_refuse_is_warn(self) -> None:
+        # The skip flag is read on cursor_hooks only since spec 29 (§5.1, #42).
+        payload = _scan({CH: _hooks("stop", [T], CH), J: REAL},
+                        {CH: _hooks("stop", [{"type": "command", "command": T, "disabled": True}, T2], CH),
+                         J: REAL, J2: REAL})
+        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+
+    def test_claude_disable_and_replace_is_no_finding(self) -> None:
+        # Spec 29 (§5.1, AI-assisted ruling on #42): Claude Code runs a hook
+        # that carries a skip key (executed), so the old judge keeps running
+        # beside the added one and the diff weakens nothing.
         payload = _scan({CS: _hooks("Stop", [T]), J: REAL},
                         {CS: _hooks("Stop", [{"type": "command", "command": T, "disabled": True}, T2]),
                          J: REAL, J2: REAL})
-        self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+        self.assertEqual(payload["findings"], [])
 
     def test_disclosed_cost_helper_refactor_beside_an_added_formatter_blocks(self) -> None:
         # The spec 7 shape's known honest false positive (`block` moved into
@@ -174,11 +184,15 @@ class AddedSiblings(unittest.TestCase):
 
 class EventKeepsNoLiveCommand(unittest.TestCase):
     def test_honest_placeholder_removals_are_silent(self) -> None:
+        # A skip flag marks a placeholder on cursor_hooks only since spec 29
+        # (§5.1, #42); on claude_settings the flagged sibling was live, and
+        # removing it beside the kept live judge is silent too.
         fmt = {"hooks/fmt.sh": "#!/bin/sh\nnpx prettier --check .\n"}
-        for sibling in ("true", {"type": "command", "command": "bash hooks/fmt.sh", "disabled": True}):
-            with self.subTest(sibling=sibling):
-                payload = _scan({CS: _hooks("Stop", [sibling, T]), J: REAL, **fmt},
-                                {CS: _hooks("Stop", [T]), J: REAL, **fmt})
+        flagged = {"type": "command", "command": "bash hooks/fmt.sh", "disabled": True}
+        for path, event, sibling in ((CS, "Stop", "true"), (CH, "stop", flagged), (CS, "Stop", flagged)):
+            with self.subTest(path=path, sibling=sibling):
+                payload = _scan({path: _hooks(event, [sibling, T], path), J: REAL, **fmt},
+                                {path: _hooks(event, [T], path), J: REAL, **fmt})
                 self.assertEqual(payload["findings"], [])
 
     def test_other_events_follow_the_same_rule_at_warn(self) -> None:

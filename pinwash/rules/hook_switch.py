@@ -55,7 +55,9 @@ def flipped_in_effect(files: dict[str, tuple[str, Any, Any]]) -> str | None:
 
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
-    """SPEC §3.3: no §5.1 skip flag, not a §5.2 stub string, no leading `#`."""
+    """SPEC §3.3: not a §5.2 stub string, no leading `#` (the states come
+    from extract_event_hooks(claude=True), which carry no §5.1 skip flag
+    since spec 29, #42)."""
     if any(flags.values()) or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
@@ -91,12 +93,14 @@ def detect(
         b_doc = files[key][1]
         if not isinstance(b_doc, dict):
             continue
-        events = extract_event_hooks(b_doc)
+        events = extract_event_hooks(b_doc, claude=True)
+        # Spec 28 (#45): a modeled prompt/agent handler is active too; the
+        # host does not run it under the switch (executed, #45).
         active = active or any(
             _active(command, flags)
             for info in events.values()
             for command, flags in info["command_states"]
-        )
+        ) or any(info["non_commands"] for info in events.values())
         live_stop = live_stop or live_stop_events(events, CLAUDE_STOP_EVENTS, body_base) >= 1
     if not active:
         return None

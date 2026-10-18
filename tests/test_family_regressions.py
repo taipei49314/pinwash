@@ -202,10 +202,13 @@ def _hooks(event: str, entries: list[dict[str, Any]]) -> str:
 
 
 class CommandLocalSkipFlags(unittest.TestCase):
-    """#5 / spec 10 §5.1: skip flags are judged per command, not per event."""
+    """#5 / spec 10 §5.1: skip flags are judged per command, not per event.
+    Since spec 29 (#42) only cursor_hooks reads them: claude_settings reads
+    none of the four keys (test_claude_settings_reads_no_skip_key)."""
 
+    # Spec 29 (#42, SPEC §5.1): the claude_settings case moved off this
+    # table, which pins the cursor_hooks reading, so CASES[0] is cursor_hooks.
     CASES = (
-        (".claude/settings.json", "Stop"),
         (".cursor/hooks.json", "stop"),
     )
     FLAGS = (
@@ -268,6 +271,34 @@ class CommandLocalSkipFlags(unittest.TestCase):
         payload = _pair({path: base}, {path: head})
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "critical")])
         self.assertEqual(payload["verdict"], "block")
+
+    def test_claude_settings_reads_no_skip_key(self) -> None:
+        # Spec 29 (#42, SPEC §5.1, §5.2): Claude Code 2.1.42 and 2.1.296 run
+        # a hook that carries any of the four keys, so claude_settings reads
+        # none of them. Each edit that fires on cursor_hooks above is, there,
+        # a key added (no finding), a rename or an addition; and a command
+        # that carries one stays live, so removing its sibling leaves the
+        # event a live command (on cursor_hooks: HOOK_REMOVED, critical).
+        path, event = ".claude/settings.json", "Stop"
+        for flag, value in self.FLAGS:
+            for base_entries, head_entries in (
+                ([{"command": "judge"}], [{"command": "judge", flag: value}]),
+                ([{"command": "judge"}],
+                 [{"command": "judge", flag: value}, {"command": "judge-extra"}]),
+                ([{"command": "judge"}], [{"command": "judge-v2", flag: value}]),
+                ([{"command": "judge"}, {"command": "other", flag: value}],
+                 [{"command": "judge-v2", flag: value}, {"command": "judge-extra"},
+                  {"command": "other", flag: value}]),
+                ([{"command": "judge"}, {"command": "other", flag: value}],
+                 [{"command": "other", flag: value}]),
+            ):
+                with self.subTest(flag=flag, base=base_entries, head=head_entries):
+                    payload = _pair(
+                        {path: _hooks(event, base_entries)},
+                        {path: _hooks(event, head_entries)},
+                    )
+                    self.assertEqual(payload["findings"], [])
+                    self.assertEqual(payload["verdict"], "pass")
 
 
 class HookCommandPairing(unittest.TestCase):
@@ -335,15 +366,40 @@ class HookCommandPairing(unittest.TestCase):
                 self.assertEqual(payload["verdict"], "pass")
 
     def test_gutted_judge_behind_an_inserted_non_live_sibling_blocks(self) -> None:
+        # Spec 29 (#42, SPEC §5.1): claude_settings reads no skip key, so a
+        # flagged sibling is not live only on cursor_hooks; on claude_settings
+        # it is the inserted live sibling of the first test above.
         for flag, value in (("disabled", True), ("failOpen", True)):
             with self.subTest(flag=flag):
                 payload = self._scan(
-                    ".claude/settings.json", "Stop", [{"command": self.T}],
+                    ".cursor/hooks.json", "stop", [{"command": self.T}],
                     [{"command": "echo ok", flag: value}, {"command": self.T}],
                     self.REAL, self.GUT,
                 )
                 self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
                 self.assertEqual(payload["verdict"], "block")
+
+    def test_a_flagged_sibling_at_base_keeps_the_gut_warn_only_on_claude_settings(self) -> None:
+        # Spec 29 (#42, SPEC §5.1, §5.2, §6.1): Claude Code runs a hook that
+        # carries a skip key, so on claude_settings a flagged sibling already
+        # there at base is live and keeps the gutted judge at warn, as the
+        # unflagged one of the second test above does; cursor_hooks reads the
+        # key, the sibling is not live and the gut is the last Stop judge gone.
+        for flag, value in (("disabled", True), ("failOpen", True)):
+            for path, event, severity, verdict in (
+                (".claude/settings.json", "Stop", "warn", "pass"),
+                (".cursor/hooks.json", "stop", "critical", "block"),
+            ):
+                with self.subTest(flag=flag, path=path):
+                    sibling = {"command": "echo ok", flag: value}
+                    payload = self._scan(
+                        path, event, [sibling, {"command": self.T}],
+                        [sibling, {"command": self.T}], self.REAL, self.GUT,
+                    )
+                    self.assertEqual(_rules(payload), [("GATE_STUBBED", severity)])
+                    self.assertEqual(payload["findings"][0]["message"],
+                                     f"hook command for {event} lost block capability")
+                    self.assertEqual(payload["verdict"], verdict)
 
     def test_judge_moved_into_a_later_matcher_group_fires(self) -> None:
         base = json.dumps({"hooks": {"Stop": [{"hooks": [{"command": self.T}]}]}})
@@ -410,9 +466,15 @@ class HookCommandPairing(unittest.TestCase):
         # position (a stub body, `true` or a `#` command moved into the
         # judge's index); with the sibling first they were silent. The
         # event keeps commands but none live after a live command left it.
+        # Spec 29 (#42, SPEC §5.1): claude_settings reads no skip key, so the
+        # flagged sibling, not live only where `disabled` is read, runs on
+        # cursor_hooks; the stub-body, stub-string and `#` siblings stay on
+        # claude_settings.
         stubby = "python hooks/stubby.py"
         for sibling in (stubby, "true", "# python hooks/old.py",
                         {"command": "bash hooks/fmt.sh", "disabled": True}):
+            path, event = ((".cursor/hooks.json", "stop") if isinstance(sibling, dict)
+                           else (".claude/settings.json", "Stop"))
             for order in ("after", "before"):
                 with self.subTest(sibling=sibling, order=order):
                     base_cmds = [{"command": self.T}, sibling if isinstance(sibling, dict)
@@ -421,14 +483,14 @@ class HookCommandPairing(unittest.TestCase):
                         base_cmds.reverse()
                     head_cmds = [c for c in base_cmds if c.get("command") != self.T]
                     payload = _pair(
-                        {".claude/settings.json": _hooks("Stop", base_cmds),
+                        {path: _hooks(event, base_cmds),
                          self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
-                        {".claude/settings.json": _hooks("Stop", head_cmds),
+                        {path: _hooks(event, head_cmds),
                          self.JUDGE: self.REAL, "hooks/stubby.py": self.STUB},
                     )
                     self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
                     finding = payload["findings"][0]
-                    self.assertEqual(finding["message"], "hook event Stop keeps no live command")
+                    self.assertEqual(finding["message"], f"hook event {event} keeps no live command")
                     self.assertEqual(finding["before"], self.T)
 
     def test_reordering_beside_placeholders_is_silent(self) -> None:
@@ -475,22 +537,25 @@ class HookCommandPairing(unittest.TestCase):
         policy = {"hooks/policy.py": "def decide(text):\n    return 2 if not text else 0  # block\n"}
         # Spec 24 draft (R12): an inserted formatter was added in the diff
         # and cannot refuse, so it keeps nothing off either (critical); a
-        # formatter already there at base still does (warn).
-        for sibling, base_sibling, severity in (
-            ({"command": "bash hooks/fmt.sh", "disabled": True}, False, "critical"),
-            ({"command": "bash hooks/fmt.sh"}, False, "critical"),
-            ({"command": "bash hooks/fmt.sh"}, True, "warn"),
+        # formatter already there at base still does (warn). Spec 29 (#42,
+        # SPEC §5.1): claude_settings reads no skip key, so the flagged
+        # formatter is not live only on cursor_hooks, where that row runs.
+        claude, cursor = (".claude/settings.json", "Stop"), (".cursor/hooks.json", "stop")
+        for (path, event), sibling, base_sibling, severity in (
+            (cursor, {"command": "bash hooks/fmt.sh", "disabled": True}, False, "critical"),
+            (claude, {"command": "bash hooks/fmt.sh"}, False, "critical"),
+            (claude, {"command": "bash hooks/fmt.sh"}, True, "warn"),
         ):
-            with self.subTest(sibling=sibling, base_sibling=base_sibling):
+            with self.subTest(path=path, sibling=sibling, base_sibling=base_sibling):
                 payload = self._scan(
-                    ".claude/settings.json", "Stop",
+                    path, event,
                     [sibling, {"command": self.T}] if base_sibling else [{"command": self.T}],
                     [sibling, {"command": self.T}], self.REAL, helper,
                     dict(policy, **{"hooks/fmt.sh": "#!/bin/sh\nnpx prettier --check .\n"}),
                 )
                 self.assertEqual(_rules(payload), [("GATE_STUBBED", severity)])
                 self.assertEqual(payload["findings"][0]["message"],
-                                 "hook command for Stop lost block capability")
+                                 f"hook command for {event} lost block capability")
 
     def test_shifted_comment_out_pairs_on_any_command_that_left(self) -> None:
         # Spec 24 draft (R12): a `#` command the diff added pairs with the

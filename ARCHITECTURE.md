@@ -159,7 +159,7 @@ sequenceDiagram
 - Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high** (`CONFIG_RELAXED` at `.pinwash/allow.toml` is **critical**, SPEC §10); `EXEMPTION_ADDED` is **critical** when an added record's `created` is after today (spec 11). Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not. A lone surrogate in a value (a non-UTF-8 path name decoded with `surrogateescape`, a JSON `\udXXX` escape) is written as a `\udXXX` escape inside its string, which loads back to the same value, and is fingerprinted through `surrogatepass`; every other string encodes and hashes as before (0ddcd57). It used to crash to exit 2.
 - `unknown_coverage` does not change `verdict`, and a row never adds, drops or changes a finding. Its `reason` is fixed text from the closed list in SPEC §7 (spec 13; spec 14 added the workflow rows): the §3.1 grammar hits, the hook-side rows of SPEC §3.3 and §5.1, and the required-check producer rows of SPEC §5.5. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `27`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `29`). `pinwash_version` is `0.0.0`.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 
@@ -252,12 +252,12 @@ Forbidden consumer fantasies:
 
 ## 8. v0 held versus 1.0 license
 
-**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 27`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
+**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 29`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
 
 **1.0 license (every item is a human decision; missing one forbids saying 1.0):**
 
 1. ~~Human edits SPEC's "No engine exists yet"~~ Held: updated in spec 3 under the 2026-09-27 delegation (own commit; A11's original constraint — the first satisfying engine PR did not touch SPEC — still holds historically).
-2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `27` (SPEC §16).
+2. ~~Prefer `spec_version >= 1` over a footnote "spec 0 + engine 1.0"~~ Held: `spec_version` is `29` (SPEC §16).
 3. THREATMODEL R01–R24 (R11–R21 booked in spec 12, R22 and R23 in spec 16, R24 in spec 20): each row is **Closed** with a named fixture, or **Permanent** with a human signature that it will not be closed and will not be pretended closed. Closed without a fixture fails the suite (`tests/test_residual_rows.py` since spec 12, which also holds THREATMODEL and SPEC §11 to one ID set, numbered in order from R01, so a booked row cannot be dropped silently). THREATMODEL's status values are Open and Closed today, so the human who signs a Permanent row also extends them and that test.
 4. Findings envelope and fingerprint stay backward compatible (`pinwash_findings_version: 1` already).
 5. `doctor` actually runs this package’s tests. (Held in v0 as of this change set; the item stays on the list as a 1.0 check.)
