@@ -58,13 +58,28 @@ unaccepted. The immutable receipt is EC commit
 That run exposed a new consumer EOF defect: an apparently interactive stdin can
 close before the stopped-writer answer. The consumer now treats EOF as no
 attestation, preserves JSON output and exits 2 before accessing session state;
-a focused regression test covers this path. This correction needs pool validation.
+a focused regression test covers this path. The second package run below covers
+the correction, without accepting the package as a whole.
 The unchanged suite also contains explicit POSIX/Linux-only tests, Windows
 symlink privilege errors and older portability failures. The existing doctor
 rejects skips, so the original full-suite, zero-skip acceptance cannot succeed
 on native Windows as currently specified. No skip has been relabeled as success;
 SPEC, frozen gates and the approved workload remain unchanged. A qualified Linux
-lane or a separately reviewed portability scope is needed for full acceptance.
+lane is the human-selected route for full acceptance.
+
+The second installed-package attempt, [39066600076](https://github.com/taipei49314/estate-consolidation/actions/runs/39066600076),
+ran `21282b48f240ef06395431f331fcd1a1ab2bce1f` under the same D127 declaration.
+Build/rebuild, first installation and session fixtures succeeded again. Doctor
+completed 621 tests with 12 failures, 9 errors and 10 skips in 880.916 seconds
+(exit 2, not timeout); the earlier consumer EOF failure is absent and the new
+regression is included. Overall status remains FAIL. The second installation
+was not reached. Receipt commit: `d5492098828dc8aa44636910e6204d5669e7f603`.
+Both attempts remain preserved; no additional unchanged Windows rerun is planned.
+
+The human selected Linux full acceptance on 2026-10-18 Asia/Taipei. EC T-535
+continues HOST50 qualification and the concrete dispatch proposal. This choice
+does not activate the Linux lane or authorize unlisted host changes. Qualified
+execution and Linux package-workload admission remain outstanding.
 
 Local execution: **NOT_RUN：工作機規則（POLICY work-machine-local），本機僅編輯及唯讀審查；產品測試、建置、安裝驗收走已核可 pool 工作負載。**
 
