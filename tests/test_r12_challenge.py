@@ -94,10 +94,28 @@ class CommentIsNotARespelling(unittest.TestCase):
                 self.assertEqual([s for _r, s in _rules(payload)], ["critical"])
 
     def test_python_to_python3_respelling_still_counts(self) -> None:
-        payload = _scan({CS: _hooks("Stop", [T, "bash hooks/lint.sh"]), J: REAL, "hooks/lint.sh": "npx eslint .\n"},
-                        {CS: _hooks("Stop", ["python3 hooks/judge.py", {"type": "command", "command": "bash hooks/lint.sh", "disabled": True}]),
+        # The skip flag is read on cursor_hooks only since spec 29 (§5.1,
+        # #42), so the flagged sibling sits on Cursor's `stop` event: the
+        # respelled judge keeps the §6.1 escalator off, and the flag is warn.
+        lint = {"type": "command", "command": "bash hooks/lint.sh", "disabled": True}
+        payload = _scan({CH: _hooks("stop", [T, "bash hooks/lint.sh"], CH), J: REAL, "hooks/lint.sh": "npx eslint .\n"},
+                        {CH: _hooks("stop", ["python3 hooks/judge.py", lint], CH),
                          J: REAL, "hooks/lint.sh": "npx eslint .\n"})
         self.assertEqual(_rules(payload), [("HOOK_BYPASSED", "warn")])
+
+    def test_claude_respelling_beside_a_flag_or_a_comment(self) -> None:
+        # Spec 29 (§5.1, AI-assisted ruling on #42): Claude Code runs a hook
+        # that carries a skip key (executed), so on claude_settings the
+        # flagged sibling stays active and the diff weakens nothing; the
+        # sibling commented out still meets the respelled judge, which keeps
+        # the §6.1 escalator off (warn).
+        lint = {"type": "command", "command": "bash hooks/lint.sh", "disabled": True}
+        for sibling, expected in ((lint, []), ("# bash hooks/lint.sh", [("HOOK_BYPASSED", "warn")])):
+            with self.subTest(sibling=sibling):
+                payload = _scan({CS: _hooks("Stop", [T, "bash hooks/lint.sh"]), J: REAL, "hooks/lint.sh": "npx eslint .\n"},
+                                {CS: _hooks("Stop", ["python3 hooks/judge.py", sibling]),
+                                 J: REAL, "hooks/lint.sh": "npx eslint .\n"})
+                self.assertEqual(_rules(payload), expected)
 
 
 class BookedR11Decoy(unittest.TestCase):

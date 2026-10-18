@@ -15,7 +15,8 @@ applies to a hook surface file; the engine reports each (path, reason) once.
   changed (added, edited or deleted; compared after CRLF->LF, a lone CR
   kept) and that is
   not one of that command's own §3.3 targets on that side.
-* "hook skip flag value not boolean" (§5.1, R06, #18): an (event, command,
+* "hook skip flag value not boolean" (§5.1, R06, #18; cursor_hooks only
+  since spec 29, #42, as claude_settings reads no skip key): an (event, command,
   key, value) occurrence of a §5.1 flag key whose value is not a JSON
   boolean, counted as a multiset, is more frequent at head than at base; or
   a §5 hook finding fired in the file while either side holds one.
@@ -37,8 +38,8 @@ applies to a hook surface file; the engine reports each (path, reason) once.
   claude_settings, spec 28): a modeled prompt/agent handler the event held
   at base is gone or changed at head while the event keeps another.
 
-"Active" means no §5.1 skip flag (own or inherited), not a §5.2 stub string
-and not starting with `#`: flagged, stub and commented-out commands are
+"Active" means no §5.1 skip flag (own or inherited; cursor_hooks only since
+spec 29, #42), not a §5.2 stub string and not starting with `#`: flagged, stub and commented-out commands are
 judged by findings and run nothing pinwash would need to read.
 """
 
@@ -430,7 +431,7 @@ def detect(
         note_unknown(TARGET_NO_LONGER_RESOLVED)
     if names_changed_file(base_ev, head_ev, base_files, head_files, changed(), targets):
         note_unknown(NAMES_CHANGED_FILE)
-    if flag_not_boolean(base_doc, head_doc, hook_finding):
+    if not claude_settings and flag_not_boolean(base_doc, head_doc, hook_finding):
         note_unknown(FLAG_NOT_BOOLEAN)
     if claude_settings and disable_all_hooks(base_doc, head_doc, hook_finding, switch_finding, switch_anywhere):
         note_unknown(DISABLE_ALL_HOOKS)

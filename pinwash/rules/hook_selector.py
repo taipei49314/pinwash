@@ -20,7 +20,8 @@ selector:
 * a `matcher` key below its entry (handler or nested group), gained, lost or
   changed.
 
-"Live" is unflagged (§5.1), not a §5.2 stub string and not commented out.
+"Live" is unflagged (§5.1; on cursor_hooks only since spec 29, #42), not a
+§5.2 stub string and not commented out.
 A command is the same on both sides when its string is the same (each such
 string is judged on its own, so one command's narrowing cannot hide behind a
 sibling's widening of the same script), else when it resolves (§3.3) to the
@@ -197,13 +198,21 @@ def selector_changed(
     base_files: dict[str, bytes],
     head_files: dict[str, bytes],
     targets: Any = (None, None),
+    *,
+    claude: bool = False,
 ) -> bool:
     """Pair live commands by string first, so each string's selector is
     judged on its own (a narrowing of one command cannot hide behind a
     sibling's widening when both run the same script); commands whose
-    string changed pair by their §3.3 target set."""
+    string changed pair by their §3.3 target set. With `claude` (a
+    claude_settings file) no command is flagged (§5.1, spec 29, #42)."""
     base_ev = _events(base_doc)
     head_ev = _events(head_doc)
+    if claude:
+        for events in (base_ev, head_ev):
+            for recs in events.values():
+                for rec in recs:
+                    rec["flagged"] = False
     for event in sorted(set(base_ev) & set(head_ev)):
         b_s: dict[str, list[dict[str, Any]]] = {}
         h_s: dict[str, list[dict[str, Any]]] = {}
@@ -235,6 +244,7 @@ def detect(
     head_files: dict[str, bytes],
     note_unknown: Any,
     targets: Any = (None, None),
+    claude: bool = False,
 ) -> None:
-    if selector_changed(base_doc, head_doc, base_files, head_files, targets):
+    if selector_changed(base_doc, head_doc, base_files, head_files, targets, claude=claude):
         note_unknown(REASON)

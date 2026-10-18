@@ -314,6 +314,8 @@ def scan_pair(
             stop_names = (
                 CLAUDE_STOP_EVENTS if is_claude_settings(path) else CURSOR_STOP_EVENTS
             )
+            # SPEC §5.1: claude_settings reads modeled prompt/agent handlers
+            # (spec 28, #45) and no skip key (spec 29, #42).
             base_ev = extract_event_hooks(b_obj, claude=is_claude_settings(path)) if b_st == "ok" else {}
             head_ev = extract_event_hooks(h_obj, claude=is_claude_settings(path)) if h_st == "ok" else {}
             base_doc = b_obj if b_st == "ok" else None
@@ -334,7 +336,7 @@ def scan_pair(
             # Rows never add, drop or change a finding, so never the verdict.
             hook_selector.detect(
                 path, base_doc, head_doc, base_files, head_files, note,
-                targets=(res_base, res_head),
+                targets=(res_base, res_head), claude=claude_kind,
             )
             hook_coverage.detect(
                 claude_settings=is_claude_settings(path),

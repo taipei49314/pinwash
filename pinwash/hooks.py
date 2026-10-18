@@ -133,8 +133,24 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
     `claude`, and only in the object form, the one Claude Code reads).
 
     Skip flags live only in the command-local states (SPEC §5.1, spec 10);
-    there is no per-event aggregate.
+    there is no per-event aggregate. With `claude` (a claude_settings file,
+    SPEC §5.1 since spec 29, AI-assisted ruling on #42) no state carries
+    one, in the object form and the list form alike: Claude Code runs a Stop
+    hook whose item carries `disabled`, `hookEnabled: false`,
+    `continueOnError` or `failOpen`, or whose matcher group carries
+    `disabled` (executed on 2.1.42 and 2.1.296); the rest is read the same
+    way (INFERRED, SPEC §5.1). cursor_hooks keeps them.
     """
+    out = _event_hooks(doc, claude)
+    if claude:
+        for info in out.values():
+            info["command_states"] = [
+                (command, dict.fromkeys(flags, False)) for command, flags in info["command_states"]
+            ]
+    return out
+
+
+def _event_hooks(doc: Any, claude: bool) -> dict[str, dict[str, Any]]:
     root = _as_dict(doc)
     if root is None:
         return {}

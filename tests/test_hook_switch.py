@@ -196,7 +196,8 @@ class CrossFileRow(unittest.TestCase):
 
 class ReviewRows(unittest.TestCase):
     """Review of 2026-10-10 (AI-assisted): rows the switch owes where no
-    finding fires."""
+    finding fires. A flagged-only Stop judge was one through spec 28; since
+    spec 29 (#42) it is the finding."""
 
     def test_a_true_put_in_effect_with_no_active_command_is_the_row(self) -> None:
         # A local `false` removed under an unchanged shared `true`: no file's
@@ -207,15 +208,23 @@ class ReviewRows(unittest.TestCase):
                 self.assertEqual((payload["findings"], payload["unknown_coverage"]),
                                  ([], [{"path": CS, "reason": DAH}]))
 
-    def test_a_flagged_only_stop_judge_is_booked_not_detected(self) -> None:
-        # Claude Code ignores the §5.1 skip keys (executed, #42), so the
-        # switch turns off a judge §3.3 counts as inactive: the row (R06).
-        flagged = json.dumps({"hooks": {"Stop": [{"hooks": [
-            {"type": "command", "command": A, "disabled": True}]}]}})
-        on = json.dumps({"disableAllHooks": True, **json.loads(flagged)})
-        payload = scan({CS: flagged}, {CS: on})
-        self.assertEqual((payload["findings"], payload["unknown_coverage"]),
-                         ([], [{"path": CS, "reason": DAH}]))
+    def test_a_flagged_only_stop_judge_is_detected(self) -> None:
+        # Spec 29 (§5.1, AI-assisted ruling on #42): Claude Code runs a hook
+        # whose item or matcher group carries a skip key (executed), so
+        # claude_settings reads none. The flagged judge is active (§3.3) and
+        # live (§5.2), and the switch over it is the critical finding (spec
+        # 24), beside an active guard too: through spec 28 the row alone
+        # (R06), or `warn` beside the guard.
+        item = {"Stop": [{"hooks": [{"type": "command", "command": A, "disabled": True}]}]}
+        group = {"Stop": [{"disabled": True, "hooks": [{"type": "command", "command": A}]}]}
+        guard = json.loads(doc(pre=[G]))["hooks"]
+        for hooks in (item, group, {**item, **guard}, {**group, **guard}):
+            with self.subTest(hooks=hooks):
+                payload = scan({CS: json.dumps({"hooks": hooks})},
+                               {CS: json.dumps({"disableAllHooks": True, "hooks": hooks})})
+                self.assertEqual([(f["rule"], f["severity"], f["path"], f["locator"]) for f in payload["findings"]],
+                                 [("HOOK_BYPASSED", "critical", CS, "disableAllHooks")])
+                self.assertEqual(payload["unknown_coverage"], [])
 
     def test_a_proto_switch_is_the_row(self) -> None:
         # Claude Code 2.1.42 reads a root `__proto__` object's members as
