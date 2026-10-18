@@ -9,7 +9,7 @@ This branch implements packaging, plain-text/JSON consumer reports and
 of draft detector changes #50–52. SPEC, frozen acceptance gates, engine finding
 semantics and the approved alpha2 workload entry remain unchanged.
 
-## Merge-review correction awaiting verification
+## Merge-review correction verified
 
 The human requested review and merge of PR53 without publication on2026-10-18.
 Read-only review found that a late inspection/read failure in single-diff review,
@@ -24,9 +24,32 @@ failure while keeping an earlier comparison error. Independent static review
 found no remaining blocking issue in the correction. SPEC/engine/frozen gates
 and the package harness are unchanged.
 
-The earlier621-test accepted result below remains evidence only for ee332f6a;
-it does not verify this correction. Revalidation at the corrected source is
-pending. NOT_RUN：工作機規則（POLICY work-machine-local），先前單次PJU授權已consumed；本輪僅讀檔審查與修正。
+The corrected source `865f02bc73d7a8a38f13fae32975487e153c6cb2` passed a new,
+separately authorized single run on2026-10-18. The human explicitly approved
+"核可本輪 PJU 重驗及結果接受" after the work-machine conflict was explained.
+EC T-561 registered the new decision and grant before execution; no earlier
+consumed grant was reused. Both the original wheel and sdist-rebuilt wheel
+passed their full installed doctor: **624 tests, 0 failures, 0 errors, 0 skips**,
+nested_depth=0 and subject_judged=false. This includes the three new regressions.
+Build/rebuild contents, resources, both session text/JSON fixtures and unchanged
+source checks passed. SPEC27 and version0.0.0 matched.
+
+The existing fixed Linux/amd64 image ran once on LAPTOP-01AGNPJU, with
+Python3.11.16/Git2.55.0, network disabled, UID1000 and offline hash-pinned
+setuptools83. The exact owned container exited0 and was removed; absence was
+confirmed without retry or cleanup reclassification. Total preflight-through-
+cleanup time was184.505seconds, including162.929seconds of payload, within
+the approved60-minute limit. Independent read-only review verified the raw
+streams, hashes, source/decision bindings and cleanup.
+
+This satisfies the human's conditional acceptance as
+**HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL**. The immutable EC result is under
+request `e23d48f6-a9b9-4a12-876d-9c271b4d61e2` (`result.md`, `acceptance.json`,
+`raw-proof.json`, `output-manifest.json`). The original wheel SHA256 is
+`917ad51b073b310b0c208a62c728ef9d1d952fa7467a9c751f357631c2bdd899`.
+This post-run update changes only this acceptance document; no execution of a
+later documentation commit is claimed. The earlier621-test result below remains
+historical evidence for ee332f6a. Prior failures and platform gaps remain intact.
 
 ## Acceptance criteria
 
