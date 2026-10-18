@@ -4,35 +4,30 @@ PinWash helps you review changes that weaken an AI agent's verification setup:
 removed hooks, relaxed checks, broader permissions and related supported files.
 It reads the diff; it does not run your application's tests.
 
-This is a **source candidate**, with no release or PyPI publication. The steps
-below use a fixed source revision and a separate Python environment. The
-five-minute target assumes Python 3.11+, Git, a POSIX shell and download access
-are already available; download time varies. This fixed revision passed Linux
-package validation in the
-[candidate validation record](GUIDANCE_ACCEPTANCE.md); Windows/macOS acceptance
-is separate.
+This guide targets **PinWash 0.1.0 (Alpha)**, under MIT. The five-minute target
+assumes Python 3.11+, Git, a POSIX shell and download access are already available;
+download time varies. Linux is the package acceptance target. Windows/macOS
+acceptance is separate; the walkthrough is not a measured newcomer timing study.
 
 ## 1. Install outside the project
 
-Run this from a trusted terminal. These new directories keep the judge away
-from the project your agent edits. If a directory already exists, choose a new
-name rather than overwriting an existing installation or session.
+Run this from a trusted terminal. This new directory keeps the judge away from
+the project your agent edits. If it exists, choose a new name instead of
+replacing an installation that an active session uses.
 
 ```sh
-test ! -e "$HOME/.local/share/pinwash-quickstart-env" &&
+test ! -e "$HOME/.local/share/pinwash-0.1.0-env" &&
 mkdir -p "$HOME/.local/share" &&
-git clone https://github.com/taipei49314/pinwash.git "$HOME/.local/share/pinwash-quickstart-source" &&
-git -C "$HOME/.local/share/pinwash-quickstart-source" checkout --detach 7851de825545dcfe7ed8f2245be1abf7bac9b20e &&
-python3 -m venv "$HOME/.local/share/pinwash-quickstart-env" &&
-"$HOME/.local/share/pinwash-quickstart-env/bin/python" -m pip install "$HOME/.local/share/pinwash-quickstart-source" &&
-. "$HOME/.local/share/pinwash-quickstart-env/bin/activate"
+python3 -m venv "$HOME/.local/share/pinwash-0.1.0-env" &&
+"$HOME/.local/share/pinwash-0.1.0-env/bin/python" -m pip install 'pinwash==0.1.0' &&
+. "$HOME/.local/share/pinwash-0.1.0-env/bin/activate"
 ```
 
-Stop if any command fails. Check `python3 --version` first if you are unsure
-which Python is installed. Source installation downloads pinned setuptools
-83.0.0; installed scans have no runtime dependencies or network requests.
-An already accepted wheel can be installed instead; see [installation](INSTALL.md).
-Keep this installation fixed until your session is reviewed.
+Stop if any command fails. Check `python3 --version` first if needed. Installed
+scans have no runtime dependencies or network requests. If pipx is already
+available, `pipx install pinwash==0.1.0` is the shorter alternative. See
+[installation](INSTALL.md) for local wheels and source builds. Keep the
+installation fixed until your session is reviewed.
 
 ## 2. Try a small, disposable example
 
