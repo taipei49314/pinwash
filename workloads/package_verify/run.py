@@ -1,10 +1,11 @@
-"""Proposed EC package acceptance. Run only after its declaration is approved."""
+"""Package acceptance. Requires its approved EC dispatch or explicit local grant."""
 from __future__ import annotations
 
 import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -26,13 +27,29 @@ def digest(path):
 
 def main():
     if platform.node().upper() in {"LAPTOP-01AGNPJU", "LAPTOP-16NUA5I8"}:
-        raise RuntimeError("Package verification belongs on the approved EC pool, not a work machine")
-    if (os.environ.get("EC_WORKLOAD_REPOSITORY") != "taipei49314/pinwash"
-            or os.environ.get("EC_WORKLOAD_NAME") != "package-verify"
-            or Path(os.environ.get("EC_WORKLOAD_SOURCE", "")).resolve() != ROOT):
-        raise RuntimeError("Use the approved EC package-verify dispatch")
-    expected = os.environ["EC_WORKLOAD_SHA"]
-    out = Path(os.environ["EC_WORKLOAD_OUT"]).resolve()
+        raise RuntimeError("Do not execute this harness directly on a work machine")
+    local = os.environ.get("PINWASH_PACKAGE_EXECUTION") == "human-authorized-local-docker"
+    if local:
+        # This is provenance, not an authority mechanism. The host operator must
+        # verify and consume the separately recorded human grant before Docker.
+        if (sys.platform != "linux" or not Path("/.dockerenv").is_file()
+                or os.environ.get("PINWASH_PACKAGE_HOST") != "LAPTOP-01AGNPJU"
+                or Path(os.environ.get("PINWASH_PACKAGE_SOURCE", "")).resolve() != ROOT
+                or not re.fullmatch(r"[0-9a-f]{40}", os.environ.get("PINWASH_PACKAGE_SHA", ""))
+                or not re.fullmatch(r"[0-9a-f]{64}", os.environ.get("PINWASH_PACKAGE_DECISION_SHA256", ""))
+                or os.environ.get("PINWASH_PACKAGE_OUT") != "/out"
+                or os.environ.get("PINWASH_PACKAGE_BACKEND") != "/inputs/setuptools-83.0.0-py3-none-any.whl"):
+            raise RuntimeError("Explicit local Docker package provenance and offline inputs required")
+        expected = os.environ["PINWASH_PACKAGE_SHA"]
+        out = Path("/out")
+    else:
+        if (os.environ.get("PINWASH_PACKAGE_EXECUTION")
+                or os.environ.get("EC_WORKLOAD_REPOSITORY") != "taipei49314/pinwash"
+                or os.environ.get("EC_WORKLOAD_NAME") != "package-verify"
+                or Path(os.environ.get("EC_WORKLOAD_SOURCE", "")).resolve() != ROOT):
+            raise RuntimeError("Use the approved EC package-verify dispatch")
+        expected = os.environ["EC_WORKLOAD_SHA"]
+        out = Path(os.environ["EC_WORKLOAD_OUT"]).resolve()
     out.mkdir(parents=True, exist_ok=True)
     env = {k: v for k, v in os.environ.items()
            if not k.upper().startswith(("GIT_", "PYTHON", "PIP_"))}
@@ -45,17 +62,33 @@ def main():
 
     def run(name, args, cwd, accepted=(0,), timeout=900):
         began = time.monotonic()
-        try:
-            result = subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                                    capture_output=True, check=False, timeout=timeout)
-            code, stdout, stderr = result.returncode, result.stdout, result.stderr
-        except subprocess.TimeoutExpired as exc:
-            code, stdout, stderr = 2, exc.stdout or b"", exc.stderr or b""
-            stderr += b"\nPACKAGE STEP TIMEOUT\n"
-        except OSError as exc:
-            code, stdout, stderr = 2, b"", str(exc).encode("utf-8", "replace")
-        (out / f"{name}.stdout").write_bytes(stdout)
-        (out / f"{name}.stderr").write_bytes(stderr)
+        if local:
+            # Persist partial output even if the outer Docker deadline kills us.
+            stdout_path, stderr_path = out / f"{name}.stdout", out / f"{name}.stderr"
+            with stdout_path.open("xb") as stdout_file, stderr_path.open("xb") as stderr_file:
+                try:
+                    result = subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                                            stdout=stdout_file, stderr=stderr_file, check=False, timeout=timeout)
+                    code = result.returncode
+                except subprocess.TimeoutExpired:
+                    code = 2
+                    stderr_file.write(b"\nPACKAGE STEP TIMEOUT\n")
+                except OSError as exc:
+                    code = 2
+                    stderr_file.write(str(exc).encode("utf-8", "replace"))
+            stdout, stderr = stdout_path.read_bytes(), stderr_path.read_bytes()
+        else:
+            try:
+                result = subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                                        capture_output=True, check=False, timeout=timeout)
+                code, stdout, stderr = result.returncode, result.stdout, result.stderr
+            except subprocess.TimeoutExpired as exc:
+                code, stdout, stderr = 2, exc.stdout or b"", exc.stderr or b""
+                stderr += b"\nPACKAGE STEP TIMEOUT\n"
+            except OSError as exc:
+                code, stdout, stderr = 2, b"", str(exc).encode("utf-8", "replace")
+            (out / f"{name}.stdout").write_bytes(stdout)
+            (out / f"{name}.stderr").write_bytes(stderr)
         steps.append({"name": name, "command": args, "cwd": str(cwd), "exit_code": code,
                       "elapsed_seconds": round(time.monotonic() - began, 3),
                       "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
@@ -76,7 +109,14 @@ def main():
             source = scratch / "source"
             shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "*.egg-info", "dist", "build"))
             backend = scratch / "setuptools-83.0.0-py3-none-any.whl"
-            with urllib.request.urlopen(BACKEND_URL, timeout=60) as response:
+            if local:
+                backend_input = Path(os.environ["PINWASH_PACKAGE_BACKEND"])
+                if backend_input.is_symlink() or not backend_input.is_file():
+                    raise RuntimeError("Offline build backend must be an ordinary file")
+                response = backend_input.open("rb")
+            else:
+                response = urllib.request.urlopen(BACKEND_URL, timeout=60)
+            with response:
                 content = response.read(2_000_001)
             if len(content) > 2_000_000 or hashlib.sha256(content).hexdigest() != BACKEND_SHA:
                 raise RuntimeError("Build backend hash/size mismatch")
@@ -194,6 +234,10 @@ def main():
         problems.append(str(exc))
     result = {"source_sha": expected, "host": platform.node(), "python": sys.version,
               "backend": {"url": BACKEND_URL, "sha256": BACKEND_SHA},
+              "execution_class": "HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL" if local else "EC_POOL",
+              "physical_host": os.environ["PINWASH_PACKAGE_HOST"] if local else platform.node(),
+              "decision_sha256": os.environ["PINWASH_PACKAGE_DECISION_SHA256"] if local else None,
+              "backend_mode": "offline-file" if local else "pinned-download",
               "steps": steps, "artifacts": artifacts, "problems": problems,
               "status": "FAIL" if problems else "PASS", "published": False}
     (out / "result.json").write_text(json.dumps(result, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
