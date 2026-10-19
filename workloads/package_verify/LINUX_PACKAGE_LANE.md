@@ -52,6 +52,18 @@ Source review and EC synthetic fixtures do not establish Linux lane acceptance.
 HOST50 qualification remains separate. All older one-time PJU product grants
 are consumed; none is reused by this declaration.
 
+The fixed `3433a5b` local attempt `fea986e7` failed on Python 3.12.15 / Git
+2.39.5: the first installed doctor ran 690 tests with two failures; the second
+installation was not reached. Exact container cleanup and absence were recorded.
+That source/runtime result is not accepted and its one-time grant is consumed.
+The date regression exposed a real difference between old and newer Git commit
+parsers, also affecting the published engine's compatibility assumptions. The
+candidate now refuses ambiguous commit metadata with exit 2, retaining the
+native Git oracle for common date semantics and every original regression case.
+This is an engine hardening change, not merely a test adjustment. It has no new
+native validation yet. Frozen acceptance gates, SPEC 29, rule IDs and severities
+remain unchanged. A new fixed approval package is required before any rerun.
+
 The human selected PJU as the next validation target. A fresh fixed approval
 package is required; that selection alone is not an execution grant. Its local
 single-container route can validate the shared harness/PID1/package behavior.

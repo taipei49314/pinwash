@@ -786,9 +786,8 @@ class MergeBaseAgreesWithGit(_Lab):
 
 
 class CommitDates(_Lab):
-    """The walk orders commits by committer date as git's
-    parse_commit_date() reads it: git's isspace() (no \\v or \\f), then
-    strtoumax(). git's own reading is observed through rev-list --since."""
+    """Keep Git's queue dates where old/new parsers agree; fail closed
+    on ambiguous metadata. The native Git remains an oracle for agreed cases."""
 
     def test_committer_dates_read_as_git_reads_them(self) -> None:
         repo = self.new_repo()
@@ -796,10 +795,9 @@ class CommitDates(_Lab):
         top = (1 << 64) - 1
         cases = {
             b" 1760000500": 1760000500, b"  \t\r1760000500": 1760000500,
-            b"\v1760000500": 0, b"\f1760000500": 0, b" +1760000500": 0,
             b" 1760000500x": 1760000500, b" 017": 17, b" -5": top - 4,
             b" - 5": 0, b" 99999999999999999999999": top,
-            b" -99999999999999999999999": top, b"": 0,
+            b" -99999999999999999999999": top,
         }
         for raw, want in cases.items():
             body = (b"tree " + tree + b"\nauthor a <a@a> 1 +0000\ncommitter c <c@c>"
@@ -809,6 +807,27 @@ class CommitDates(_Lab):
                            "--stdin", stdin=body)
             since = self.git(repo, "rev-list", "--no-walk", "--since=@1760000400", oid)
             self.assertEqual(bool(since), want >= 1760000400, raw)
+        ambiguous = [
+            b"committer c <c@c>" + raw + b" +0000\n\nm\n"
+            for raw in (b"\v1760000500", b"\f1760000500", b" +1760000500", b"", b" \xff1760000500")
+        ] + [
+            b"committer c <c@c> \n\n1760000500\n",
+            b"committer c <c@c> 1760000500 +0000\n",
+            b"committer c c@c 1760000500 +0000\n\n>1760000500\n",
+            b"committer c >0 <c@c> 1760000500 +0000\n\nm\n",
+        ]
+        for committer in ambiguous:
+            with self.subTest(committer=committer):
+                body = b"tree " + tree + b"\nauthor a <a@a> 1 +0000\n" + committer
+                with self.assertRaisesRegex(gitrepo.GitError, "ambiguous across Git parsers"):
+                    gitrepo._commit_date(body, body.index(b"author"))
+                oid = self.git(repo, "hash-object", "-t", "commit", "-w", "--literally", "--stdin", stdin=body)
+                # Distinct OIDs prevent the same-commit merge-base fast path
+                # from avoiding the date parser this regression must cover.
+                child_body = (b"tree " + tree + b"\nparent " + oid.encode()
+                              + b"\nauthor a <a@a> 1 +0000\ncommitter c <c@c> 1760000600 +0000\n\nchild\n")
+                child = self.git(repo, "hash-object", "-t", "commit", "-w", "--literally", "--stdin", stdin=child_body)
+                self.assertExit2(self.check(repo, f"{oid}...{child}"), "ambiguous across Git parsers")
 
 
 def _stitch(lab: _Lab) -> tuple[Path, str, str, str]:
