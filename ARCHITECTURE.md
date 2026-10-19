@@ -68,6 +68,22 @@ Of the neighbour products in this diagram and table (pinwash itself aside), only
 
 **Git hardening (H0, 2026-10-09; engine only, no spec bump).** Items 1 and 3 hold for git itself: every git call runs as `git --no-replace-objects -c core.fsmonitor=false -c core.commitGraph=false -c core.untrackedCache=false -c core.hooksPath=<no file>` (and, since spec 16, `-c core.ignoreCase=false`) with `GIT_NO_LAZY_FETCH=1`, `GIT_ALLOW_PROTOCOL=` (empty), `GIT_GRAFT_FILE` and `GIT_SHALLOW_FILE` naming no file, and stdin from the null device. Command-line `-c` outranks every config file, `include.path` and `includeIf` targets and `config.worktree` included. Every commit, tag, tree and blob read from the object store is rehashed against its id (SHA-1 or SHA-256 by `rev-parse --show-object-format`); a commit's tree id comes from its verified body, never from a commit-graph or a `^{tree}` shortcut; tree listings are parsed from verified tree objects; a mismatch is an unreadable git tree, exit 2, never a pass. `BASE...HEAD`'s merge base is computed from verified commit objects with git's algorithm (`paint_down_to_common` and `remove_redundant`, the same queue order, committer dates read as git's `parse_commit_date` reads them); `git merge-base` is not asked. Commits are read ahead in batches (`git rev-list` from the walk's frontier, piped into one `cat-file --batch --buffer`); that listing is a hint, and only objects that rehash are kept. A missing object is exit 2 that names it. A tree that lists one name twice or breaks git's entry order (git fsck's duplicateEntries / treeNotSorted) is malformed, exit 2: git itself reads it two ways (ls-tree -r lists both entries, diff-tree takes the first), and reading the last one let a committed Stop removal pass `BASE..HEAD` (second H0 review). The work tree must be the directory holding the `.git` that git found, or, with `GIT_DIR` set, the cwd (git's default there), unless the judge sets `GIT_WORK_TREE`. Vectors, each tried on git 2.43.0 (this host's Ubuntu build), with the spec 12 engine and now:
 
+**Commit-date compatibility hardening (candidate, 2026-10-19).** The new
+Python 3.12.15 / Git 2.39.5 package attempt exposed a difference from the
+previous Git 2.55.0 run. Git's [089d9ad](https://github.com/git/git/commit/089d9adff6408b8f3406e2f46179501337715ae8)
+changes leading whitespace/sign handling; [ea1615d](https://github.com/git/git/commit/ea1615d)
+changes which `>` it reads. Queue dates retain the common parsing semantics,
+including suffixes, negative wrap and overflow. Metadata with zero or multiple
+`>` on the committer line, a date absent on that line, a VT/FF/plus/non-ASCII
+prefix, or that line's LF as the object's final byte is refused with `GitError`
+(exit 2), rather than selecting a possibly different merge base. This hardens
+Git metadata reading under SPEC §8; it adds no surface, finding or severity.
+The original regression cases remain, ambiguous cases must now error, and
+distinct-object public three-dot ranges must also error. Frozen gates are
+unchanged. The published 0.1.1 bytes retain the older behavior. Candidate
+validation is NOT_RUN pending a new fixed approval; the failed attempt stays
+FAIL / NOT_ACCEPTED.
+
 | Subject writes | spec 12 engine | Now |
 |---|---|---|
 | `core.fsmonitor` (directly, through `include.path`, `includeIf` or `config.worktree`) | `ls-files` ran the program (plain check, `BASE..WORKTREE`) | `-c core.fsmonitor=false` |
@@ -131,7 +147,7 @@ Public JSON fields and the fingerprint formula stay frozen in SPEC §7. A refact
 | Layer | Duty | Code today |
 |---|---|---|
 | CLI | Dispatch; unexpected exceptions → exit 2 | `pinwash/cli.py` |
-| Git adapter | Two-dot / three-dot; tree bytes (blobs only: a gitlink is no file, b5c7551); a worktree file the engine cannot read counts as non-UTF-8 bytes (f849b8a); unreadable git → `GitError`. Hardened against the subject's `.git` (§2): every call `--no-replace-objects`, fsmonitor and commit-graph off, no grafts, shallow, hooks, lazy fetch or transport; every object rehashed against its id, trees parsed from verified objects, the `BASE...HEAD` merge base computed from verified commits; the work tree must hold its `.git` | `pinwash/gitrepo.py` |
+| Git adapter | Two-dot / three-dot; tree bytes (blobs only: a gitlink is no file, b5c7551); a worktree file the engine cannot read counts as non-UTF-8 bytes (f849b8a); unreadable git → `GitError`. Hardened against the subject's `.git` (§2): every call `--no-replace-objects`, fsmonitor and commit-graph off, no grafts, shallow, hooks, lazy fetch or transport; every object rehashed against its id, trees parsed from verified objects, the `BASE...HEAD` merge base computed from verified commits; ambiguous committer metadata is exit 2; the work tree must hold its `.git` | `pinwash/gitrepo.py` |
 | Surface registry | Path → membership in the v0 closed set | `pinwash/surfaces.py` |
 | Bounded parsers | Not YAML 1.2, not full TOML, JSON read the same at any depth and integer length (§5), closed hook-command resolution | `pinwash/parse/` (`gha`, `jsonsurf`, `tomlsub`, `hookcmd`) |
 | Typed IR | Detectors must not see raw YAML | **Missing** — 1.0-shape gap |

@@ -666,11 +666,16 @@ class _Store:
 
 
 _SPACE = b" \t\n\r"  # git's isspace() (ctype.c), not C's: no \v or \f
+_AMBIGUOUS_COMMIT_DATE = "git committer date is ambiguous across Git parsers"
 
 
 def _commit_date(buf: bytes, start: int) -> int:
-    """git's parse_commit_date() on buf[start:]: the committer timestamp,
-    0 if malformed, read as strtoumax() reads it."""
+    """Read an unambiguous committer timestamp from verified object bytes.
+
+    Older Git parses with strtoumax directly; newer Git first restricts
+    whitespace and the leading character (git/git 089d9ad). Refuse metadata
+    on which their queue dates can differ rather than choose another base.
+    """
     end = len(buf)
     if start + 6 >= end or not buf.startswith(b"author", start):
         return 0
@@ -683,11 +688,13 @@ def _commit_date(buf: bytes, start: int) -> int:
     eol = buf.find(b"\n", line)
     if eol < 0:
         return 0
+    if buf.count(b">", line, eol) != 1 or eol == end - 1:
+        raise GitError(_AMBIGUOUS_COMMIT_DATE)
     pos = buf.rfind(b">", line, eol) + 1
-    if pos == 0:
-        return 0
     while pos < eol and buf[pos] in _SPACE:
         pos += 1
+    if pos == eol or buf[pos] in b"\v\f+" or buf[pos] >= 0x80:
+        raise GitError(_AMBIGUOUS_COMMIT_DATE)
     negative = buf[pos] == 0x2D  # "-"
     first = pos + negative
     digits = first
