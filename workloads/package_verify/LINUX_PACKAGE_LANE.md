@@ -14,6 +14,14 @@ unknown execution modes. Host/source/declaration/decision/runtime claims need
 separate controller admission and original byte receipts; environment variables
 alone grant no authority and are not host attestation.
 
+For the separately approved PJU validation route, the explicit mode is
+`human-authorized-pju-linux-package`. It uses the same layout, Python 3.12.15,
+strict command records and package checks, but requires physical host
+`LAPTOP-01AGNPJU`, rejects all `EC_WORKLOAD_*` claims and emits
+`HUMAN_AUTHORIZED_PJU_LINUX_PACKAGE_NOT_EC_POOL`. The independently pinned host
+operator and PID1 payload must be approved before execution. The old
+`human-authorized-local-docker` route and historical result grammar are retained.
+
 The harness builds an original wheel and sdist, rebuilds another wheel from the
 sdist, verifies package contents/metadata/resources and installs both wheels in
 separate temporary environments. Each installed doctor must report exactly 690
@@ -28,7 +36,8 @@ In this new mode each inner command records its actual nullable exit separately
 from `outcome`, `timed_out` and wrapper `error`. If an exception provides no
 actual exit, the value is null. Timeout and spawn diagnostics are metadata;
 the child's raw stderr is preserved unchanged. The historical LOCAL and legacy
-formats retain their original grammar.
+formats retain their original grammar. The new PJU mode shares this strict
+Linux command grammar; it does not impersonate a pool owner or workload.
 
 The separate EC controller must prove original attempt 1, exact admitted source
 and declaration, qualified runtime/storage prerequisites, original ownership,
@@ -42,6 +51,12 @@ execution, workload dispatch or publication.
 Source review and EC synthetic fixtures do not establish Linux lane acceptance.
 HOST50 qualification remains separate. All older one-time PJU product grants
 are consumed; none is reused by this declaration.
+
+The human selected PJU as the next validation target. A fresh fixed approval
+package is required; that selection alone is not an execution grant. Its local
+single-container route can validate the shared harness/PID1/package behavior.
+It cannot validate HOST50, four-helper named-volume custody, workload admission,
+remote receipt ACK or reset release. This declaration remains proposed.
 
 The published 0.1.1 wheel and sdist remain the original accepted bytes from
 `fdb3c4d`. Their embedded README and PyPI long description reflect that source's

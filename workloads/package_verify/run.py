@@ -32,12 +32,14 @@ def main():
         raise RuntimeError("Do not execute this harness directly on a work machine")
     execution = os.environ.get("PINWASH_PACKAGE_EXECUTION")
     local = execution == "human-authorized-local-docker"
+    local_linux = execution == "human-authorized-pju-linux-package"
     linux_pool = execution == "ec-pool-linux"
-    offline = local or linux_pool
+    strict_linux = local_linux or linux_pool
+    offline = local or strict_linux
     if offline:
         # This is provenance, not an authority mechanism. The host operator must
         # verify and consume the separately recorded human grant before Docker.
-        physical_host = "LAPTOP-01AGNPJU" if local else "LAPTOP-50KP71KA"
+        physical_host = "LAPTOP-01AGNPJU" if local or local_linux else "LAPTOP-50KP71KA"
         inputs_root = "/inputs" if local else "/source/inputs"
         source_root = "/tmp/source" if local else "/work/source"
         output_root = "/out" if local else "/output/results"
@@ -49,9 +51,12 @@ def main():
                 or os.environ.get("PINWASH_PACKAGE_OUT") != output_root
                 or os.environ.get("PINWASH_PACKAGE_BACKEND") != inputs_root + "/setuptools-83.0.0-py3-none-any.whl"):
             raise RuntimeError("Explicit Docker package provenance and offline inputs required")
-        if linux_pool and (str(ROOT) != source_root or os.environ.get("TMPDIR") != "/work"
-                or sys.version_info[:3] != (3, 12, 15)
-                or os.environ.get("EC_WORKLOAD_REPOSITORY") != "taipei49314/pinwash"
+        if strict_linux and (str(ROOT) != source_root or os.environ.get("TMPDIR") != "/work"
+                or sys.version_info[:3] != (3, 12, 15)):
+            raise RuntimeError("Fixed Linux package layout and Python 3.12.15 required")
+        if local_linux and any(key.startswith("EC_WORKLOAD_") for key in os.environ):
+            raise RuntimeError("Local Linux package validation cannot claim an EC workload")
+        if linux_pool and (os.environ.get("EC_WORKLOAD_REPOSITORY") != "taipei49314/pinwash"
                 or os.environ.get("EC_WORKLOAD_NAME") != "package-linux-verify"
                 or os.environ.get("EC_WORKLOAD_SHA") != os.environ.get("PINWASH_PACKAGE_SHA")
                 or os.environ.get("EC_WORKLOAD_SOURCE") != source_root
@@ -89,13 +94,13 @@ def main():
                                             stdout=stdout_file, stderr=stderr_file, check=False, timeout=timeout)
                     code = result.returncode
                 except subprocess.TimeoutExpired as exc:
-                    if linux_pool:
+                    if strict_linux:
                         timed_out, step_error = True, {"type": type(exc).__name__, "message": str(exc)}
                     else:
                         code = 2
                         stderr_file.write(b"\nPACKAGE STEP TIMEOUT\n")
                 except OSError as exc:
-                    if linux_pool:
+                    if strict_linux:
                         step_error = {"type": type(exc).__name__, "message": str(exc)}
                     else:
                         code = 2
@@ -117,13 +122,13 @@ def main():
                       "elapsed_seconds": round(time.monotonic() - began, 3),
                       "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
                       "stderr_sha256": hashlib.sha256(stderr).hexdigest()}
-        if linux_pool:
+        if strict_linux:
             # Keep actual nullable exit separate from wrapper failure, and never
             # insert our own timeout/exception text into a child's raw stderr.
             step.update(outcome="PASS" if type(code) is int and code in accepted and step_error is None else "FAIL",
                         error=step_error, timed_out=timed_out)
         steps.append(step)
-        if linux_pool and step["outcome"] != "PASS":
+        if strict_linux and step["outcome"] != "PASS":
             raise RuntimeError(f"{name}: {step_error or ('exit ' + str(code))}")
         if code not in accepted:
             raise RuntimeError(f"{name}: exit {code}")
@@ -138,7 +143,7 @@ def main():
             raise RuntimeError("Source must be exact and clean")
         project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
         expected_version = project["version"]
-        if linux_pool and (expected_version != "0.1.1"
+        if strict_linux and (expected_version != "0.1.1"
                 or digest(ROOT / "SPEC.md") != "e31d7b466378f9358a5dbaf505cc8fb07c2c02093cc4daa24ac949666afd969b"):
             raise RuntimeError("Fixed 0.1.1 / SPEC 29 Linux package source required")
         expected_license = (ROOT / "LICENSE").read_bytes()
@@ -297,7 +302,7 @@ def main():
                     raise RuntimeError("Installed consumer executed subject code")
                 doctor = json.loads(run(f"{label}-doctor", [command, "doctor"], scratch, timeout=1200))
                 tests = doctor["self_tests"]
-                if linux_pool and (tests.get("available") is not True or tests.get("ok") is not True
+                if strict_linux and (tests.get("available") is not True or tests.get("ok") is not True
                         or type(tests.get("tests_run")) is not int or tests["tests_run"] != 690
                         or any(type(tests.get(key)) is not int or tests[key] != 0 for key in
                                ("errors", "failures", "skipped_count", "expected_failures", "unexpected_successes", "nested_depth"))
@@ -314,7 +319,7 @@ def main():
         problems.append(str(exc))
     result = {"source_sha": expected, "host": platform.node(), "python": sys.version,
               "backend": {"url": BACKEND_URL, "sha256": BACKEND_SHA},
-              "execution_class": "HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL" if local else "EC_POOL_DOCKER_LINUX" if linux_pool else "EC_POOL",
+              "execution_class": "HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL" if local else "HUMAN_AUTHORIZED_PJU_LINUX_PACKAGE_NOT_EC_POOL" if local_linux else "EC_POOL_DOCKER_LINUX" if linux_pool else "EC_POOL",
               "physical_host": os.environ["PINWASH_PACKAGE_HOST"] if offline else platform.node(),
               "decision_sha256": os.environ["PINWASH_PACKAGE_DECISION_SHA256"] if offline else None,
               "backend_mode": "offline-file" if offline else "pinned-download",
