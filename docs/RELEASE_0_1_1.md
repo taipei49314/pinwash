@@ -63,6 +63,9 @@ not established by this candidate.
 
 After new acceptance and the applicable publication authorization, publication
 preparation must explicitly bind `v0.1.1`, the exact accepted source and the
-original wheel/sdist hashes. The existing `publish-pypi.yml` and environment
-restriction remain scoped to `v0.1.0`; this preparation changes neither. No tag,
-upload dispatch or persistent publisher-scope change is performed here.
+original wheel/sdist hashes. The prepared `publish-pypi.yml` now accepts only
+`v0.1.1`, with the same upload-only, hash-checked, 15-minute behavior. The
+existing environment was read back as allowing only `v0.1.0`; before publication
+it needs an exact `v0.1.1` tag rule and a new readback. No wildcard rule is
+proposed. The existing `v0.1.0` tag and its workflow bytes remain historical.
+No tag, upload dispatch or persistent publisher-scope change has occurred yet.

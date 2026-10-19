@@ -88,6 +88,8 @@ to their original SHAs. They are not part of the published package or this
 source baseline. Reconnecting that stack requires resolving the overlap and
 reviewing its remaining changes.
 
-The [first-release procedure](RELEASE.md) and existing publisher are scoped to
-`v0.1.0`. A later version, its artifact acceptance and publication need their own
-scope. This page does not authorize a retry, upload or change to publisher scope.
+The [first-release procedure](RELEASE.md) records the completed `v0.1.0` run.
+The next upload-only workflow is now prepared for the exact tag `v0.1.1`, with
+new artifact acceptance and a deployment-environment tag-rule readback still
+pending. This page does not authorize a retry, upload or change to publisher
+scope; execution and its acceptance retain their separate recorded basis.

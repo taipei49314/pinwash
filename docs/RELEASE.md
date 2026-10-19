@@ -13,8 +13,9 @@ records both sources, artifact hashes and the limits of their acceptance.
 The next source version is the **0.1.1 / SPEC 29 candidate**. Its
 [draft release notes](RELEASE_0_1_1.md) and
 [package acceptance plan](PACKAGE_ACCEPTANCE_0_1_1.md) are preparation only;
-new package acceptance and publication are pending. The existing publisher
-workflow still accepts only `v0.1.0`.
+new package acceptance and publication are pending. The prepared publisher
+workflow is fixed to `v0.1.1`; the existing deployment environment's exact-tag
+restriction still needs to be updated and read back before upload.
 
 The steps below record the completed first-release procedure, not a pending
 dispatch or a reusable grant. Its build execution, trust configuration and

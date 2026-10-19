@@ -1,8 +1,12 @@
 # Proposed package acceptance — 0.1.1 / SPEC 29
 
 **Preparation only. Execution NOT RUN; no dispatch or local workload grant.**
-The maintainer requested a candidate and plan on 2026-10-19. This document does
-not authorize execution, accept results in advance, or authorize publication.
+The maintainer requested a candidate and plan on 2026-10-19, then requested
+release followed by repair of the PinWash Linux package pool lane using the
+local work machine. The local workload conflicts with the standing work-machine
+rule; a separate exact-source local proposal is being prepared for explicit
+confirmation. This document does not grant that execution or accept its
+results in advance.
 
 ## Fixed inputs
 
@@ -42,7 +46,7 @@ current declaration, fixed source, entry hashes, profile and execution budget,
 publish the EC accounting and read it back before dispatch. This preparation
 does not reopen or reuse T-556, T-567 or an old dispatch.
 
-Neither work machine is an execution venue under this proposal. All previous
+Neither work machine is an execution venue under the pool route above. All previous
 PinWash PJU grants are consumed. Any subsequently requested PJU Docker route
 needs a new, explicit scoped human decision, fresh EC accounting, a fixed
 reviewed operator and exact cleanup ownership; it is not a fallback authorized
