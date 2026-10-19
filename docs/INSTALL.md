@@ -1,5 +1,11 @@
 # Install PinWash 0.1.0
 
+These package commands install the published **0.1.0 / SPEC 27**. The source
+branch has SPEC 29 fixes that are not in that release, although its package
+metadata still says `0.1.0`. See [release and source versions](VERSIONS.md)
+before choosing a source checkout or a local wheel; the version or filename
+alone cannot distinguish the released files from verification artifacts.
+
 For a complete source download, isolated installation and first review, start
 with the [five-minute quickstart](QUICKSTART.md). This page covers alternatives
 and packaging details.
@@ -42,8 +48,10 @@ pipx install /absolute/path/to/trusted/pinwash-checkout
 Source installation downloads pinned setuptools 83.0.0. Installing the wheel
 requires no build backend. Installed scans use no network. Read the
 [quickstart](QUICKSTART.md) for the first session and [release procedure](RELEASE.md)
-for how artifact hashes and publication are verified. Historical candidate
-acceptance documents cover only their recorded source, not this version.
+for how artifact hashes and publication are verified. Each acceptance record
+covers only its recorded source and artifacts, not another checkout or wheel
+that shares the version string. The SPEC 29 wheels from PR #56 were built for
+verification only and were not uploaded to PyPI.
 
 ## Build and verify
 

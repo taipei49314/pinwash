@@ -1,12 +1,21 @@
-# Publishing 0.1.0
+# Published 0.1.0 and the first-release procedure
 
-The first version is **0.1.0 (Alpha)** under MIT. SPEC 27 and the findings schema
-are unchanged. Only the exact accepted original wheel and sdist are uploaded;
-the wheel rebuilt from the sdist is an acceptance artifact, not a second upload.
+The first version, **0.1.0 (Alpha)** under MIT, was published on 2026-10-18:
+[GitHub release](https://github.com/taipei49314/pinwash/releases/tag/v0.1.0) and
+[PyPI](https://pypi.org/project/pinwash/0.1.0/). It uses SPEC 27 at
+`f8669ad86ac71b0e85e29307b471e699df5eb265`. Only the accepted original wheel and
+sdist were uploaded; the rebuilt wheel was an acceptance artifact.
 
-This procedure does not grant execution or publishing authority. The maintainer
-has requested the first tag and PyPI upload; build execution and new PyPI trust
-configuration still need their explicit scoped authorization.
+Main subsequently incorporated SPEC 29 in PR #56 without changing the package
+version. Those fixes are unreleased. [Release and source versions](VERSIONS.md)
+records both sources, artifact hashes and the limits of their acceptance.
+
+The steps below record the completed first-release procedure, not a pending
+dispatch or a reusable grant. Its build execution, trust configuration and
+single upload received their own scoped approvals. This document grants no
+new execution or publishing authority.
+
+## Recorded first-release procedure
 
 1. Fix a clean source SHA. Run the two-wheel package acceptance harness at that
    exact source in an authorized environment. Require complete suites with no
