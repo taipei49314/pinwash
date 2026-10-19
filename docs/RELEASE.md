@@ -10,6 +10,13 @@ Main subsequently incorporated SPEC 29 in PR #56 without changing the package
 version. Those fixes are unreleased. [Release and source versions](VERSIONS.md)
 records both sources, artifact hashes and the limits of their acceptance.
 
+The next source version is the **0.1.1 / SPEC 29 candidate**. Its
+[draft release notes](RELEASE_0_1_1.md) and
+[package acceptance plan](PACKAGE_ACCEPTANCE_0_1_1.md) are preparation only;
+new package acceptance and publication are pending. The prepared publisher
+workflow is fixed to `v0.1.1`; the existing deployment environment's exact-tag
+restriction still needs to be updated and read back before upload.
+
 The steps below record the completed first-release procedure, not a pending
 dispatch or a reusable grant. Its build execution, trust configuration and
 single upload received their own scoped approvals. This document grants no

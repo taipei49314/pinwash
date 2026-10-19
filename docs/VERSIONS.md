@@ -7,12 +7,16 @@ spec versions. The package version alone does not identify the rules used.
 |---|---|---|---|---|
 | GitHub/PyPI release | `0.1.0` (Alpha, MIT) | 27 | `f8669ad86ac71b0e85e29307b471e699df5eb265`, annotated tag `v0.1.0` | Published 2026-10-18 |
 | Source after PR #56 | Still `0.1.0` | 29 | Tested head `44e70b835fdf2895617a1b280773a03be0e150a6`; merged as `cc99b33f5b090955b8b3b1e236cae5c899e3c1f5` | SPEC 28–29 changes are unreleased |
+| Next candidate | `0.1.1` (Alpha) | 29 | Based on `e04e115c8f3ec09809cf6f7cf5026dfb877fa7ac`; the reviewed candidate SHA is frozen in the external source manifest accompanying its acceptance proposal | NOT RUN / not published |
 
 Sources: [release](https://github.com/taipei49314/pinwash/releases/tag/v0.1.0),
 [PyPI 0.1.0](https://pypi.org/project/pinwash/0.1.0/),
 [PR #56](https://github.com/taipei49314/pinwash/pull/56), and the source
 [version constants](../pinwash/__init__.py) and [package metadata](../pyproject.toml).
-No later package version is selected by this document.
+The maintainer requested preparation of the 0.1.1 / SPEC 29 candidate on
+2026-10-19. Its [draft notes](RELEASE_0_1_1.md) and
+[new acceptance plan](PACKAGE_ACCEPTANCE_0_1_1.md) record the scope. The previous
+0.1.0 / SPEC 29 verification artifacts remain historical and were not renamed.
 
 ## What users get
 
@@ -23,8 +27,9 @@ Those changes are in source SPEC 29. Issues
 [#45](https://github.com/taipei49314/pinwash/issues/45) retain unresolved parts;
 the PR does not close all of their residuals.
 
-A source checkout or a verification wheel may also call itself `0.1.0` while
-containing SPEC 29. Record the exact source SHA, spec version and artifact hash
+The earlier source checkout and verification wheels called themselves `0.1.0`
+while containing SPEC 29. This candidate now calls itself `0.1.1`, but no new
+wheel has been built or accepted. Record the exact source SHA, spec version and artifact hash
 with its results. Do not identify it as the PyPI release by its version or
 filename alone. The [installation guide](INSTALL.md) separates package and
 source installation choices.
@@ -52,12 +57,13 @@ The published files have these SHA-256 values, read back from GitHub and PyPI:
   Its `0.1.0` artifacts differ from the published files and were for verification
   only; they were not uploaded.
 
-Both records are maintainer-authorized local Docker Linux acceptance,
+Both historical records are maintainer-authorized local Docker Linux acceptance,
 `HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL`. They do not establish Windows/macOS
 acceptance or EC pool qualification. Acceptance is tied to the recorded source
 and artifacts; subsequent documentation edits do not create a new package
 acceptance result. No tests or package builds were run for this documentation
-update.
+update or the subsequent 0.1.1 candidate preparation. The historical 690-test
+result does not accept a new version or new artifact.
 
 ## Historical text in the frozen SPEC
 
@@ -82,6 +88,8 @@ to their original SHAs. They are not part of the published package or this
 source baseline. Reconnecting that stack requires resolving the overlap and
 reviewing its remaining changes.
 
-The [first-release procedure](RELEASE.md) and existing publisher are scoped to
-`v0.1.0`. A later version, its artifact acceptance and publication need their own
-scope. This page does not authorize a retry, upload or change to publisher scope.
+The [first-release procedure](RELEASE.md) records the completed `v0.1.0` run.
+The next upload-only workflow is now prepared for the exact tag `v0.1.1`, with
+new artifact acceptance and a deployment-environment tag-rule readback still
+pending. This page does not authorize a retry, upload or change to publisher
+scope; execution and its acceptance retain their separate recorded basis.
