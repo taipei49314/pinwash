@@ -1,10 +1,10 @@
-# Install PinWash 0.1.0
+# Install the published release or review the 0.1.1 candidate
 
 These package commands install the published **0.1.0 / SPEC 27**. The source
-branch has SPEC 29 fixes that are not in that release, although its package
-metadata still says `0.1.0`. See [release and source versions](VERSIONS.md)
-before choosing a source checkout or a local wheel; the version or filename
-alone cannot distinguish the released files from verification artifacts.
+branch is a **0.1.1 / SPEC 29 candidate**, with package acceptance and publication
+pending. See [release and source versions](VERSIONS.md)
+before choosing a source checkout or a local wheel; record its exact source and
+hash. The candidate's [release notes](RELEASE_0_1_1.md) explain its changes.
 
 For a complete source download, isolated installation and first review, start
 with the [five-minute quickstart](QUICKSTART.md). This page covers alternatives
@@ -33,13 +33,19 @@ python3 -m venv /absolute/path/to/pinwash-env &&
 Use that environment's `bin/pinwash`, or activate it for the short command.
 Never overwrite an installation used by an active session.
 
-For an accepted wheel whose source and SHA-256 you have checked:
+## Candidate wheel or source checkout
+
+The 0.1.1 candidate has not been uploaded to PyPI and has no accepted artifact
+hash yet. Do not use `pipx install pinwash==0.1.1` as an available-release
+instruction. Once its new package acceptance is complete, install only the
+accepted wheel whose source and SHA-256 you have checked:
 
 ```text
-pipx install /absolute/path/to/pinwash-0.1.0-py3-none-any.whl
+pipx install /absolute/path/to/pinwash-0.1.1-py3-none-any.whl
 ```
 
-For a reviewed source checkout at a fixed SHA:
+For development review of a trusted source checkout at a fixed SHA (this is
+not an accepted release installation):
 
 ```text
 pipx install /absolute/path/to/trusted/pinwash-checkout

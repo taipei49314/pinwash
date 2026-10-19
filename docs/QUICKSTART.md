@@ -9,6 +9,10 @@ assumes Python 3.11+, Git, a POSIX shell and download access are already availab
 download time varies. Linux is the package acceptance target. Windows/macOS
 acceptance is separate; the walkthrough is not a measured newcomer timing study.
 
+The source branch is preparing a 0.1.1 / SPEC 29 candidate. These download
+commands continue to name the published 0.1.0 / SPEC 27 package until a new
+release is accepted and published. See [candidate notes](RELEASE_0_1_1.md).
+
 ## 1. Install outside the project
 
 Run this from a trusted terminal. This new directory keeps the judge away from
