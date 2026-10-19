@@ -4,14 +4,13 @@ PinWash helps you review changes that weaken an AI agent's verification setup:
 removed hooks, relaxed checks, broader permissions and related supported files.
 It reads the diff; it does not run your application's tests.
 
-This guide targets **PinWash 0.1.0 (Alpha)**, under MIT. The five-minute target
+This guide targets **PinWash 0.1.1 / SPEC 29 (Alpha)**, under MIT. The five-minute target
 assumes Python 3.11+, Git, a POSIX shell and download access are already available;
 download time varies. Linux is the package acceptance target. Windows/macOS
 acceptance is separate; the walkthrough is not a measured newcomer timing study.
 
-The source branch is preparing a 0.1.1 / SPEC 29 candidate. These download
-commands continue to name the published 0.1.0 / SPEC 27 package until a new
-release is accepted and published. See [candidate notes](RELEASE_0_1_1.md).
+The release is available on GitHub and PyPI. See the
+[release notes](RELEASE_0_1_1.md) for its accepted source and artifact hashes.
 
 ## 1. Install outside the project
 
@@ -20,16 +19,16 @@ the project your agent edits. If it exists, choose a new name instead of
 replacing an installation that an active session uses.
 
 ```sh
-test ! -e "$HOME/.local/share/pinwash-0.1.0-env" &&
+test ! -e "$HOME/.local/share/pinwash-0.1.1-env" &&
 mkdir -p "$HOME/.local/share" &&
-python3 -m venv "$HOME/.local/share/pinwash-0.1.0-env" &&
-"$HOME/.local/share/pinwash-0.1.0-env/bin/python" -m pip install 'pinwash==0.1.0' &&
-. "$HOME/.local/share/pinwash-0.1.0-env/bin/activate"
+python3 -m venv "$HOME/.local/share/pinwash-0.1.1-env" &&
+"$HOME/.local/share/pinwash-0.1.1-env/bin/python" -m pip install 'pinwash==0.1.1' &&
+. "$HOME/.local/share/pinwash-0.1.1-env/bin/activate"
 ```
 
 Stop if any command fails. Check `python3 --version` first if needed. Installed
 scans have no runtime dependencies or network requests. If pipx is already
-available, `pipx install pinwash==0.1.0` is the shorter alternative. See
+available, `pipx install pinwash==0.1.1` is the shorter alternative. See
 [installation](INSTALL.md) for local wheels and source builds. Keep the
 installation fixed until your session is reviewed.
 

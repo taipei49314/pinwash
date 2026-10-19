@@ -1,5 +1,18 @@
 # Proposed package acceptance — 0.1.1 / SPEC 29
 
+**Historical plan; completed and explicitly accepted on 2026-10-19.**
+The fixed source was `fdb3c4d753d637e89aba5a22372d61dc2c292939`. Original and
+sdist-rebuilt installed wheels each passed 690 tests with zero failures, errors
+or skips; metadata, archive, source, session/report and exact cleanup checks
+passed. This was an explicitly authorized and accepted local PJU Docker Linux
+run, `HUMAN_AUTHORIZED_LOCAL_DOCKER_NOT_EC_POOL`; it did not qualify HOST50.
+The corrected attempt took 197.217 seconds. The preceding adapter preflight
+failed before Docker/product execution and is retained separately.
+See the [completed release record](RELEASE_0_1_1.md) and
+[public receipt](https://github.com/taipei49314/pinwash/releases/download/v0.1.1/ACCEPTANCE.json).
+The text below preserves the proposal's expectations and authority boundaries
+as they stood before its separate exact-source approvals; it is not a reusable grant.
+
 **Preparation only. Execution NOT RUN; no dispatch or local workload grant.**
 The maintainer requested a candidate and plan on 2026-10-19, then requested
 release followed by repair of the PinWash Linux package pool lane using the
