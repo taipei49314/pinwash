@@ -3,8 +3,9 @@
 Status values: **Open** (residual, no closing fixture), **Closed** (fixture exists and is named). A Closed row without a fixture is invalid.
 
 A local v0 engine exists. GitHub/PyPI `0.1.0` is an Alpha release using SPEC 27;
-this checkout follows SPEC 29, whose changes are not yet published. See
-[release and source versions](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/docs/VERSIONS.md)
+this checkout prepares a 0.1.1 / SPEC 29 candidate, with new package acceptance
+and publication pending. See
+[release and source versions](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/VERSIONS.md)
 for exact sources and acceptance; the linked page is online documentation and
 is not bundled with the wheel's verification resources.
 Every residual row below is Open. Closing a row is a spec bump plus a named fixture: a test id in the suite as unittest names it (`tests.<module>.<Class>.<test>`), in backticks in the Fixture column. `tests/test_residual_rows.py` checks that this table and SPEC §11 list the same IDs, that every Status is Open or Closed, and that every Closed row names fixtures that are test ids in the suite.

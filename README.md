@@ -6,15 +6,17 @@
 
 Local-first. Deterministic. No LLM. No network. Does not execute the subject. Does not enforce anything.
 
-PinWash **0.1.0 is Alpha**, licensed under MIT. The published GitHub/PyPI
-`0.1.0` follows **SPEC 27**. This source branch follows **SPEC 29** after
-[PR #56](https://github.com/taipei49314/pinwash/pull/56); those fixes are not in
-the published package. Source metadata still says `0.1.0`, so record the source
-SHA and spec version as well as the package version. See
-[release and source versions](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/docs/VERSIONS.md) for exact sources and acceptance.
+PinWash is Alpha, licensed under MIT. This source branch prepares a
+**0.1.1 / SPEC 29 candidate** after
+[PR #56](https://github.com/taipei49314/pinwash/pull/56).
+**New package acceptance has not run and 0.1.1 is not published.** The published
+GitHub/PyPI `0.1.0` follows **SPEC 27**. See the
+[candidate notes](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/RELEASE_0_1_1.md),
+[package acceptance plan](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/PACKAGE_ACCEPTANCE_0_1_1.md)
+and [release/source versions](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/VERSIONS.md).
 Neither is a 1.0 stability claim. For this source baseline, read
-[SPEC.md](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/SPEC.md)
-(contract) and [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/ARCHITECTURE.md)
+[SPEC.md](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/SPEC.md)
+(contract) and [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/ARCHITECTURE.md)
 (layers; SPEC wins on rules).
 Frozen acceptance is `tests/gates/test_v0_acceptance.py`.
 
@@ -32,6 +34,10 @@ using [pipx](https://pipx.pypa.io/) to keep PinWash in its own environment:
 ```text
 pipx install pinwash==0.1.0
 ```
+
+This installs the published SPEC 27 release. Candidate installation uses a
+reviewed source checkout or, after new acceptance, its verified local wheel;
+see the [candidate installation notes](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/INSTALL.md).
 
 Linux is the package acceptance target; Windows/macOS are not yet validated.
 Installed scans use no network and have no runtime dependencies. See
@@ -161,9 +167,9 @@ new code.
 
 | Claim | Status |
 |---|---|
-| Frozen rule IDs and pin lattice | yes, [source SPEC 29](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/SPEC.md); published 0.1.0 uses [SPEC 27](https://github.com/taipei49314/pinwash/blob/v0.1.0/SPEC.md) |
-| North star layers | yes, [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/ARCHITECTURE.md); not a 1.0 claim |
-| Engine `python -m pinwash check` | published 0.1.0 / SPEC 27; source SPEC 29 is unreleased ([version details](https://github.com/taipei49314/pinwash/blob/a359a98aef41608803529dc28d4e0a617b61d651/docs/VERSIONS.md)) |
+| Frozen rule IDs and pin lattice | yes, [source SPEC 29](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/SPEC.md); published 0.1.0 uses [SPEC 27](https://github.com/taipei49314/pinwash/blob/v0.1.0/SPEC.md) |
+| North star layers | yes, [ARCHITECTURE.md](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/ARCHITECTURE.md); not a 1.0 claim |
+| Engine `python -m pinwash check` | published 0.1.0 / SPEC 27; candidate 0.1.1 / SPEC 29, package acceptance NOT RUN ([version details](https://github.com/taipei49314/pinwash/blob/82f84c8894f3c5ea858a834876bb944e2d718588/docs/VERSIONS.md)) |
 | Fixtures A1–A11 | yes, `tests/gates/test_v0_acceptance.py` (A11 = SPEC file not edited for the engine) |
 | Byte-identical JSON across Windows / macOS / Linux and Python 3.11–3.13 (SPEC §9) | not CI-verified — no cross-platform CI matrix is configured; A10 compares LF and CRLF subject files in one run on one host. Local evidence, Linux only: on `f849b8a`, `pinwash check` stdout bytes and exit codes were identical across CPython 3.11.17, 3.12.3 and 3.13.16, each with `PYTHONHASHSEED` 1 and 17, on 58 cells (22 fixture shapes in 40 real git repos, run as `base..head`, `side...head` and worktree; 348 runs), with empty stderr. The shapes include CRLF files, non-ASCII and non-UTF-8 paths, JSON nested 1500 and 20000 deep, a 5000-digit integer, a submodule gitlink and worktree files that cannot be read. At `c71c468` the 6 cells nested 1500 deep exited 2 on 3.11 only (3.12 and 3.13 printed the bytes `f849b8a` prints on all three), and the 3 long-integer, 2 non-UTF-8-path, 3 nested-20000, 3 gitlink and 2 unreadable-file cells exited 2 on all three. Windows and macOS untested |
 | Live-fire validated | records published, not re-judged — commits `86bdcce`, `df5eb21`, `7222bfc` and `fe0838e` record rules found and closed against real coding-agent sessions (five PREREG-predicted, judge-pinned evaluation rounds, six zen free models per round), and spec 9's producer-side `REQUIRED_CHECK_DROPPED` severity as validated live. The round records are in [`live-fire/`](https://github.com/taipei49314/pinwash/tree/v0.1.0/live-fire/) (PREREG, report, per-cell patch and pinned-judge output for rounds 0–4); the fixtures derived from them are in `tests/test_unit.py`. |
