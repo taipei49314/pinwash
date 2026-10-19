@@ -6,7 +6,12 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over `tests/gates/**`. SPEC rulings and edits are delegated to the maintaining agent (SPEC preamble, 2026-09-27): each one bumps the spec version, lands as its own commit, and re-runs the fixture suite. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-SPEC's opening records the local engine and the 2026-09-27 delegated edit authority. This checkout has a **local v0 engine** at `0.0.0` / spec `16` (each bump is its own commit with a changelog entry in SPEC §16). That is not a Release, not PyPI, and not a 1.0 claim.
+This checkout has a **local v0 engine** with package version `0.1.0` and spec
+`29` (each spec bump is its own commit with a changelog entry in SPEC §16).
+The published GitHub/PyPI `0.1.0` is Alpha and uses spec `27`; the source changes
+in specs 28–29 are not published. See [release and source versions](docs/VERSIONS.md)
+for exact sources, acceptance and the historical publication text still in SPEC.
+The package version alone does not identify this checkout. No 1.0 claim is made.
 
 ## 0. What this product is allowed to be
 
@@ -159,7 +164,7 @@ sequenceDiagram
 - Default `fail_on` is `high`. `warn` does not fail the run (A6: phrase hit on skill markdown is warn, exit 0). `PERMISSION_WIDENED` and `CONFIG_RELAXED` escalate to **high** (`CONFIG_RELAXED` at `.pinwash/allow.toml` is **critical**, SPEC §10); `EXEMPTION_ADDED` is **critical** when an added record's `created` is after today (spec 11). Last remaining Stop-like hook, last remaining required context, or last non-floating pin on a workflow (when floated) escalate per SPEC §6.
 - stdout JSON is the **only machine API**: UTF-8, sorted keys, `ensure_ascii=False`, newline `\n`. Human reports may degrade glyphs; machine JSON may not. A lone surrogate in a value (a non-UTF-8 path name decoded with `surrogateescape`, a JSON `\udXXX` escape) is written as a `\udXXX` escape inside its string, which loads back to the same value, and is fingerprinted through `surrogatepass`; every other string encodes and hashes as before (0ddcd57). It used to crash to exit 2.
 - `unknown_coverage` does not change `verdict`, and a row never adds, drops or changes a finding. Its `reason` is fixed text from the closed list in SPEC §7 (spec 13; spec 14 added the workflow rows): the §3.1 grammar hits, the hook-side rows of SPEC §3.3 and §5.1, and the required-check producer rows of SPEC §5.5. A consumer that requires “no unknown coverage” is **consumer policy**, not this spec.
-- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `29`). `pinwash_version` is `0.0.0`.
+- `pinwash_findings_version` is `1`. `spec_version` tracks SPEC §16 (currently `29`). `pinwash_version` is `0.1.0`; the published package with that version uses spec `27`, so also record the source revision.
 
 ## 5. Surfaces, parsers, detectors (v0 closed set)
 
@@ -252,7 +257,14 @@ Forbidden consumer fantasies:
 
 ## 8. v0 held versus 1.0 license
 
-**Held locally, informal:** `python -m pinwash check`; A1–A11 in stdlib unittest; no network; exit 0/1/2. `python -m pinwash --version` prints `pinwash 0.0.0 spec 29`: `spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble); the engine version stays `0.0.0` until a human bumps it.
+**Implemented v0 interface:** `python -m pinwash check`; A1–A11 in stdlib unittest;
+no network; exit 0/1/2. This source's version constants produce
+`pinwash 0.1.0 spec 29`; the published package reports spec `27`.
+`spec_version` follows SPEC §16 (spec bumps are delegated per SPEC's preamble).
+The maintainer selected package version `0.1.0` for the first Alpha release;
+a later package version has not been selected here. Acceptance belongs to the
+[recorded source and artifacts](docs/VERSIONS.md), not to every checkout that
+shares the version string.
 
 **1.0 license (every item is a human decision; missing one forbids saying 1.0):**
 
