@@ -2,7 +2,7 @@
 
 The consumer automates the README's existing three-comparison recipe. Its
 introduction did not change the then-current SPEC 27 detector contract. The
-0.1.1 candidate uses SPEC 29; this version preparation changes neither the
+0.1.1 release uses SPEC 29; its version preparation changed neither the
 consumer implementation nor the findings envelope or `check` behavior.
 
 ## Start

@@ -6,12 +6,13 @@ This file explains layers and evolution. It does **not** add rules, surfaces, ex
 
 **Conflict rule:** [SPEC.md](SPEC.md) wins. [THREATMODEL.md](THREATMODEL.md) owns residual rows. Frozen acceptance is [tests/gates/test_v0_acceptance.py](tests/gates/test_v0_acceptance.py). Coding agents have read-only authority over `tests/gates/**`. SPEC rulings and edits are delegated to the maintaining agent (SPEC preamble, 2026-09-27): each one bumps the spec version, lands as its own commit, and re-runs the fixture suite. If this file disagrees with SPEC, SPEC is correct and this file is wrong.
 
-This checkout has a **local v0 engine** with candidate package version `0.1.1` and spec
+This checkout has a **local v0 engine** with published package version `0.1.1` and spec
 `29` (each spec bump is its own commit with a changelog entry in SPEC §16).
-The published GitHub/PyPI `0.1.0` is Alpha and uses spec `27`; the source changes
-in specs 28–29 are not published. See [release and source versions](docs/VERSIONS.md)
+GitHub/PyPI `0.1.1` is Alpha and includes specs 28–29; historical `0.1.0`
+uses spec `27`. See [release and source versions](docs/VERSIONS.md)
 for exact sources, acceptance and the historical publication text still in SPEC.
-The candidate has not undergone its new package acceptance or been published.
+The original and rebuilt installed wheels were accepted on local Docker Linux,
+690 tests each. That acceptance does not qualify the EC pool or other platforms.
 Record the source revision as well as the version. No 1.0 claim is made.
 
 ## 0. What this product is allowed to be

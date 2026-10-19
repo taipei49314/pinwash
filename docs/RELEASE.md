@@ -1,4 +1,9 @@
-# Published 0.1.0 and the first-release procedure
+# Published releases and the first-release procedure
+
+**Current release: [0.1.1 / SPEC 29](RELEASE_0_1_1.md)**, published on 2026-10-19
+to [GitHub](https://github.com/taipei49314/pinwash/releases/tag/v0.1.1) and
+[PyPI](https://pypi.org/project/pinwash/0.1.1/). Exact source, accepted hashes and
+publication readback are recorded in [release and source versions](VERSIONS.md).
 
 The first version, **0.1.0 (Alpha)** under MIT, was published on 2026-10-18:
 [GitHub release](https://github.com/taipei49314/pinwash/releases/tag/v0.1.0) and
@@ -7,15 +12,13 @@ The first version, **0.1.0 (Alpha)** under MIT, was published on 2026-10-18:
 sdist were uploaded; the rebuilt wheel was an acceptance artifact.
 
 Main subsequently incorporated SPEC 29 in PR #56 without changing the package
-version. Those fixes are unreleased. [Release and source versions](VERSIONS.md)
-records both sources, artifact hashes and the limits of their acceptance.
-
-The next source version is the **0.1.1 / SPEC 29 candidate**. Its
-[draft release notes](RELEASE_0_1_1.md) and
-[package acceptance plan](PACKAGE_ACCEPTANCE_0_1_1.md) are preparation only;
-new package acceptance and publication are pending. The prepared publisher
-workflow is fixed to `v0.1.1`; the existing deployment environment's exact-tag
-restriction still needs to be updated and read back before upload.
+version. Those fixes are now included in 0.1.1. Its original and rebuilt installed
+wheels each passed 690 tests in explicitly accepted local Docker Linux verification.
+The upload-only workflow published the accepted original files on attempt 1 in
+[run 39226974886](https://github.com/taipei49314/pinwash/actions/runs/39226974886).
+The `pypi` environment was read back with exact `v0.1.0` and `v0.1.1` tag rules;
+the existing publisher tuple was retained. The historical
+[acceptance plan](PACKAGE_ACCEPTANCE_0_1_1.md) links the completed result.
 
 The steps below record the completed first-release procedure, not a pending
 dispatch or a reusable grant. Its build execution, trust configuration and
@@ -52,7 +55,8 @@ new execution or publishing authority.
    If PyPI upload fails, the GitHub prerelease remains published and must not be
    described as a completed PyPI release.
 
-The workflow is manual-only and limited to this first version. It is not a
-standing authorization for later releases. The PyPI publisher remains attached
+The first release used a manual-only workflow fixed to `v0.1.0`; the current
+source is fixed to `v0.1.1`. Neither is a standing authorization for later
+releases. The PyPI publisher remains attached
 to this exact repository/workflow/environment; changing its scope is a separate
 decision. No Windows/macOS package acceptance or 1.0 stability claim is made.

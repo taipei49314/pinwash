@@ -1,16 +1,14 @@
-# Install the published release or review the 0.1.1 candidate
+# Install PinWash 0.1.1 / SPEC 29
 
-These package commands install the published **0.1.0 / SPEC 27**. The source
-branch is a **0.1.1 / SPEC 29 candidate**, with package acceptance and publication
-pending. See [release and source versions](VERSIONS.md)
-before choosing a source checkout or a local wheel; record its exact source and
-hash. The candidate's [release notes](RELEASE_0_1_1.md) explain its changes.
+These commands install the published **0.1.1 / SPEC 29** Alpha release. See
+[release and source versions](VERSIONS.md) for exact source and artifact hashes,
+and the [release notes](RELEASE_0_1_1.md) for its changes and acceptance scope.
 
 For a complete source download, isolated installation and first review, start
 with the [five-minute quickstart](QUICKSTART.md). This page covers alternatives
 and packaging details.
 
-Python 3.11+ and Git are required. PinWash 0.1.0 is Alpha, licensed under MIT,
+Python 3.11+ and Git are required. PinWash 0.1.1 is Alpha, licensed under MIT,
 and has zero runtime dependencies. Linux is the package acceptance target;
 Windows/macOS acceptance is not claimed. Keep the judge outside the project
 that the agent edits and fixed throughout each session.
@@ -20,25 +18,26 @@ that the agent edits and fixed throughout each session.
 If pipx is already available:
 
 ```text
-pipx install pinwash==0.1.0
+pipx install pinwash==0.1.1
 ```
 
 Otherwise use a new, separate environment (POSIX shell):
 
 ```sh
 python3 -m venv /absolute/path/to/pinwash-env &&
-/absolute/path/to/pinwash-env/bin/python -m pip install 'pinwash==0.1.0'
+/absolute/path/to/pinwash-env/bin/python -m pip install 'pinwash==0.1.1'
 ```
 
 Use that environment's `bin/pinwash`, or activate it for the short command.
 Never overwrite an installation used by an active session.
 
-## Candidate wheel or source checkout
+## Verified wheel or source checkout
 
-The 0.1.1 candidate has not been uploaded to PyPI and has no accepted artifact
-hash yet. Do not use `pipx install pinwash==0.1.1` as an available-release
-instruction. Once its new package acceptance is complete, install only the
-accepted wheel whose source and SHA-256 you have checked:
+You can also install the original wheel from the
+[GitHub release](https://github.com/taipei49314/pinwash/releases/tag/v0.1.1).
+Check its SHA-256 against the release's `SHA256SUMS` and `ACCEPTANCE.json`:
+`d002160a73f5affbd4cf3446f676aa2809ef006a12feff77cab5edb4a8c62e03`.
+Its accepted source is `fdb3c4d753d637e89aba5a22372d61dc2c292939`, tag `v0.1.1`.
 
 ```text
 pipx install /absolute/path/to/pinwash-0.1.1-py3-none-any.whl
