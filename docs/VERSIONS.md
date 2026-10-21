@@ -84,6 +84,19 @@ separately validated spec change.
 
 ## Other work remains separate
 
+### Completed engineering account — 2026-10-22
+
+The [T-572 task account](https://github.com/taipei49314/estate-consolidation/blob/36811450e87fcc9e3f9c4db0381b5b97e4c1873f/governance/tasks/T-572.json)
+is DONE for its bounded EC Linux package-lane engineering repair. It does not
+mean the lane is activated or that its native product package acceptance is
+complete. The old guidance delivery's PR #54 is also merged and T-562 is DONE;
+see [GUIDANCE_ACCEPTANCE.md](GUIDANCE_ACCEPTANCE.md).
+
+The release and those completed engineering accounts can leave the pending
+list. Issues #42/#45, draft PRs #50–52 and outstanding live/native acceptance
+retain their existing status. This documentation reconciliation runs no
+product, changes no frozen SPEC or published bytes, and grants no dispatch.
+
 Drafts [#50](https://github.com/taipei49314/pinwash/pull/50),
 [#51](https://github.com/taipei49314/pinwash/pull/51) and
 [#52](https://github.com/taipei49314/pinwash/pull/52) retain an older SPEC 28–36

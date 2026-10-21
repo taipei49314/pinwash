@@ -1,5 +1,12 @@
 # Quickstart, status and priority summary: validation record
 
+Current disposition (2026-10-22):
+[PR #54](https://github.com/taipei49314/pinwash/pull/54) is merged; EC T-562
+is DONE. Its old pending-merge handoff is resolved. The record below preserves
+the original exact-source local acceptance, without extending it to other
+platforms. Later publication is recorded in [VERSIONS.md](VERSIONS.md), not
+inferred from this original no-release validation scope.
+
 Human scope, 2026-10-18: five-minute quickstart, session status and report priority
 summary; no release. This work starts after PR #53, from main
 `cdefa7d11caeafd31d9bc0cc4e6d17e1445342c2`.
