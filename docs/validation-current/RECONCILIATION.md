@@ -17,7 +17,7 @@ The maintainer asked on 2026-10-22 to take over PinWash, reconcile PR #50–52, 
 | old spec34/35 producer identity | Only exact-document, unambiguous, context-independent rekey/move forms; dynamic/reference bounds retained. |
 | old spec36 global switch | Preserve main's newer command/handler separation. |
 
-The new combined contract is SPEC37. The old draft numbering collided with released spec28–29, so it is not reused. Current main's committer-date hardening, consumer/session contract, package resources and frozen `tests/gates/**` remain. The earlier alpha2 runner cleanup change is unrelated to these semantics and is not carried into this reconciliation. Historical batch documents/receipts retain their original source and meaning.
+The new combined contract is SPEC37. The old draft numbering collided with released spec28–29, so it is not reused. Current main's committer-date hardening, consumer/session contract, package resources and frozen `tests/gates/**` remain. The earlier alpha2 runner cleanup change was initially excluded from the semantic port. The first actual timeout below now justifies a separately reviewed, bounded runner repair; it does not alter product semantics or the frozen gates. Historical batch documents/receipts retain their original source and meaning.
 
 ## Checkwash family lessons applied
 
@@ -38,4 +38,6 @@ Linux candidate status: **NOT_RUN**. HOST50 qualification completed under T-576 
 
 ## Exact-source results
 
-Pending source freeze and EC dispatch. Until receipts are linked here, all current candidate runtime claims are NOT_RUN.
+The first `alpha2-verify` [run 39738429809/1](https://github.com/taipei49314/estate-consolidation/actions/runs/39738429809) at source `c33d4a2572ba493b2ca0d5631bead2d41d39411c` failed: suite and doctor each exceeded the existing 300-second command limit. [Immutable result](https://github.com/taipei49314/estate-consolidation/blob/bf74e8ab615e94bddac8ed6251c5a83370cc8de5/result.json) retains both timeouts. `tests_run: 0` means no completed unittest summary, not no tests attempted. Twelve individual gate rows completed before the nested doctor gate. Exact source and clean checkout checks passed before/after; the two same-tree CLI outputs matched. These narrow observations are not complete-suite or doctor acceptance. The runner receipt does not prove descendant/temporary-directory closure.
+
+The repair retains the existing 20-minute declaration and complete product test discovery. It provides a shared command deadline, bounded owned-process cleanup, a new dispatch-owned temporary root, and supplementary runner tests outside the packaged product tests. The suite sets nesting depth 1 to avoid a redundant third traversal; the separate public doctor must still run at depth 0. Product code/SPEC identities remain unchanged. Repair validation and the newly preregistered session/history matrices remain pending their exact-source receipts. Linux remains NOT_RUN.
