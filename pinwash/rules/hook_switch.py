@@ -58,7 +58,7 @@ def _active(command: str, flags: dict[str, bool]) -> bool:
     """SPEC §3.3: not a §5.2 stub string, no leading `#` (the states come
     from extract_event_hooks(claude=True), which carry no §5.1 skip flag
     since spec 29, #42)."""
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 

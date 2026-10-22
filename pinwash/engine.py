@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 from pinwash.allow import apply_allow, detect_allow
+from pinwash.producer_identity import matches as producer_identity_matches
 from pinwash.findings import envelope, make_finding
 from pinwash.parse.gha import parse_workflow
 from pinwash.parse.hookcmd import command_body_map, resolver, root_form_guard
@@ -28,6 +29,7 @@ from pinwash.hooks import CLAUDE_STOP_EVENTS, CURSOR_STOP_EVENTS, extract_event_
 from pinwash.rules import (
     config_rule,
     hook_coverage,
+    hook_env,
     hook_rules,
     hook_switch,
     hook_selector,
@@ -261,6 +263,7 @@ def scan_pair(
     )
     base_folded = required_check.fold_contexts(base_contexts)
     head_folded = required_check.fold_contexts(head_contexts)
+    producer_moves = producer_identity_matches(base_files, head_files) if base_contexts else {}
 
     # SPEC §5.3 (spec 18): the host merges the allow lists of both settings
     # files, so a base entry in either one grants its class.
@@ -292,6 +295,10 @@ def scan_pair(
         for key, (path, b_obj, b_st, h_obj, h_st) in mode_files.items()
     }
     switch_path = hook_switch.detect(switch_files, kind_bodies[True][0], hook_rules.live_stop_events, add)
+    before_environment = len(findings)
+    hook_env.detect(switch_files, base_files, head_files,
+                    kind_bodies[True][0], kind_bodies[True][1], add, note_unknown)
+    environment_paths = {finding["path"] for finding in findings[before_environment:]}
     if switch_path is None:
         # No command was active at base, yet the value in effect became
         # `true` (a local `false` removed under a shared `true`): the row.
@@ -347,7 +354,7 @@ def scan_pair(
                 base_files=base_files,
                 head_files=head_files,
                 changed=changed,
-                hook_finding=len(findings) > n_before,
+                hook_finding=len(findings) > n_before or path in environment_paths,
                 note_unknown=note,
                 switch_finding=path == switch_path,
                 switch_anywhere=is_claude_settings(path) and switch_anywhere,
@@ -432,11 +439,13 @@ def scan_pair(
             pin_rules.detect_workflow_pins(path, base_g, head_g, add)
             # SPEC §5 findings and the §5.5 producer rows (spec 14); a row
             # never adds, drops or changes a finding, so never the verdict.
+            producer_path, producer_head, job_matches = producer_moves.get(path, (path, head_g, {}))
             required_check.detect_jobs(
-                path, base_g, head_g, base_contexts, add,
+                path, base_g, producer_head, base_contexts, add,
                 note=note_gha, changed=lambda p: p in changed_set(),
                 calls_of=calls_of, head_contexts=head_folded,
                 head_reporting=head_reporting, base_folded=base_folded,
+                job_matches=job_matches, moved_workflow=producer_path != path,
             )
         elif is_gha_ruleset(path):
             b_obj, b_st = json_load(base_files.get(path))

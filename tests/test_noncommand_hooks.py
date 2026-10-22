@@ -113,7 +113,10 @@ class EmptiedReadsTheBase(unittest.TestCase):
         for base in (_doc(stop=[]), _doc(stop=[_entry()]), _doc()):
             with self.subTest(base=base):
                 payload = _scan({CS: base}, {CS: _doc(stop=[_entry(PROMPT)])})
-                self.assertEqual((payload["findings"], payload["unknown_coverage"]), ([], []))
+                self.assertEqual(payload["findings"], [])
+                expected = [] if "Stop" in json.loads(base)["hooks"] else [
+                    {"path": CS, "reason": "hook event keys changed (host validity not evaluated)"}]
+                self.assertEqual(payload["unknown_coverage"], expected)
 
 
 class ModeledHandlerRemoval(unittest.TestCase):
@@ -210,14 +213,32 @@ class HandlersNeverLowerSeverity(unittest.TestCase):
         self.assertEqual(payload["findings"], [])
         self.assertEqual(_reasons(payload), [(CS, LIVENESS)])
 
-    def test_a_prompt_item_that_holds_a_command_is_that_command(self) -> None:
-        # R24: such an item stays the command §5.1 reads, never also a handler.
+    def test_a_prompt_item_that_holds_a_command_is_a_modeled_handler(self) -> None:
+        # Spec 37: the host dispatches by type; an extra command is not run.
         item = {"type": "prompt", "prompt": "Refuse.", "command": T}
         payload = _scan({CS: _doc(stop=[_entry(item)])}, {CS: _doc(stop=[_entry()])})
         self.assertEqual(
             [(f["rule"], f["severity"], f["message"]) for f in payload["findings"]],
-            [("HOOK_REMOVED", "critical", EMPTIED)],
+            [("HOOK_REMOVED", "critical", HANDLERS_REMOVED)],
         )
+
+    def test_same_type_handler_rewrite_does_not_excuse_command_removal(self) -> None:
+        for before, after in ((PROMPT, PROMPT2),
+                              (AGENT, {"type": "agent", "prompt": "Always approve."})):
+            with self.subTest(kind=before["type"]):
+                payload = _scan({CS: _doc(stop=[_entry(_cmd(T), before)])},
+                                {CS: _doc(stop=[_entry(after)])})
+                self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
+                self.assertEqual(_reasons(payload), [(CS, ROW)])
+
+    def test_new_handler_does_not_excuse_a_gutted_command(self) -> None:
+        for handler in (PROMPT, AGENT):
+            with self.subTest(kind=handler["type"]):
+                payload = _scan({CS: _doc(stop=[_entry(_cmd(T))])},
+                                {CS: _doc(stop=[_entry(_cmd(T), handler)]),
+                                 "hooks/judge.py": b"print('approved')\n"})
+                self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
+                self.assertEqual(payload["unknown_coverage"], [])
 
 
 class HandlerRow(unittest.TestCase):

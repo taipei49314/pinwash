@@ -112,8 +112,9 @@ def _modeled_handlers(entry: dict[str, Any]) -> list[dict[str, Any]]:
     entry's own `hooks` list, where Claude Code reads handlers, whose `type`
     is in MODELED_HANDLER_TYPES and whose `prompt` is a string with
     non-blank text. They are not commands: no §3.3 body is resolved for
-    them and no §5.1 skip key is read on them. An item that holds a string
-    `command` stays the command §5.1 reads (R24), never also a handler."""
+    them and no §5.1 skip key is read on them. Since spec 37 the handler's
+    type selects its kind: an extra `command` key does not turn a prompt
+    or agent handler into an executable command."""
     items = entry.get("hooks")
     if not isinstance(items, list):
         return []
@@ -123,8 +124,29 @@ def _modeled_handlers(entry: dict[str, Any]) -> list[dict[str, Any]]:
         and item.get("type") in MODELED_HANDLER_TYPES
         and isinstance(item.get("prompt"), str)
         and item["prompt"].strip()
-        and not isinstance(item.get("command"), str)
     ]
+
+
+def claude_handlers(doc: Any):
+    """Yield direct handler items at Claude's object-form host boundary."""
+    root = _as_dict(doc)
+    hooks = root.get("hooks") if root is not None else None
+    if not isinstance(hooks, dict):
+        return
+    for event, entries in hooks.items():
+        if not isinstance(event, str) or not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if isinstance(entry, dict):
+                for item in _hook_items(entry):
+                    if isinstance(item, dict):
+                        yield event, item
+
+
+def is_claude_command_handler(item: Any) -> bool:
+    """The absent-type compatibility form remains a host-schema residual."""
+    return (isinstance(item, dict) and item.get("type", "command") == "command"
+            and isinstance(item.get("command"), str))
 
 
 def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str, Any]]:
@@ -135,19 +157,15 @@ def extract_event_hooks(doc: Any, *, claude: bool = False) -> dict[str, dict[str
     Skip flags live only in the command-local states (SPEC §5.1, spec 10);
     there is no per-event aggregate. With `claude` (a claude_settings file,
     SPEC §5.1 since spec 29, AI-assisted ruling on #42) no state carries
-    one, in the object form and the list form alike: Claude Code runs a Stop
+    a skip flag: Claude Code runs a Stop
     hook whose item carries `disabled`, `hookEnabled: false`,
     `continueOnError` or `failOpen`, or whose matcher group carries
     `disabled` (executed on 2.1.42 and 2.1.296); the rest is read the same
-    way (INFERRED, SPEC §5.1). cursor_hooks keeps them.
+    way (INFERRED, SPEC §5.1). cursor_hooks keeps them. Since spec 37 Claude
+    reads only direct hooks-array handlers, and a Stop command's own async
+    boolean is recorded separately: execution does not imply refusal.
     """
-    out = _event_hooks(doc, claude)
-    if claude:
-        for info in out.values():
-            info["command_states"] = [
-                (command, dict.fromkeys(flags, False)) for command, flags in info["command_states"]
-            ]
-    return out
+    return _event_hooks(doc, claude)
 
 
 def _event_hooks(doc: Any, claude: bool) -> dict[str, dict[str, Any]]:
@@ -171,10 +189,19 @@ def _event_hooks(doc: Any, claude: bool) -> dict[str, dict[str, Any]]:
                     continue
                 if isinstance(entry.get("matcher"), str):
                     matchers.append(entry["matcher"])
-                commands.extend(_commands_from_hook_object(entry))
-                command_states.extend(_command_states_from_hook_object(entry))
                 if claude:
+                    for item in _hook_items(entry):
+                        if not is_claude_command_handler(item):
+                            continue
+                        commands.append(item["command"])
+                        flags = dict.fromkeys(_direct_flags_from_obj(item), False)
+                        if event == "Stop":
+                            flags["async"] = item.get("async") is True
+                        command_states.append((item["command"], flags))
                     non_commands.extend(_modeled_handlers(entry))
+                else:
+                    commands.extend(_commands_from_hook_object(entry))
+                    command_states.extend(_command_states_from_hook_object(entry))
             out[event] = {
                 "array_len": len(entries),
                 "commands": commands,
@@ -183,7 +210,7 @@ def _event_hooks(doc: Any, claude: bool) -> dict[str, dict[str, Any]]:
                 "non_commands": non_commands,
             }
         return out
-    if isinstance(hooks, list):
+    if isinstance(hooks, list) and not claude:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for entry in hooks:
             if not isinstance(entry, dict):
@@ -254,12 +281,10 @@ def command_holders(doc: Any) -> tuple[set[str], set[str]]:
         for event, lst in hooks.items():
             if isinstance(event, str) and isinstance(lst, list):
                 entries.extend(e for e in lst if isinstance(e, dict))
-    elif isinstance(hooks, list):
-        for e in hooks:
-            if isinstance(e, dict) and isinstance(e.get("event") or e.get("type") or "unknown", str):
-                entries.append(e)
     for entry in entries:
-        for node in _command_objects(entry):
+        for node in _hook_items(entry):
+            if not is_claude_command_handler(node):
+                continue
             if "args" in node or ("shell" in node and node["shell"] != "bash"):
                 guarded.add(node["command"])
             else:

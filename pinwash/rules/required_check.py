@@ -277,6 +277,8 @@ def detect_jobs(
     head_contexts: frozenset[str] | None = None,
     head_reporting: set[str] | None = None,
     base_folded: frozenset[str] | None = None,
+    job_matches: dict[str, str] | None = None,
+    moved_workflow: bool = False,
 ) -> None:
     note = note if note is not None else (lambda reason: None)
     changed = changed if changed is not None else (lambda p: True)
@@ -308,7 +310,8 @@ def detect_jobs(
             # Spec 23: ASCII letters compared without case (R-15).
             continue
         linked = True
-        head_job = head_jobs.get(key)
+        head_job = (None if moved_workflow and key not in (job_matches or {})
+                    else head_jobs.get((job_matches or {}).get(key, key)))
         dropped = False
         after = ""
         if head_job is None and not (

@@ -37,6 +37,10 @@ applies to a hook surface file; the engine reports each (path, reason) once.
 * "non-command hook handler changed (not evaluated)" (§5.1, R13, #45;
   claude_settings, spec 28): a modeled prompt/agent handler the event held
   at base is gone or changed at head while the event keeps another.
+* "hook async value not boolean" (claude_settings, spec 37): a direct Stop
+  command's non-boolean async value gains an occurrence, without coercion.
+* "hook event keys changed (host validity not evaluated)" (claude_settings,
+  spec 37): the object-form hooks event-key set differs between the sides.
 
 "Active" means no §5.1 skip flag (own or inherited; cursor_hooks only since
 spec 29, #42), not a §5.2 stub string and not starting with `#`: flagged, stub and commented-out commands are
@@ -48,7 +52,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from pinwash.hooks import stub_command
+from pinwash.hooks import claude_handlers, is_claude_command_handler, stub_command
 from pinwash.parse.hookcmd import hook_command_targets
 from pinwash.textutil import canonical_text
 
@@ -58,6 +62,8 @@ FLAG_NOT_BOOLEAN = "hook skip flag value not boolean"
 DISABLE_ALL_HOOKS = "hook settings root disableAllHooks"
 ENV_CHANGED = "hook command environment changed"
 HANDLER_CHANGED = "non-command hook handler changed (not evaluated)"
+ASYNC_UNKNOWN = "hook async value not boolean"
+EVENT_KEYS = "hook event keys changed (host validity not evaluated)"
 
 FLAG_KEYS = ("disabled", "hookEnabled", "continueOnError", "failOpen")
 _FALSE = canonical_text(False)
@@ -72,7 +78,7 @@ _IDENT_REST = _IDENT_START | frozenset("0123456789")
 
 
 def _active(command: str, flags: dict[str, bool]) -> bool:
-    if any(flags.values()) or stub_command(command):
+    if any(v for k, v in flags.items() if k != "async") or stub_command(command):
         return False
     return not command.lstrip().startswith("#")
 
@@ -301,6 +307,26 @@ def handler_changed(
     return False
 
 
+def event_keys_changed(base_doc: Any, head_doc: Any) -> bool:
+    """Visibility for every changed Claude event-key set; no host whitelist."""
+    def keys(doc: Any) -> set[str]:
+        hooks = doc.get("hooks") if isinstance(doc, dict) else None
+        return {k for k in hooks if isinstance(k, str)} if isinstance(hooks, dict) else set()
+    return keys(base_doc) != keys(head_doc)
+
+
+def async_not_boolean(base_doc: Any, head_doc: Any) -> bool:
+    """New nonboolean async occurrences on direct Stop commands; no coercion."""
+    def values(doc: Any) -> Counter:
+        return Counter(
+            (event, item["command"], canonical_text(item["async"]))
+            for event, item in claude_handlers(doc)
+            if event == "Stop" and is_claude_command_handler(item)
+            and "async" in item and not isinstance(item["async"], bool)
+        )
+    return bool(values(head_doc) - values(base_doc))
+
+
 def _flag_values(obj: dict[str, Any]) -> tuple[tuple[str, str], ...]:
     """(key, canonical text) for each §5.1 flag key on this object whose
     value is not a JSON boolean. Read, never interpreted."""
@@ -439,3 +465,7 @@ def detect(
         note_unknown(ENV_CHANGED)
     if claude_settings and handler_changed(base_ev, head_ev):
         note_unknown(HANDLER_CHANGED)
+    if claude_settings and event_keys_changed(base_doc, head_doc):
+        note_unknown(EVENT_KEYS)
+    if claude_settings and async_not_boolean(base_doc, head_doc):
+        note_unknown(ASYNC_UNKNOWN)

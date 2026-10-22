@@ -36,15 +36,17 @@ def _is_comment(command: str) -> bool:
 def _active(command: str, flags: dict[str, bool]) -> bool:
     """No §5.1 skip flag (own or inherited), not a §5.2 stub string, not
     commented out."""
-    return not any(flags.values()) and not stub_command(command) and not _is_comment(command)
+    return (not any(v for k, v in flags.items() if k != "async")
+            and not stub_command(command) and not _is_comment(command))
 
 
 def _live(command: str, flags: dict[str, bool], bodies: Bodies, retargeted: set[str]) -> bool:
     """SPEC §5.2: live unless a stub string, skip-flagged, commented out,
-    resolving only to stub bodies, lost block capability, or retargeted
-    (§5) to a body that cannot refuse. Nothing else is read: a command §3.3
+    an async Claude Stop command, resolving only to stub bodies, lost block
+    capability, or retargeted (§5) to a body that cannot refuse. Nothing else
+    is read: a command §3.3
     does not resolve is live."""
-    if not _active(command, flags):
+    if not _active(command, flags) or flags.get("async", False):
         return False
     if command in bodies and (bodies[command][0] or bodies[command][1]):
         return False
@@ -139,6 +141,23 @@ def live_stop_events(
     return _stop_count(events, names, body_map, {}, handlers=True)
 
 
+def live_command_stop_events(
+    events: dict[str, dict[str, Any]],
+    names: frozenset[str],
+    body_map: Bodies,
+    *,
+    base_events: dict[str, dict[str, Any]] | None = None,
+    body_base: Bodies | None = None,
+) -> int:
+    """Command-only synchronous refusal count; handlers never lower severity.
+
+    With base_events, apply §6.1's ordinary added-command trust rule to
+    the retained head commands: a new unresolved command gives no credit.
+    """
+    return _stop_count(events, names, body_map, {},
+                       base_ev=base_events, body_base=body_base)
+
+
 def _retargets(
     info: dict[str, Any],
     head_info: dict[str, Any],
@@ -146,7 +165,9 @@ def _retargets(
     body_head: Bodies,
 ) -> tuple[list[str], list[str]]:
     """SPEC §5 GATE_STUBBED, retarget (spec 27, R12): in a Stop-like
-    event, the left judges and the new commands, which pair one to one. `left` was active at base and resolved there
+    event, the left judges and the new commands, which pair one to one.
+    Async commands are excluded from both sides. `left` was active at base
+    and resolved there
     to a target holding a decision literal; at head its string is gone from
     the event, no `#` command of the event carries its text (that is the
     comment-out branch's), and no active command of the event resolves to
@@ -156,8 +177,8 @@ def _retargets(
     command that lost block capability on a same path is the spec 7
     branch's. Left commands (base order) and new commands (head order) pair
     one to one."""
-    b_act = Counter(c for c, f in info["command_states"] if _active(c, f))
-    h_act = Counter(c for c, f in head_info["command_states"] if _active(c, f))
+    b_act = Counter(c for c, f in info["command_states"] if _active(c, f) and not f.get("async", False))
+    h_act = Counter(c for c, f in head_info["command_states"] if _active(c, f) and not f.get("async", False))
     head_strings = set(head_info["commands"])
     # Only a `#` command the diff added is the comment-out branch's; one
     # already at base pairs with nothing (review of 2026-10-10).
@@ -188,7 +209,7 @@ def _tally(states: list[tuple[str, dict[str, bool]]]) -> tuple[dict[str, int], d
     active: dict[str, int] = {}
     skipped: dict[str, int] = {}
     for command, flags in states:
-        bucket = skipped if any(flags.values()) else active
+        bucket = skipped if any(v for k, v in flags.items() if k != "async") else active
         bucket[command] = bucket.get(command, 0) + 1
     return active, skipped
 
@@ -307,6 +328,17 @@ def detect(
                 )
             continue
         fired = False
+        # Spec 37: async commands still execute, but lose refusal capability.
+        # Match occurrences by command string; adding a notifier is no bypass.
+        base_sync = Counter(c for c, f in info["command_states"] if _active(c, f) and not f.get("async", False))
+        head_sync = Counter(c for c, f in head_info["command_states"] if _active(c, f) and not f.get("async", False))
+        base_async = Counter(c for c, f in info["command_states"] if _active(c, f) and f.get("async", False))
+        head_async = Counter(c for c, f in head_info["command_states"] if _active(c, f) and f.get("async", False))
+        if any(head_sync[c] < n and head_async[c] > base_async[c] for c, n in base_sync.items()):
+            fired = True
+            add(rule="HOOK_BYPASSED", severity=escalate_stop("HOOK_BYPASSED", event, "warn"),
+                message=f"hook command for {event} made asynchronous", path=path,
+                before="synchronous", after="async:true", locator=f"{event}:async")
         if _command_skip_added(info, head_info):
             fired = True
             sev = escalate_stop("HOOK_BYPASSED", event, "warn")
