@@ -29,7 +29,7 @@ def validate_manifest(plan):
     common.validate_engines(plan["engines"])
     bundle = plan["engines_bundle"]
     if (bundle["path"] != "workloads/candidate_sessions/engines.bundle"
-            or bundle["refs"] != {"baseline": "refs/remotes/origin/main", "candidate": "refs/heads/codex/reconcile-candidates-20261022"}
+            or bundle["refs"] != {"baseline": "refs/remotes/origin/main", "candidate": "refs/heads/codex/env-evidence-candidate-20261022"}
             or not re.fullmatch(r"[0-9a-f]{64}", bundle["sha256"])):
         raise ValueError("engine bundle identity drift")
     ids = set()

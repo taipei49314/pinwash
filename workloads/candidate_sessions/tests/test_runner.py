@@ -80,6 +80,11 @@ class HarnessTests(unittest.TestCase):
 
     def test_unfrozen_engine_is_not_dispatchable(self):
         plan = common.decode((HERE / "cases.json").read_bytes())
+        runner.validate_manifest(plan)
+        wrong_ref = copy.deepcopy(plan)
+        wrong_ref["engines_bundle"]["refs"]["candidate"] = "refs/heads/codex/reconcile-candidates-20261022"
+        with self.assertRaisesRegex(ValueError, "engine bundle identity drift"):
+            runner.validate_manifest(wrong_ref)
         plan["engines"]["candidate"]["revision"] = "UNFROZEN"
         with self.assertRaises(ValueError):
             common.validate_engines(plan["engines"])
