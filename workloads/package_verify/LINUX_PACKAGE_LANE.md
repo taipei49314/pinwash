@@ -1,5 +1,16 @@
 # Proposed offline Linux package verification
 
+Current disposition (2026-10-22): the EC pool declaration remains proposed,
+but the PJU follow-up is complete for exact source
+`67b6e43d5c6e33fbd4efd515e6f7ef3ccebf775e`. A separately authorized review of
+preserved evidence recorded
+[`ACCEPTED_LOCAL_REVIEW`](https://github.com/taipei49314/estate-consolidation/blob/bca120d601e52c4a816a33d9204f4ca9bca1dac1/evidence/requests/7410783b-7e53-4b50-9dd4-f7664ef4ab2a/local-acceptance-decision.json).
+It did not repeat native execution or qualify EC pool/HOST50. The original
+attempt remains `FAIL_NOT_ACCEPTED`; the later review is a separate acceptance
+record. [T-572](https://github.com/taipei49314/estate-consolidation/blob/36811450e87fcc9e3f9c4db0381b5b97e4c1873f/governance/tasks/T-572.json)
+is DONE for its source-engineering scope, with the route dormant and registry
+unapproved. No release or rerun is pending under that task.
+
 `package-linux-verify` is a new proposed declaration. It is not admitted by the
 existing Windows `package-verify` / D127 registration and is not executed by the
 generic Windows dispatcher. No published 0.1.1 artifact is rebuilt or replaced
@@ -60,15 +71,28 @@ The date regression exposed a real difference between old and newer Git commit
 parsers, also affecting the published engine's compatibility assumptions. The
 candidate now refuses ambiguous commit metadata with exit 2, retaining the
 native Git oracle for common date semantics and every original regression case.
-This is an engine hardening change, not merely a test adjustment. It has no new
-native validation yet. Frozen acceptance gates, SPEC 29, rule IDs and severities
-remain unchanged. A new fixed approval package is required before any rerun.
+This is an engine hardening change, not merely a test adjustment. Frozen
+acceptance gates, SPEC 29, rule IDs and severities remain unchanged.
 
-The human selected PJU as the next validation target. A fresh fixed approval
-package is required; that selection alone is not an execution grant. Its local
-single-container route can validate the shared harness/PID1/package behavior.
-It cannot validate HOST50, four-helper named-volume custody, workload admission,
-remote receipt ACK or reset release. This declaration remains proposed.
+The subsequent PJU attempt `ab0f9444-831f-4f1f-a7c2-2cd11b335f85` ran source
+`67b6e43` and preserved two installed doctors with 690 tests each and zero
+failures/errors/skips/expected failures/unexpected successes/nested depth,
+package checks and exact container cleanup. Its result reader stopped at a
+stale expected judge fingerprint, so that attempt remains `FAIL_NOT_ACCEPTED`.
+
+Under a new explicit human decision, read-only review
+`9553247a-125e-4988-ae5b-80eb1153e472` independently derived the identity from
+the fixed source and verified the complete preserved evidence. The acceptance
+receipt linked above records driver, finalization and completion PASS, actual
+exit 0 and a tool return before the deadline. It accepts that exact source's
+local evidence as `HUMAN_AUTHORIZED_PJU_LINUX_PACKAGE_NOT_EC_POOL`; it neither
+rewrites the failed attempt nor repeats native execution.
+
+The earlier selection of PJU as the next target is therefore resolved for this
+source. A future execution needs a separate current task, fixed grant and
+prerequisite receipts. HOST50, four-helper named-volume custody, workload
+admission, remote receipt ACK and reset release remain unaccepted. This EC
+declaration remains proposed, and all previous one-time grants remain consumed.
 
 The published 0.1.1 wheel and sdist remain the original accepted bytes from
 `fdb3c4d`. Their embedded README and PyPI long description reflect that source's
