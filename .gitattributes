@@ -1,2 +1,3 @@
 live-fire/** -text
 workloads/live_fire_rejudge/** -text
+workloads/candidate_history_replay/** -text
