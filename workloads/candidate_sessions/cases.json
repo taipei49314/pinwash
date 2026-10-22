@@ -3407,19 +3407,19 @@
     },
     "candidate": {
       "engine_version": "0.1.1",
-      "revision": "c33d4a2572ba493b2ca0d5631bead2d41d39411c",
+      "revision": "dec428881f978c7ac3ffa4cbac0aaea81eeec4a8",
       "spec_sha256": "101fa89b35597ff86a3b4dd9c16a340af8fce1504ba0c0f5391affddccf93465",
       "spec_version": 37,
-      "tree": "96e5cd57a174ba31a34cec98764666d21ffe3895"
+      "tree": "edb9506551d59fe7d09783fc6cbf4e60ad16dbbe"
     }
   },
   "engines_bundle": {
     "path": "workloads/candidate_sessions/engines.bundle",
     "refs": {
       "baseline": "refs/remotes/origin/main",
-      "candidate": "refs/heads/codex/reconcile-candidates-20261022"
+      "candidate": "refs/heads/codex/env-evidence-candidate-20261022"
     },
-    "sha256": "f9b5f973abab394d51e5c38adc39200e887de1038e76e9a81a42cf3309781f4e"
+    "sha256": "3ad3e4d892d035664093b0ddd35b1c18079849e9eadc4dfc39bbb96228529357"
   },
   "expected_counts": {
     "cases": 40,

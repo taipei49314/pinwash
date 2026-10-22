@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 NAME = "candidate-sessions"
 # Freeze only after the candidate source and reviewed literal oracles are final.
-MANIFEST_SHA256 = "dce5bc4751a047c2f01df5d6cd07407ebfc41f51e41f13763bcd53ec8af60ef8"
+MANIFEST_SHA256 = "6bf8f7c501b3c45d4b79808fa5ee33e15085199a7231cf2c77434e18b83410a3"
 HARNESS_TESTS = 12
 spec = importlib.util.spec_from_file_location("validation_common", ROOT / "workloads/validation_common.py")
 common = importlib.util.module_from_spec(spec)

@@ -1,5 +1,21 @@
 # Spec 37 session validation — draft, NOT_RUN
 
+## Repaired candidate, original oracles
+
+The first run at harness `9649dd1023fcd855b63e6e94e66cafe57839e93a`
+([39770052764/1](https://github.com/taipei49314/estate-consolidation/actions/runs/39770052764))
+completed all 480 scans and 240 deterministic seed pairs but failed 32 literal
+oracles. Immutable receipt `ce0ffafecda2f04bdee21b983b146b1c255caccf` stays FAIL.
+SPEC37 requires canonical JSON env evidence; the old candidate printed internal
+equality tokens and therefore different fingerprints. Candidate `dec4288` repairs
+that product defect with an iterative serializer that retains the parser's depth
+and exact-number guarantees. SPEC, triggers, severity and fingerprint algorithm
+are unchanged. All 40 fixtures, literal expected fields/fingerprints, ranges,
+seeds and the oracle revision are unchanged. Only candidate revision/package
+tree and bundle identity/ref are repinned. This is a fresh preregistration;
+the repaired candidate has not yet run. Full source-suite/doctor testing remains
+separate and earlier full-suite failures are not waived.
+
 This replacement workload migrates 27 fixtures from exact #51 source
 `91c9796a0b8fc018362ed08ba7cb3f5478094adf` and adds eight prompt controls and
 five environment-composition controls.
@@ -9,7 +25,7 @@ to this dispatch's newly-created, validated scratch directory.
 
 Baseline is `ea185125565f2ef5b5b023c02039d1b00e40b462`, engine 0.1.1/spec 29.
 Candidate stays engine 0.1.1/spec 37 at
-`c33d4a2572ba493b2ca0d5631bead2d41d39411c`. This is no release.
+`dec428881f978c7ac3ffa4cbac0aaea81eeec4a8`. This is no release.
 The exact commit/package-tree/SPEC hash and literal oracles are frozen in the
 manifest, whose digest is pinned in run.py. A new EC declaration/dispatch must
 pin the resulting complete harness source SHA.
@@ -22,8 +38,8 @@ outside every subject repository and launched through its public `python -m
 pinwash check` CLI, with isolated trusted imports. Actual 0.1.1/version and
 29-versus-37 SPEC metadata are checked on every result; no hardcoded 0.0.0 remains.
 The newly generated `engines.bundle` names exact baseline `ea185125...` at
-`refs/remotes/origin/main` and candidate `c33d4a2...` at
-`refs/heads/codex/reconcile-candidates-20261022`. Its bytes and ref map are pinned.
+`refs/remotes/origin/main` and candidate `dec4288...` at
+`refs/heads/codex/env-evidence-candidate-20261022`. Its bytes and ref map are pinned.
 It is fetched only into this dispatch's owned scratch engine store, where both
 commit/package-tree/SPEC hashes are verified before exact-blob export. A shallow
 EC source checkout suffices and the dispatch source itself is never fetched into.
