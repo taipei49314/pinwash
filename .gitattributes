@@ -1,2 +1,4 @@
 live-fire/** -text
 workloads/live_fire_rejudge/** -text
+workloads/candidate_sessions/** -text
+workloads/validation_common.py -text
