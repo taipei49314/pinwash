@@ -40,6 +40,14 @@
       "timeout_minutes": 20,
       "cache": false,
       "parameters": {}
+    },
+    "candidate-history-replay": {
+      "description": "Offline SPEC37 reconciliation history compatibility replay from committed exact-source manifests. Preserve all 196 historical files and rebuild 90 formal worktrees plus one first-launch observational tree; formal HEAD equals fixed BASE 2354c96be0b9a390c7785ad3591d43c56278ada1, so formal committed ranges are empty. Use offline bundled baseline ea185125565f2ef5b5b023c02039d1b00e40b462 (0.1.1/spec29) and candidate dec428881f978c7ac3ffa4cbac0aaea81eeec4a8 (0.1.1/spec37), exact package/SPEC/input hashes and isolated trusted imports. Run 24 harness tests then91cases x2engines x3ranges x2seeds (1092 scans,546 pairs). Validate complete unique tuple/command inventory, every finding field and multiplicity, fingerprints, exact metadata, raw stdout/stderr/exit determinism and preregistered per-cell relational predictions; preserve observed rows and unknowns. Record execution, determinism and semantic acceptance separately, plus public consumer outcomes and conservative acceptance; original operator intent is provenance, never true labels or accuracy. Verify source/subject/export bytes and Git state before/after; clean only this dispatch owned scratch under EC_WORKLOAD_WORK with no symlinks/reparse/hardlinks. Stop launches after50minutes,60seconds per child,59minute internal deadline within60minute outer budget; unknown child cleanup retains scratch and fails. No retry, historical Temp recovery, network, subject execution, install, model/host probes, cache, publication, full product suite/doctor or Linux package claim.",
+      "entry": "workloads/candidate_history_replay/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 60,
+      "cache": false,
+      "parameters": {}
     }
   }
 }
