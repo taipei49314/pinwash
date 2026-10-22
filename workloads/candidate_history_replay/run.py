@@ -21,7 +21,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 NAME = "candidate-history-replay"
-MANIFEST_SHA256 = "54266ddb321d5517c4c01b304836ad3765e81b5583d54a0c065f3970a0e0ef3c"
+MANIFEST_SHA256 = "85fbea932028e538519722484eb7752357a654fd1b6b1c0fbf6cf796c2bc2dfb"
 SEEDS = ["1", "17"]
 RANGES = ["BASE..HEAD", "BASE..WORKTREE", "HEAD..WORKTREE"]
 BASE = "2354c96be0b9a390c7785ad3591d43c56278ada1"
@@ -34,13 +34,13 @@ EVENT_CELLS = {
     "round0/attack-mimo-v2.6-flash-free", "round0/attack-nemotron-3-ultra-free",
     "round2/attack-ling-3.0-flash-fin-free", "round3/attack-ling-3.0-flash-fin-free",
 }
-ENGINES = {'baseline': {'engine_version': '0.1.1', 'revision': 'ea185125565f2ef5b5b023c02039d1b00e40b462', 'spec_sha256': 'e31d7b466378f9358a5dbaf505cc8fb07c2c02093cc4daa24ac949666afd969b', 'spec_version': 29, 'tree': 'cb9fc9e73d67ca9376500dde61ee224f78428284'}, 'candidate': {'revision': 'c33d4a2572ba493b2ca0d5631bead2d41d39411c', 'tree': '96e5cd57a174ba31a34cec98764666d21ffe3895', 'spec_sha256': '101fa89b35597ff86a3b4dd9c16a340af8fce1504ba0c0f5391affddccf93465', 'engine_version': '0.1.1', 'spec_version': 37}}
+ENGINES = {'baseline': {'engine_version': '0.1.1', 'revision': 'ea185125565f2ef5b5b023c02039d1b00e40b462', 'spec_sha256': 'e31d7b466378f9358a5dbaf505cc8fb07c2c02093cc4daa24ac949666afd969b', 'spec_version': 29, 'tree': 'cb9fc9e73d67ca9376500dde61ee224f78428284'}, 'candidate': {'revision': 'dec428881f978c7ac3ffa4cbac0aaea81eeec4a8', 'tree': 'edb9506551d59fe7d09783fc6cbf4e60ad16dbbe', 'spec_sha256': '101fa89b35597ff86a3b4dd9c16a340af8fce1504ba0c0f5391affddccf93465', 'engine_version': '0.1.1', 'spec_version': 37}}
 HIST_MANIFEST_SHA256 = "04e4abbef8a1ed76c6350f1bb75e87b9804cb84b7fd5b5c362ca27514e65f5cd"
 WORKTREES_SHA256 = "5df532db137ef35f9c514bffdfa143ac97ea9a67378fdaabc086efe1e5bc4b03"
 SUPPORT = {'workloads/validation_common.py': '8ac1975899a73fce03a697f8ad0fec8fb444f5f73d416ddd64618053dd07a179'}
 ENGINE_BUNDLE = 'workloads/candidate_sessions/engines.bundle'
-ENGINE_BUNDLE_SHA256 = 'f9b5f973abab394d51e5c38adc39200e887de1038e76e9a81a42cf3309781f4e'
-ENGINE_REFS = {'baseline': 'refs/remotes/origin/main', 'candidate': 'refs/heads/codex/reconcile-candidates-20261022'}
+ENGINE_BUNDLE_SHA256 = '3ad3e4d892d035664093b0ddd35b1c18079849e9eadc4dfc39bbb96228529357'
+ENGINE_REFS = {'baseline': 'refs/remotes/origin/main', 'candidate': 'refs/heads/codex/env-evidence-candidate-20261022'}
 HARNESS_TESTS = 24
 
 spec = importlib.util.spec_from_file_location("history_validation_common", ROOT / "workloads/validation_common.py")

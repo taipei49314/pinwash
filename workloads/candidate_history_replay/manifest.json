@@ -2955,10 +2955,10 @@
     },
     "candidate": {
       "engine_version": "0.1.1",
-      "revision": "c33d4a2572ba493b2ca0d5631bead2d41d39411c",
+      "revision": "dec428881f978c7ac3ffa4cbac0aaea81eeec4a8",
       "spec_sha256": "101fa89b35597ff86a3b4dd9c16a340af8fce1504ba0c0f5391affddccf93465",
       "spec_version": 37,
-      "tree": "96e5cd57a174ba31a34cec98764666d21ffe3895"
+      "tree": "edb9506551d59fe7d09783fc6cbf4e60ad16dbbe"
     }
   },
   "expected_counts": {
@@ -2970,7 +2970,7 @@
   },
   "inputs": {
     "live-fire/MANIFEST.json": "04e4abbef8a1ed76c6350f1bb75e87b9804cb84b7fd5b5c362ca27514e65f5cd",
-    "workloads/candidate_sessions/engines.bundle": "f9b5f973abab394d51e5c38adc39200e887de1038e76e9a81a42cf3309781f4e",
+    "workloads/candidate_sessions/engines.bundle": "3ad3e4d892d035664093b0ddd35b1c18079849e9eadc4dfc39bbb96228529357",
     "workloads/live_fire_rejudge/expected_worktrees.json": "5df532db137ef35f9c514bffdfa143ac97ea9a67378fdaabc086efe1e5bc4b03",
     "workloads/validation_common.py": "8ac1975899a73fce03a697f8ad0fec8fb444f5f73d416ddd64618053dd07a179"
   },

@@ -1,5 +1,15 @@
 # Spec 29 → 37 historical comparison — preregistered, NOT_RUN
 
+This preregistration repins only the candidate package and its offline bundle
+after the separate session run `39770052764/1` exposed a canonical-JSON env
+evidence defect. Candidate `dec4288` fixes that defect while keeping SPEC37,
+trigger/severity logic and the fingerprint formula unchanged. The 91 historical
+fixtures, exact relational oracles, six permitted visibility additions, seeds
+and ranges remain unchanged. The first history run at harness
+`35731936613db014eaa499a6c85f42e778528a98` and candidate `c33d4a2` keeps its own
+receipt and result; it cannot accept this new candidate. No outcomes from that
+run were used to revise these oracles. This candidate requires a new pool run.
+
 This migrates reconstruction and safety checks from exact #52 source
 `69dae0b72da8b56e0654ea22f1988b0c637cbbec`. Original `live-fire/**` and
 `docs/batch2`/`docs/batch3` evidence remain immutable. Published judge records
@@ -8,7 +18,7 @@ cleanup authority are not reused.
 
 The independently frozen product comparison is baseline
 `ea185125565f2ef5b5b023c02039d1b00e40b462` (0.1.1/spec 29) versus candidate
-`c33d4a2572ba493b2ca0d5631bead2d41d39411c` (0.1.1/spec 37). Exact commit,
+`dec428881f978c7ac3ffa4cbac0aaea81eeec4a8` (0.1.1/spec 37). Exact commit,
 package-tree and SPEC hashes are in manifest.json and run.py. The complete
 harness source must receive its own new EC declaration and exact dispatch SHA.
 No release is implied by keeping engine version 0.1.1.
@@ -16,7 +26,7 @@ No release is implied by keeping engine version 0.1.1.
 Both product commits are shipped in the freshly generated, hash-pinned
 `workloads/candidate_sessions/engines.bundle`. Its baseline ref is
 `refs/remotes/origin/main`, candidate ref is
-`refs/heads/codex/reconcile-candidates-20261022`. Fetches go only into the new
+`refs/heads/codex/env-evidence-candidate-20261022`. Fetches go only into the new
 owned scratch engine store. Neither a shallow dispatch checkout nor the user's
 source is mutated to obtain product history. Every exported Git blob is verified
 against the frozen package/SPEC identities. Only narrow `validation_common.py`
