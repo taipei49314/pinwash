@@ -266,7 +266,8 @@ class EntryControls(RunnerFixture):
         collect.assert_not_called()
 
     def test_main_rejects_output_inside_source_or_work(self):
-        for out in (self.root / "result", self.work / "result", self.base):
+        for out in (self.root / "result", self.work / "result", self.base,
+                    self.out / ".." / "source"):
             with self.subTest(out=out):
                 env = dict(self.main_env(), EC_WORKLOAD_OUT=str(out))
                 with mock.patch.dict(os.environ, env), mock.patch.object(runner, "collect") as collect:

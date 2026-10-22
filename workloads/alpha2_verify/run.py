@@ -138,11 +138,16 @@ def main() -> int:
     parent = plain_directory(Path(os.environ["EC_WORKLOAD_WORK"]))
     if parent != ROOT.parent / "work":
         raise RuntimeError("workload work directory is not the EC job sibling")
-    out = Path(os.environ["EC_WORKLOAD_OUT"]).absolute()
+    requested_out = Path(os.environ["EC_WORKLOAD_OUT"]).absolute()
+    plain_directory(requested_out.parent)
+    try:
+        plain_directory(requested_out)
+    except FileNotFoundError:
+        pass  # Its parent already exists and was checked without following links.
+    out = requested_out.resolve()
     if (out.is_relative_to(ROOT) or ROOT.is_relative_to(out)
             or out.is_relative_to(parent) or parent.is_relative_to(out)):
         raise RuntimeError("workload output intersects source or work")
-    plain_directory(out.parent)
     out.mkdir(parents=True, exist_ok=True)
     plain_directory(out)
     env = dict(os.environ)
