@@ -1,16 +1,57 @@
 """Bounded global hook environment visibility; never execute a subject."""
 from __future__ import annotations
 import re
+from decimal import Decimal
 from typing import Any
 from pinwash.hooks import (CLAUDE_STOP_EVENTS, claude_handlers,
                            extract_event_hooks, is_claude_command_handler, stub_command)
 from pinwash.rules.hook_rules import live_command_stop_events
-from pinwash.textutil import canonical_text
+from pinwash.textutil import canonical_json, canonical_text
 
 GLOBAL_ENV = "hook global environment changed (not evaluated)"
 BASH_SOURCE = "hook BASH_ENV source changed (not evaluated)"
 KEYS = ("CLAUDE_CODE_SHELL_PREFIX", "BASH_ENV", "PATH")
 _MISSING = object()
+
+def _evidence(value: Any) -> str:
+    """Canonical JSON evidence for every value accepted by jsonsurf.
+
+    BASH_ENV's base value need not be a string. Preserve the surface parser's
+    depth and integer guarantees without printing its equality-only tokens.
+    Scalar JSON spelling (including the parser's nonfinite extensions) stays
+    the same as canonical_json; Decimal is jsonsurf's exact large integer.
+    """
+    parts: list[str] = []
+    stack = [(False, value)]
+    while stack:
+        token, item = stack.pop()
+        if token:
+            parts.append(item)
+        elif isinstance(item, dict):
+            parts.append("{")
+            stack.append((True, "}"))
+            keys = sorted(item)
+            for index in range(len(keys) - 1, -1, -1):
+                key = keys[index]
+                if index < len(keys) - 1:
+                    stack.append((True, ","))
+                stack.append((False, item[key]))
+                stack.append((True, canonical_json(key) + ":"))
+        elif isinstance(item, list):
+            parts.append("[")
+            stack.append((True, "]"))
+            for index in range(len(item) - 1, -1, -1):
+                if index < len(item) - 1:
+                    stack.append((True, ","))
+                stack.append((False, item[index]))
+        elif isinstance(item, bool) or item is None:
+            parts.append(canonical_json(item))
+        elif isinstance(item, (int, Decimal)):
+            parts.append(format(Decimal(item), "f"))
+        else:
+            parts.append(canonical_json(item))
+    return "".join(parts)
+
 
 def environment(doc: Any) -> dict[str, Any]:
     value = doc.get("env") if isinstance(doc, dict) else None
@@ -102,5 +143,5 @@ def detect(files, base_files, head_files, body_base, body_head, add, note_unknow
                             body_base=body_base) == 0)
             add(rule="HOOK_BYPASSED", severity="critical" if critical else "warn",
                 message=f"settings root env {env_key} disables bash-run hooks in a closed form",
-                path=path, before="" if bv is _MISSING else canonical_text(bv),
-                after=canonical_text(hv), locator=f"env.{env_key}")
+                path=path, before="" if bv is _MISSING else _evidence(bv),
+                after=_evidence(hv), locator=f"env.{env_key}")
