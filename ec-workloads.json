@@ -32,6 +32,14 @@
       "timeout_minutes": 60,
       "cache": false,
       "parameters": {}
+    },
+    "candidate-sessions": {
+      "description": "Offline SPEC37 reconciliation validation at exact dispatched source. Verify the frozen cases.json and bundled exact baseline ea185125565f2ef5b5b023c02039d1b00e40b462 (0.1.1/spec29) and candidate c33d4a2572ba493b2ca0d5631bead2d41d39411c (0.1.1/spec37), package trees and SPEC hashes. Run trusted harness tests and all 40 literal disposable Git cases across two engines, three ranges and hash seeds 1/17 (480 scans). Require the complete unique tuple matrix, source-authored complete finding fields and multiplicity, fingerprints, exact version/envelope/unknown rows, raw stdout/stderr/exit determinism, untouched subject canaries and source before/after. Report public consumer outcomes separately from conservative acceptance. Inputs are committed bytes only; use Python stdlib and Git with hooks disabled, offline engine bundle and isolated trusted imports. No subject execution, network, install, host/model probe, cache, publication or historical Temp recovery. Create and remove only this dispatch owned scratch under EC_WORKLOAD_WORK, reject redirections/hardlinks and retain failures/unrun tuples on uncertainty. This is synthetic source/CLI validation, not Linux package acceptance, held-out accuracy or a host/Python matrix.",
+      "entry": "workloads/candidate_sessions/run.py",
+      "profile": "profile-ec-integrity",
+      "timeout_minutes": 20,
+      "cache": false,
+      "parameters": {}
     }
   }
 }
