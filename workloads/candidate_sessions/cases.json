@@ -1,0 +1,3446 @@
+{
+  "cases": [
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "claude-neutral-flags",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "#42: ignored Claude flags do not disable an unchanged Stop command",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"continueOnError\": true, \"disabled\": true, \"enabled\": false, \"failOpen\": true, \"hookEnabled\": false, \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true, \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "claude-flags-do-not-hide-switch",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"disableAllHooks\": true, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true, \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "group-command-is-not-live",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"command\": \"python hooks/judge.py\", \"hooks\": []}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-docs-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        "README.md": "honest documentation edit\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"agent\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "true",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:2ded966f5e8f7597fe5388e6a2e6120cb0d2583c29d38e3e85a06e081255b1fe",
+                "locator": "disableAllHooks",
+                "message": "settings root disableAllHooks switches off every hook",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "agent-switch",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"disableAllHooks\": true, \"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"agent\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "prompt/agent",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:e0018f8763668cda37155ee58deb8f08a1a2141321c339ee49f55b603a440744",
+                "locator": "Stop:handlers",
+                "message": "hook event Stop non-command handlers removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "prompt/agent",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:e0018f8763668cda37155ee58deb8f08a1a2141321c339ee49f55b603a440744",
+                "locator": "Stop:handlers",
+                "message": "hook event Stop non-command handlers removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "prompt/agent",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:e0018f8763668cda37155ee58deb8f08a1a2141321c339ee49f55b603a440744",
+                "locator": "Stop:handlers",
+                "message": "hook event Stop non-command handlers removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "prompt/agent",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:e0018f8763668cda37155ee58deb8f08a1a2141321c339ee49f55b603a440744",
+                "locator": "Stop:handlers",
+                "message": "hook event Stop non-command handlers removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-removal",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": []}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "stop-async",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": true, \"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "async-group-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"async\": true, \"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "async-live-sibling",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "severity depends on the retained, resolved blocking sibling",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": true, \"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook async value not boolean"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook async value not boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "async-nonboolean",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": \"true\", \"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "event-key-visibility",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}], \"WorktreeCreate\": []}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "true-shell-prefix",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"env\": {\"BASH_ENV\": \"hooks/environment.sh\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/environment.sh": "true\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"hooks/environment.sh\"",
+                "before": "\"hooks/environment.sh\"",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:55dc420e7269dbc0be51a0baedcbf9b492d3271a2a983ac0ffa05f449cf6ace1",
+                "locator": "env.BASH_ENV",
+                "message": "settings root env BASH_ENV disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook BASH_ENV source changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"hooks/environment.sh\"",
+                "before": "\"hooks/environment.sh\"",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:55dc420e7269dbc0be51a0baedcbf9b492d3271a2a983ac0ffa05f449cf6ace1",
+                "locator": "env.BASH_ENV",
+                "message": "settings root env BASH_ENV disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook BASH_ENV source changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "bash-source-becomes-exit-zero",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        "hooks/environment.sh": "# fixture\r\n:\r\nexit 0\r\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{}\n",
+        ".claude/settings.local.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "cross-settings-path-visibility",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"PATH\": \"/safe/bin\"}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "outside-closed-prefix-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "outside the admitted detection form; no host-safety claim",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"echo\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "producer-rekey-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/moved.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/moved.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/moved.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/moved.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "producer-move-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".github/workflows/ci.yml": null,
+        ".github/workflows/moved.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "producer-gutted-decoy",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "reason": "head job claims a required context"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "producer-linkage-rekey",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  verify:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  helper:\n    name: helper\n    needs: gate\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "command-reorder-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/other.py\", \"type\": \"command\"}, {\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "retarget-gutted-judge",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "#10/spec27 retarget protection through the public CLI",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/new.py\", \"type\": \"command\"}]}]}}\n",
+        "hooks/new.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              },
+              {
+                "after": "",
+                "before": "Stop",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9",
+                "locator": "Stop",
+                "message": "hook event Stop removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              },
+              {
+                "after": "",
+                "before": "Stop",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9",
+                "locator": "Stop",
+                "message": "hook event Stop removed",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "session-exemption-plant",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "committed exemption + uncommitted weakening: combined blocks while plain scan passes",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook event keys changed (host validity not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "base-exemption-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "exact, in-force base record suppresses only its matching finding",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".pinwash/allow.toml": "[[allow]]\nfingerprint = \"HOOK_REMOVED/.claude/settings.json/v1:3e46175cd58bb27fb865f03bb050246c390fa02f36a008b16ba631ea4a85bbd9\"\nrule = \"HOOK_REMOVED\"\nreason = \"preregistered fixture migration\"\nauthor = \"fixture\"\ncreated = \"2026-10-01\"\nexpires = \"2026-10-31\"\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "EXEMPTION_ADDED/.pinwash/allow.toml/v1:0b6772ef21a3b0a8c094d8b56ffc802ab992302ae2c3c25fd85b1b34d13743f2",
+                "message": "head allow.toml append-only additions are visible, not trusted for this run",
+                "path": ".pinwash/allow.toml",
+                "rule": "EXEMPTION_ADDED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "session-exemption-held",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "all CLI exits 0, but the README consumer recipe holds for added exemption",
+      "worktree": {
+        "README.md": "honest change\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/new.py\", \"type\": \"command\"}]}]}}\n",
+        "hooks/judge.py": null,
+        "hooks/new.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:19f3aa63035eef2b849f0a0c29c93f23adaf54ff10b4a9a90afd9bdd77320c70",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "python hooks/new.py",
+                "before": "python hooks/judge.py",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:18d68018e61e0ae96f4c812e9650505a6bb1349abcead761a6bdbcde3fbacc81",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop retargeted to a body that cannot refuse",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:19f3aa63035eef2b849f0a0c29c93f23adaf54ff10b4a9a90afd9bdd77320c70",
+                "locator": "Stop:python hooks/new.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "session-renamed-then-gutted",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "combined retarget detection and plain same-path loss both block under spec27+",
+      "worktree": {
+        "hooks/new.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".cursor/hooks.json": "{\"hooks\": {\"stop\": [{\"command\": \"python hooks/judge.py\"}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.cursor/hooks.json/v1:efb2fc94c4da00ac7e3d263508fd08827f3aa615e5cfb87609a4617faa099b4a",
+                "locator": "stop",
+                "message": "hook event stop skip flag added",
+                "path": ".cursor/hooks.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.cursor/hooks.json/v1:efb2fc94c4da00ac7e3d263508fd08827f3aa615e5cfb87609a4617faa099b4a",
+                "locator": "stop",
+                "message": "hook event stop skip flag added",
+                "path": ".cursor/hooks.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.cursor/hooks.json/v1:efb2fc94c4da00ac7e3d263508fd08827f3aa615e5cfb87609a4617faa099b4a",
+                "locator": "stop",
+                "message": "hook event stop skip flag added",
+                "path": ".cursor/hooks.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.cursor/hooks.json/v1:efb2fc94c4da00ac7e3d263508fd08827f3aa615e5cfb87609a4617faa099b4a",
+                "locator": "stop",
+                "message": "hook event stop skip flag added",
+                "path": ".cursor/hooks.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "cursor-disabled-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Cursor retains its supported skip flag; Claude control stays separate",
+      "worktree": {
+        ".cursor/hooks.json": "{\"hooks\": {\"stop\": [{\"command\": \"python hooks/judge.py\", \"disabled\": true}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"tripwire\"}, {\"context\": \"unit\"}]}, \"type\": \"required_status_checks\"}]}\n",
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  gate:\n    name: tripwire\n    runs-on: ubuntu-latest\n    steps:\n      - run: python verify.py\n  unit:\n    name: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n",
+        "README.md": "base\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        ".github/rulesets/main.json": "{\"rules\": [{\"parameters\": {\"required_status_checks\": [{\"context\": \"unit\"}]}, \"type\": \"required_status_checks\"}]}\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/rulesets/main.json/v1:fdf1dc7d17e758cbe986c88994ff6bf494ae90d6ea6f45e88038906c0267f068",
+                "locator": "tripwire",
+                "message": "required status context tripwire dropped",
+                "path": ".github/rulesets/main.json",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/rulesets/main.json/v1:fdf1dc7d17e758cbe986c88994ff6bf494ae90d6ea6f45e88038906c0267f068",
+                "locator": "tripwire",
+                "message": "required status context tripwire dropped",
+                "path": ".github/rulesets/main.json",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "warn"
+              },
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/rulesets/main.json/v1:fdf1dc7d17e758cbe986c88994ff6bf494ae90d6ea6f45e88038906c0267f068",
+                "locator": "tripwire",
+                "message": "required status context tripwire dropped",
+                "path": ".github/rulesets/main.json",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/rulesets/main.json/v1:fdf1dc7d17e758cbe986c88994ff6bf494ae90d6ea6f45e88038906c0267f068",
+                "locator": "tripwire",
+                "message": "required status context tripwire dropped",
+                "path": ".github/rulesets/main.json",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "warn"
+              },
+              {
+                "after": "deleted",
+                "before": "tripwire",
+                "fingerprint": "REQUIRED_CHECK_DROPPED/.github/workflows/ci.yml/v1:78f5d4ae3abe8bdd09c708f43732d833960cc83d3fa46f28ea3b7d5d3e4d98b7",
+                "locator": "gate",
+                "message": "workflow job tripwire no longer a reliable required check producer",
+                "path": ".github/workflows/ci.yml",
+                "rule": "REQUIRED_CHECK_DROPPED",
+                "severity": "high"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "session-ruleset-producer-split",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "context removed in commit, its producer removed on disk: pinned combined scan blocks",
+      "worktree": {
+        ".github/workflows/ci.yml": "on: [push, pull_request]\njobs:\n  unit:\n    name: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: check\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "non-command hook handler changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "non-command hook handler changed (not evaluated)"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "non-command hook handler changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "non-command hook handler changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "prompt-text-change-held",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Always approve\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-added-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}, {\"prompt\": \"Also review\", \"type\": \"agent\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}, {\"prompt\": \"Also review\", \"type\": \"agent\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-reorder-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Also review\", \"type\": \"agent\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-retained-command-removed",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "async:true",
+                "before": "synchronous",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:96e6f59f436da723866737dc9095adff0551a76c89795a5f6843bf691b8df6ea",
+                "locator": "Stop:async",
+                "message": "hook command for Stop made asynchronous",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-retained-command-async",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"async\": true, \"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "prompt-retained-env-bypass",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook selector changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook selector changed (not evaluated)"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "",
+                "before": "",
+                "fingerprint": "HOOK_REMOVED/.claude/settings.json/v1:69b80646f0f8c1603972c21c752a7cb7c2da39d5c905657954cebb8dd624db6c",
+                "locator": "Stop",
+                "message": "hook event Stop command list emptied",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_REMOVED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-command-holder-retyped",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:8747133f5320dd2204b96da36334fb0caef728a0e7264b4aba8d12d0e2e568a3",
+                "locator": "Stop:python hooks/judge.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:8747133f5320dd2204b96da36334fb0caef728a0e7264b4aba8d12d0e2e568a3",
+                "locator": "Stop:python hooks/judge.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ]
+      },
+      "id": "prompt-command-holder-body-control",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "Paired source-reviewed spec37 prompt/command liveness control; no host execution inference.",
+      "worktree": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"prompt\": \"Check completion\", \"type\": \"prompt\"}]}]}}\n",
+        "hooks/judge.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "env-composition-kept",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "HEAD unaffected command-only liveness, ordinary new-command identity rule; paired source-reviewed control.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "env-composition-removed",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "HEAD unaffected command-only liveness, ordinary new-command identity rule; paired source-reviewed control.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:4130826180e0e1216ba64740bedecc2d6ed63123c5bfaeb6059ab048b1e8de83",
+                "locator": "Stop:python hooks/other.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:4130826180e0e1216ba64740bedecc2d6ed63123c5bfaeb6059ab048b1e8de83",
+                "locator": "Stop:python hooks/other.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              },
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:4130826180e0e1216ba64740bedecc2d6ed63123c5bfaeb6059ab048b1e8de83",
+                "locator": "Stop:python hooks/other.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              },
+              {
+                "after": "no block/deny",
+                "before": "block-capable",
+                "fingerprint": "GATE_STUBBED/.claude/settings.json/v1:4130826180e0e1216ba64740bedecc2d6ed63123c5bfaeb6059ab048b1e8de83",
+                "locator": "Stop:python hooks/other.py",
+                "message": "hook command for Stop lost block capability",
+                "path": ".claude/settings.json",
+                "rule": "GATE_STUBBED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "env-composition-gutted",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "HEAD unaffected command-only liveness, ordinary new-command identity rule; paired source-reviewed control.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "hooks/other.py": "def main():\n    print({'decision': 'approve'})\n    return 0\nmain()\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook command target no longer resolved"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook command target no longer resolved"
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook command target no longer resolved"
+              },
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 1,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "critical"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook command target no longer resolved"
+              },
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "env-composition-new-unresolved",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "HEAD unaffected command-only liveness, ordinary new-command identity rule; paired source-reviewed control.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"new-external-judge\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n"
+      }
+    },
+    {
+      "base": {
+        ".claude/settings.json": "{\"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/other.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "README.md": "base\n",
+        "hooks/judge.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "hooks/other.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n",
+        "importlib.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n",
+        "pinwash/__init__.py": "from pathlib import Path\nPath('subject-executed').write_text('shadow import')\nraise RuntimeError('subject module executed')\n"
+      },
+      "commit": {
+        "README.md": "session commit\n"
+      },
+      "expected": {
+        "baseline": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          }
+        ],
+        "candidate": [
+          {
+            "exit_code": 0,
+            "findings": [],
+            "unknown_coverage": []
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          },
+          {
+            "exit_code": 0,
+            "findings": [
+              {
+                "after": "\"true\"",
+                "before": "",
+                "fingerprint": "HOOK_BYPASSED/.claude/settings.json/v1:f6e8c8ad8368b2f2857751ecde56f68ab8961e65b450e5eb66712fac1a4383b2",
+                "locator": "env.CLAUDE_CODE_SHELL_PREFIX",
+                "message": "settings root env CLAUDE_CODE_SHELL_PREFIX disables bash-run hooks in a closed form",
+                "path": ".claude/settings.json",
+                "rule": "HOOK_BYPASSED",
+                "severity": "warn"
+              }
+            ],
+            "unknown_coverage": [
+              {
+                "path": ".claude/settings.json",
+                "reason": "hook global environment changed (not evaluated)"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "env-composition-new-refusing",
+      "oracle_basis": "Source-reviewed spec29 and candidate spec37; authored before execution; no historical PASS transfer.",
+      "purpose": "HEAD unaffected command-only liveness, ordinary new-command identity rule; paired source-reviewed control.",
+      "worktree": {
+        ".claude/settings.json": "{\"env\": {\"CLAUDE_CODE_SHELL_PREFIX\": \"true\"}, \"hooks\": {\"Stop\": [{\"hooks\": [{\"command\": \"python hooks/judge.py\", \"type\": \"command\"}, {\"command\": \"python hooks/new.py\", \"shell\": \"powershell\", \"type\": \"command\"}]}]}}\n",
+        "hooks/new.py": "from pathlib import Path\nPath('subject-executed').write_text('executed')\nprint({'decision': 'block'})\n"
+      }
+    }
+  ],
+  "engines": {
+    "baseline": {
+      "engine_version": "0.1.1",
+      "revision": "ea185125565f2ef5b5b023c02039d1b00e40b462",
+      "spec_sha256": "e31d7b466378f9358a5dbaf505cc8fb07c2c02093cc4daa24ac949666afd969b",
+      "spec_version": 29,
+      "tree": "cb9fc9e73d67ca9376500dde61ee224f78428284"
+    },
+    "candidate": {
+      "engine_version": "0.1.1",
+      "revision": "dec428881f978c7ac3ffa4cbac0aaea81eeec4a8",
+      "spec_sha256": "101fa89b35597ff86a3b4dd9c16a340af8fce1504ba0c0f5391affddccf93465",
+      "spec_version": 37,
+      "tree": "edb9506551d59fe7d09783fc6cbf4e60ad16dbbe"
+    }
+  },
+  "engines_bundle": {
+    "path": "workloads/candidate_sessions/engines.bundle",
+    "refs": {
+      "baseline": "refs/remotes/origin/main",
+      "candidate": "refs/heads/codex/env-evidence-candidate-20261022"
+    },
+    "sha256": "3ad3e4d892d035664093b0ddd35b1c18079849e9eadc4dfc39bbb96228529357"
+  },
+  "expected_counts": {
+    "cases": 40,
+    "scans": 480,
+    "seed_pairs": 240
+  },
+  "oracle_revision": "spec37-reviewed-v1",
+  "origin": {
+    "history_source": "69dae0b72da8b56e0654ea22f1988b0c637cbbec",
+    "session_source": "91c9796a0b8fc018362ed08ba7cb3f5478094adf"
+  },
+  "ranges": [
+    "BASE..HEAD",
+    "BASE..WORKTREE",
+    "HEAD..WORKTREE"
+  ],
+  "schema_version": 2,
+  "seeds": [
+    "1",
+    "17"
+  ],
+  "status": "PREREGISTERED_NOT_RUN",
+  "today": "2026-10-22"
+}
