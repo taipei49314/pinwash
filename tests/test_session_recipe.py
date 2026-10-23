@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import unittest
@@ -96,7 +97,7 @@ class WorktreeRangeToken(_CLIIntegration):
                 proc = self._raw(repo, range_arg)
                 self.assertEqual(proc.returncode, 2, proc.stdout)
                 self.assertEqual(proc.stdout, b"")
-                self.assertEqual(proc.stderr, b"pinwash: invalid range\n")
+                self.assertEqual(proc.stderr, ("pinwash: invalid range" + os.linesep).encode("utf-8"))
 
     def test_a_ref_named_worktree_is_spelled_in_full(self) -> None:
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS})
@@ -116,7 +117,7 @@ class WorktreeRangeToken(_CLIIntegration):
             with self.subTest(range_arg=range_arg):
                 proc = self._raw(repo, range_arg)
                 self.assertEqual(proc.returncode, 2, proc.stdout)
-                self.assertEqual(proc.stderr, b"pinwash: invalid range\n")
+                self.assertEqual(proc.stderr, ("pinwash: invalid range" + os.linesep).encode("utf-8"))
         full, full_payload = self._check(repo, f"{base}...refs/heads/WORKTREE")
         self._assert_exit(full, full_payload, 1)
 

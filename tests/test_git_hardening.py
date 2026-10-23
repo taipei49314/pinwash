@@ -384,7 +384,14 @@ class ForgedObjectsExit2(_Lab):
         self.object_path(repo, blob).rename(self.object_path(other, blob))
         self.forge(other, blob, "blob", EMPTY.encode())
         alternates = repo / ".git" / "objects" / "info" / "alternates"
-        alternates.write_text(str(other / ".git" / "objects") + "\n", encoding="utf-8")
+        alternates.write_bytes(((other / ".git" / "objects").as_posix() + "\n").encode("utf-8"))
+        # Prove that native Git actually reaches the forged alternate;
+        # a missing object is not a successful hash-mismatch regression.
+        forged = subprocess.run(
+            ["git", "cat-file", "blob", blob], cwd=repo, env=_git_env(),
+            capture_output=True, check=True,
+        )
+        self.assertEqual(forged.stdout, EMPTY.encode())
         self.assertExit2(self.check(repo, f"{base}..HEAD"), self.MISMATCH)
 
 
@@ -680,7 +687,9 @@ class ShallowClones(_Lab):
             gone = rnd.sample(commits[:150], 12)
             saved = {oid: self.object_path(repo, oid).read_bytes() for oid in gone}
             for oid in gone:
-                self.object_path(repo, oid).unlink()
+                path = self.object_path(repo, oid)
+                path.chmod(0o644)  # Git's owned fixture objects are readonly on Windows.
+                path.unlink()
             with gitrepo._Store(repo, gitrepo._Format(b"sha1")) as store:
                 for pair in pairs:
                     try:
@@ -797,7 +806,7 @@ class CommitDates(_Lab):
             b" 1760000500": 1760000500, b"  \t\r1760000500": 1760000500,
             b" 1760000500x": 1760000500, b" 017": 17, b" -5": top - 4,
             b" - 5": 0, b" 99999999999999999999999": top,
-            b" -99999999999999999999999": top,
+            b" -18446744073709551615": 1,
         }
         for raw, want in cases.items():
             body = (b"tree " + tree + b"\nauthor a <a@a> 1 +0000\ncommitter c <c@c>"
@@ -809,7 +818,11 @@ class CommitDates(_Lab):
             self.assertEqual(bool(since), want >= 1760000400, raw)
         ambiguous = [
             b"committer c <c@c>" + raw + b" +0000\n\nm\n"
-            for raw in (b"\v1760000500", b"\f1760000500", b" +1760000500", b"", b" \xff1760000500")
+            for raw in (
+                b"\v1760000500", b"\f1760000500", b" +1760000500", b"", b" \xff1760000500",
+                b" -18446744073709551616", b" -18446744073709551617",
+                b" -99999999999999999999999",
+            )
         ] + [
             b"committer c <c@c> \n\n1760000500\n",
             b"committer c <c@c> 1760000500 +0000\n",

@@ -974,7 +974,7 @@ class _GitCli(unittest.TestCase):
         for rel, text in files.items():
             full = repo / rel
             full.parent.mkdir(parents=True, exist_ok=True)
-            full.write_text(text, encoding="utf-8")
+            full.write_bytes(text.encode("utf-8"))
 
     def _check(self, repo: Path, *args: str) -> tuple[int, dict[str, Any] | None, str]:
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}

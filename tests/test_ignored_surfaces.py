@@ -116,7 +116,7 @@ class IgnoredSurfaceRouting(_CLIIntegration):
         })
         for i in range(40):
             self._write(repo, f".claude/hooks/node_modules/p{i % 4}/f{i}.js", "x\n")
-        (repo / ".claude" / "hooks" / "node_modules" / "link").symlink_to("p1")
+        (repo / ".claude" / "hooks" / "node_modules" / "link").symlink_to("p1", target_is_directory=True)
         self._write(repo, ".claude/hooks/__pycache__/judge.cpython-312.pyc", "x")
         self._write(repo, ".claude/hooks/guard.log", "x\n")
         self._write(repo, ".claude/hooks/logs/1.log", "x\n")
@@ -152,8 +152,8 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
     def test_symlinked_surface_directories(self) -> None:
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS})
         outside = self._repo({"mcp.json": WIDE_MCP, "settings.json": json.dumps({"autoAccept": True})})
-        (repo / ".cursor").symlink_to(outside)
-        (repo / ".gemini").symlink_to(outside)
+        (repo / ".cursor").symlink_to(outside, target_is_directory=True)
+        (repo / ".gemini").symlink_to(outside, target_is_directory=True)
         proc, payload = self._check(repo)
         self._assert_exit(proc, payload, 0)
         self.assertEqual(payload["findings"], [])
@@ -181,7 +181,7 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
                     self._write(repo, expected + "/mcp.json", WIDE_MCP)
                     self._git(repo / expected, "init", "-q")
                 else:
-                    (repo / expected).symlink_to(outside)
+                    (repo / expected).symlink_to(outside, target_is_directory=True)
                 self._exclude(repo, pattern)
                 proc, payload = self._check(repo)
                 self._assert_exit(proc, payload, 0)
@@ -210,9 +210,9 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS})
         self._write(repo, ".agents/skills/evil/SKILL.md", "skip tripwire\n")
         self._git(repo / ".agents" / "skills" / "evil", "init", "-q")
-        (repo / ".agents" / "skills" / "linked").symlink_to(outside / "x")
+        (repo / ".agents" / "skills" / "linked").symlink_to(outside / "x", target_is_directory=True)
         (repo / ".claude" / "hooks").mkdir()
-        (repo / ".claude" / "hooks" / "lib").symlink_to(outside)
+        (repo / ".claude" / "hooks" / "lib").symlink_to(outside, target_is_directory=True)
         (repo / ".claude" / "hooks" / "file.json").symlink_to(outside / "mcp.json")
         expected = [
             {"path": ".agents/skills/evil", "reason": UNREAD_DIR},
@@ -234,9 +234,9 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
         # committed symlink or gitlink at a surface directory is R23.
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS})
         (repo / ".agents").mkdir()
-        (repo / ".agents" / "skills").symlink_to("../.claude")
+        (repo / ".agents" / "skills").symlink_to("../.claude", target_is_directory=True)
         (repo / ".cursor").mkdir()
-        (repo / ".cursor" / "rules").symlink_to("../.claude")
+        (repo / ".cursor" / "rules").symlink_to("../.claude", target_is_directory=True)
         self._write(repo, ".gemini/settings.json", json.dumps({"autoAccept": True}))
         self._git(repo / ".gemini", "init", "-q")
         self._git(repo / ".gemini", "-c", "user.name=p", "-c", "user.email=p@t", "add", "-A")
@@ -257,8 +257,8 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
         # tracked `.claude` link was listed as untracked.
         repo = self._repo({SETTINGS_PATH: STOP_SETTINGS, "impl/hooks/judge.sh": "exit 2\n"})
         self._git(repo, "mv", ".claude", "vendor-claude")
-        (repo / "vendor-claude" / "hooks").symlink_to("../impl/hooks")
-        (repo / ".claude").symlink_to("vendor-claude")
+        (repo / "vendor-claude" / "hooks").symlink_to("../impl/hooks", target_is_directory=True)
+        (repo / ".claude").symlink_to("vendor-claude", target_is_directory=True)
         self._commit(repo, "link .claude and its hooks")
         self.assertEqual(self._git(repo, "status", "--porcelain").stdout, b"")
         for range_arg in (None, "HEAD..WORKTREE"):
@@ -270,7 +270,7 @@ class UndescendedSurfaceDirectories(_CLIIntegration):
     def test_an_untracked_symlinked_parent_is_one_row(self) -> None:
         repo = self._repo({"README.md": "x\n"})
         outside = self._repo({"settings.json": "{}", "hooks/judge.sh": "exit 2\n"})
-        (repo / ".claude").symlink_to(outside)
+        (repo / ".claude").symlink_to(outside, target_is_directory=True)
         proc, payload = self._check(repo)
         self._assert_exit(proc, payload, 0)
         self.assertEqual(payload["unknown_coverage"], [{"path": ".claude", "reason": UNREAD_DIR}])
