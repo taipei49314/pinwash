@@ -705,6 +705,11 @@ def _commit_date(buf: bytes, start: int) -> int:
     value = int(buf[first:digits])
     top = (1 << 64) - 1
     if value > top:
+        # Native Git's unsigned conversion of an overflowing negative
+        # timestamp differs across runtimes. Its queue ordering can select
+        # a merge base, so preserve the existing ambiguous-metadata refusal.
+        if negative:
+            raise GitError(_AMBIGUOUS_COMMIT_DATE)
         return top
     return (-value) & top if negative else value
 

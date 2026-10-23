@@ -1,8 +1,12 @@
 # Release and source versions
 
-As of 2026-10-19, the current published package is **0.1.1 / SPEC 29**.
+As of 2026-10-22, the current published package is **0.1.1 / SPEC 29**.
 Record the exact source, spec version and artifact hash with a result; the
 version or filename alone does not identify accepted bytes.
+
+The unreleased PR #50–52 reconciliation retains package version 0.1.1 and
+advances the source contract to SPEC37. It changes no published artifact.
+See [current reconciliation and exact-source validation](validation-current/RECONCILIATION.md).
 
 | Track | Package version | Spec | Exact source | Publication |
 |---|---|---|---|---|
@@ -71,16 +75,16 @@ No product tests or builds were run for this subsequent documentation update.
 
 ## Historical text in the frozen SPEC
 
-The released [SPEC](../SPEC.md) header still says engine `0.0.0`, not a Release
+The [SPEC in the released source](https://github.com/taipei49314/pinwash/blob/fdb3c4d753d637e89aba5a22372d61dc2c292939/SPEC.md) header still says engine `0.0.0`, not a Release
 and not on PyPI; its §7 envelope example also uses `0.0.0`. Those publication
 descriptions are historical. The current package facts are recorded above.
 SPEC remains authoritative for rules, surfaces, severity, fingerprints, exit
 codes and determinism.
 
 The SPEC preamble requires a spec-version bump and fixture re-run for any edit
-to that file. This documentation update leaves its bytes and version 29
-unchanged. Correcting the historical descriptions inside SPEC belongs in a
-separately validated spec change.
+to that file. The published SPEC29 bytes remain unchanged. The unreleased
+SPEC37 reconciliation corrects the current source description and is validated
+separately; its results do not replace historical package acceptance.
 
 ## Other work remains separate
 
@@ -97,12 +101,31 @@ list. Issues #42/#45, draft PRs #50–52 and outstanding live/native acceptance
 retain their existing status. This documentation reconciliation runs no
 product, changes no frozen SPEC or published bytes, and grants no dispatch.
 
+### Post-release source: separate local evidence acceptance
+
+Source `67b6e43d5c6e33fbd4efd515e6f7ef3ccebf775e`, merged through PR #60,
+adds the offline package harness and rejects Git-version-ambiguous committer
+metadata with exit 2. It is not the source of the published 0.1.1 artifacts.
+The PJU attempt `ab0f9444` remains `FAIL_NOT_ACCEPTED` because its result reader
+used a stale expected judge fingerprint. A later, separately authorized review
+`9553247a` independently derived the source identity and checked the preserved
+evidence, yielding
+[`ACCEPTED_LOCAL_REVIEW`](https://github.com/taipei49314/estate-consolidation/blob/bca120d601e52c4a816a33d9204f4ca9bca1dac1/evidence/requests/7410783b-7e53-4b50-9dd4-f7664ef4ab2a/local-acceptance-decision.json).
+No native execution was repeated. This accepts only the named source's PJU
+local evidence; it grants no publication or EC pool/HOST50 acceptance. See the
+[Linux package lane record](../workloads/package_verify/LINUX_PACKAGE_LANE.md)
+for the chronology and remaining scope. The published tag and package hashes
+above remain unchanged.
+
+### Reconciled candidate stack
+
 Drafts [#50](https://github.com/taipei49314/pinwash/pull/50),
 [#51](https://github.com/taipei49314/pinwash/pull/51) and
-[#52](https://github.com/taipei49314/pinwash/pull/52) retain an older SPEC 28–36
-stack. Their numbering overlaps the merged specs 28–29 and their evidence
-belongs to their original SHAs. They are outside this release. Reconnecting
-that stack requires resolving the overlap and reviewing the remaining changes.
+[#52](https://github.com/taipei49314/pinwash/pull/52) originally used a SPEC28–36
+stack whose numbering overlaps the merged specs28–29. Their old evidence
+belongs to the original SHAs. The current source reconciles these changes as
+SPEC37 against main, with new frozen expectations and separate EC testing.
+They remain outside this release; current validation is linked above.
 
 The [release procedure](RELEASE.md) records completed uploads. The publisher
 workflow is fixed to exact tag `v0.1.1`; its environment was read back with

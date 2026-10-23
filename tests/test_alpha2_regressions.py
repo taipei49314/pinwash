@@ -29,6 +29,10 @@ def _rules(payload: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def _hooks(event: str, entries: list[dict[str, Any]]) -> str:
+    # Spec 37: Claude commands are direct handlers, while Cursor stays flat.
+    if event in ("Stop", "PreToolUse"):
+        entries = [{"hooks": [entry]} if "command" in entry and "hooks" not in entry else entry
+                   for entry in entries]
     return json.dumps({"hooks": {event: entries}})
 
 

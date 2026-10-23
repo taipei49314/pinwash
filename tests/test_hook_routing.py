@@ -193,13 +193,18 @@ class HookStopLiveness(unittest.TestCase):
         self.assertEqual(_rules(payload), [("GATE_STUBBED", "critical")])
         self.assertEqual(payload["unknown_coverage"], [])
 
-    def test_unresolved_on_both_sides_without_a_stop_finding_reports_no_row(self) -> None:
+    def test_unresolved_stop_adds_no_liveness_row_but_event_loss_is_visible(self) -> None:
         stop = ["npx tripwire-judge"]
         base = _events({"Stop": stop, "PreToolUse": ["npx guard"]})
         head = _events({"Stop": stop})
         payload = _scan({CS: base}, {CS: head})
         self.assertEqual(_rules(payload), [("HOOK_REMOVED", "warn")])
-        self.assertEqual(payload["unknown_coverage"], [])
+        # SPEC37 §5.1.1 reports the changed event-key set independently of
+        # Stop liveness. Keep the complete exact row, not a filtered subset.
+        self.assertEqual(payload["unknown_coverage"], [{
+            "path": CS,
+            "reason": "hook event keys changed (host validity not evaluated)",
+        }])
         unchanged = _scan({CS: head}, {CS: head})
         self.assertEqual((unchanged["findings"], unchanged["unknown_coverage"]), ([], []))
 
@@ -299,7 +304,10 @@ class SelectorRow(unittest.TestCase):
 
     def test_if_type_and_nested_matcher_are_rows(self) -> None:
         self._row_only(self._pre("Bash"), self._pre("Bash", _cmd(GUARD, **{"if": "Bash(nosuch *)"})))
-        self._row_only(self._pre("Bash"), self._pre("Bash", {"type": "disabled", "command": GUARD}))
+        # Spec 37: an unsupported handler type is no command to compare.
+        payload = _scan(self._pre("Bash"), self._pre("Bash", {"type": "disabled", "command": GUARD}))
+        self.assertEqual(_rules(payload), [("HOOK_REMOVED", "warn")])
+        self.assertEqual(payload["unknown_coverage"], [])
         self._row_only(self._pre("Bash"), self._pre("NoSuchTool", _cmd(GUARD, matcher="*")))
 
     def test_same_targets_spelled_differently_is_the_same_command(self) -> None:
@@ -712,7 +720,7 @@ class DisableAllHooksRow(unittest.TestCase):
         on = {CS: _settings(T, root={"disableAllHooks": True}), "hooks/judge.py": REAL}
         payload = _scan(on, {CS: json.dumps({"disableAllHooks": True, "hooks": {}})})
         self.assertEqual(_rules(payload), [("HOOK_REMOVED", "critical")])
-        self.assertEqual(_reasons(payload), [DAH])
+        self.assertEqual(_reasons(payload), sorted([DAH, "hook event keys changed (host validity not evaluated)"]))
 
     def test_cursor_hooks_has_no_such_row(self) -> None:
         base = {CH: json.dumps({"version": 1, "hooks": {"stop": [{"command": T}]}}), "hooks/judge.py": REAL}
